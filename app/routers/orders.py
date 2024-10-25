@@ -339,6 +339,7 @@ async def read_orders(
         
     elif has_invoice == 0:
         query == query.where(Order.attachments == '[]')
+        
     # Sorting
     if flag:
         query = query.order_by(Order.date.desc())
@@ -453,6 +454,8 @@ async def get_orders_count(
     status: int = Query(-1, description="Status of the order"),
     search_text: str = Query('', description="Text for searching"),
     warehouse_id: int = Query('', description="warehoues_id"),
+    has_invoice: int = Query(-1, description="Has invoice or not"),
+    awb_status: str = Query('', description="AWB status"),
     user: User = Depends(get_current_user), 
     db: AsyncSession = Depends(get_db)
 ):
@@ -468,7 +471,8 @@ async def get_orders_count(
         
     Internal_productAlias = aliased(Internal_Product)
     ProductAlias = aliased(Product)
-
+    AWBAlias = aliased(AWB)
+    
     query = select(Order).filter(
         (cast(Order.id, String).ilike(f"%{search_text}%")) |
         (Order.payment_mode.ilike(f"%{search_text}%")) |
@@ -478,9 +482,27 @@ async def get_orders_count(
         (Order.proforms.ilike(f"%{search_text}%"))
     )
     
+    if awb_status:
+        status_list = [int(status.strip()) for status in awb_status.split(",")]
+        query = query.outerjoin(
+            AWBAlias,
+            and_(
+                AWBAlias.order_id == Order.id,
+                AWBAlias.number > 0,
+            )
+        ).where(AWBAlias.awb_status == any_(status_list))
+        query = query.distinct()
+    
     # Apply status filter if needed 
     if status != -1:
         query = query.where(Order.status == status)
+    
+    if has_invoice == 1:
+        query = query.where(Order.attachments != '[]')
+        
+    elif has_invoice == 0:
+        query == query.where(Order.attachments == '[]')
+        
     query = query.where(Order.user_id == user_id)
     # Execute query
     
