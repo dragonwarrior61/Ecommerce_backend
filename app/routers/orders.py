@@ -454,6 +454,7 @@ async def get_orders_count(
     status: int = Query(-1, description="Status of the order"),
     search_text: str = Query('', description="Text for searching"),
     warehouse_id: int = Query('', description="warehoues_id"),
+    no_stock: bool = Query(False, description="No stock"),
     has_invoice: int = Query(-1, description="Has invoice or not"),
     awb_status: str = Query('', description="AWB status"),
     user: User = Depends(get_current_user), 
@@ -508,7 +509,8 @@ async def get_orders_count(
     
     query = query.join(ProductAlias, and_(ProductAlias.id == any_(Order.product_id), ProductAlias.product_marketplace == Order.order_market_place, ProductAlias.user_id == Order.user_id))
     query = query.join(Internal_productAlias, Internal_productAlias.ean == ProductAlias.ean)
-    
+    if no_stock:
+        query = query.filter(Internal_productAlias.stock == 0)
     if warehouse_id == -1:
         query = query.filter(Internal_productAlias.warehouse_id != 0)
         query = query.group_by(Order.id, Order.user_id)  # Group by Order.id or other relevant columns
