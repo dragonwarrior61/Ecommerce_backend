@@ -289,6 +289,8 @@ async def read_orders(
     search_text: str = Query('', description="Text for searching"),
     warehouse_id: int = Query('', description="warehouse_id"),
     no_stock: bool = Query(False, description="No stock"),
+    has_invoice: int = Query(-1, description="Has invoice or not"),
+    awb_status: str = Query('', description="AWB status"),
     user: User = Depends(get_current_user), 
     db: AsyncSession = Depends(get_db)
 ):
@@ -304,6 +306,8 @@ async def read_orders(
     
     Internal_productAlias = aliased(Internal_Product)
     ProductAlias = aliased(Product)
+    AWBAlias = aliased(AWB)
+    
     offset = (page - 1) * items_per_page
 
     query = select(Order).filter(
@@ -315,10 +319,26 @@ async def read_orders(
         (Order.proforms.ilike(f"%{search_text}%"))
     )
     
+    if awb_status:
+        status_list = [int(status.strip()) for status in awb_status.split(",")]
+        query = query.outerjoin(
+            AWBAlias,
+            and_(
+                AWBAlias.order_id == Order.id,
+                AWBAlias.number > 0,
+            )
+        ).where(AWBAlias.awb_status == any_(status_list))
+        query = query.distinct()
+    
     # Apply status filter if needed 
     if status != -1:
         query = query.where(Order.status == status)
 
+    if has_invoice == 1:
+        query = query.where(Order.attachments != '[]')
+        
+    elif has_invoice == 0:
+        query == query.where(Order.attachments == '[]')
     # Sorting
     if flag:
         query = query.order_by(Order.date.desc())
@@ -361,7 +381,7 @@ async def read_orders(
 
     awb_query = select(AWB).where(cast(AWB.order_id, BigInteger) == any_(order_ids), AWB.number >= 0)
     awb_result = await db.execute(awb_query)
-    awbs = awb_result.scalars().all()
+    awbs = awb_result.scalars().all() 
 
     awb_dict = defaultdict(list)
     for awb in awbs:
