@@ -13,6 +13,7 @@ class Review(Base):
     moderated_by = Column(Text, nullable=True)
     rating = Column(Integer, nullable=True)
     brand_id = Column(Integer, nullable=True)
+    admin_id = Column(Integer, nullable=True)
     review_marketplace = Column(Text, nullable=True)   
 
     __table_args__ = (
