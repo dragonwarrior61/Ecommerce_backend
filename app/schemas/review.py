@@ -13,7 +13,7 @@ class ReviewBase(BaseModel):
     rating: Optional[int] = None
     brand_id: Optional[int] = None
     review_marketplace: Optional[str] = None
-    admin_id = Optional[int] = None
+    admin_id: Optional[int] = None
 class ReviewCreate(ReviewBase):
     pass
 
