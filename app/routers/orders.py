@@ -338,7 +338,7 @@ async def read_orders(
         query = query.where(Order.attachments != '[]')
         
     elif has_invoice == 0:
-        query == query.where(Order.attachments == '[]')
+        query = query.where(Order.attachments == '[]')
         
     # Sorting
     if flag:
@@ -502,7 +502,7 @@ async def get_orders_count(
         query = query.where(Order.attachments != '[]')
         
     elif has_invoice == 0:
-        query == query.where(Order.attachments == '[]')
+        query = query.where(Order.attachments == '[]')
         
     query = query.where(Order.user_id == user_id)
     # Execute query
