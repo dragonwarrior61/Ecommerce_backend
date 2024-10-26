@@ -10,7 +10,7 @@ from app.backup import export_to_csv, upload_to_google_sheets
 from app.database import get_db
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.utils.emag_products import refresh_emag_products, post_stock_emag
-from app.utils.emag_orders import refresh_emag_orders, refresh_emag_all_orders
+from app.utils.emag_orders import refresh_emag_orders, refresh_emag_all_orders, refresh_months_emag_orders
 from app.utils.emag_returns import refresh_emag_returns
 from app.utils.emag_reviews import refresh_emag_reviews
 from app.utils.emag_awbs import *
@@ -213,6 +213,23 @@ async def refresh_orders_data(db:AsyncSession = Depends(get_db)):
                     await refresh_emag_products(marketplace)
                     logging.info("Refresh orders from marketplace")
                     await refresh_emag_orders(marketplace)
+                    
+@app.on_event("startup")
+@repeat_every(seconds=28800)
+async def refresh_months_order(db:AsyncSession = Depends(get_db)):
+    async for db in get_db():
+        async with db as session:
+            logging.info("Starting orders refresh")
+            result = await session.execute(select(Marketplace).order_by(Marketplace.id.asc()))
+            marketplaces = result.scalars().all()
+            logging.info(f"Success getting {len(marketplaces)} marketplaces")
+            for marketplace in marketplaces:
+                if marketplace.marketplaceDomain == "altex.ro":
+                    logging.info("Refresh orders from marketplace")
+                    await refresh_altex_orders(marketplace)
+                else:
+                    logging.info("Refresh orders from marketplace")
+                    await refresh_months_emag_orders(marketplace)
 
 # @app.on_event("startup")
 # @repeat_every(seconds=900)

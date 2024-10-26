@@ -51,6 +51,33 @@ def count_orders(MARKETPLACE_API_URL, ORDERS_ENDPOINT, COUNT_ENGPOINT, API_KEY, 
         logging.info(f"Failed to retrieve orders: {response.status_code}")
         return None
     
+def count_months_orders(MARKETPLACE_API_URL, ORDERS_ENDPOINT, COUNT_ENGPOINT, API_KEY, PUBLIC_KEY=None, usePublicKey=False):
+    url = f"{MARKETPLACE_API_URL}{ORDERS_ENDPOINT}/{COUNT_ENGPOINT}"
+    if usePublicKey is False:
+        api_key = str(API_KEY).replace("b'", '').replace("'", "")
+        headers = {
+            "Authorization": f"Basic {api_key}",
+            "Content-Type": "application/json"
+        }
+    else:
+        headers = {
+            "X-Request-Public-Key": f"{PUBLIC_KEY}",
+            "X-Request-Signature": f"{API_KEY}"
+        }
+
+    modifiedAfter_date = datetime.datetime.today() - datetime.timedelta(days=180)
+    modifiedAfter_date = modifiedAfter_date.strftime('%Y-%m-%d')
+    data = json.dumps({
+        "modifiedAfter": modifiedAfter_date
+    })
+    response = requests.post(url, data=data, headers=headers)
+    if response.status_code == 200:
+        logging.info("success to count orders")
+        return response.json()
+    else:
+        logging.info(f"Failed to retrieve orders: {response.status_code}")
+        return None
+    
 def count_all_orders(MARKETPLACE_API_URL, ORDERS_ENDPOINT, COUNT_ENGPOINT, API_KEY, PUBLIC_KEY=None, usePublicKey=False):
     url = f"{MARKETPLACE_API_URL}{ORDERS_ENDPOINT}/{COUNT_ENGPOINT}"
     if usePublicKey is False:
@@ -100,6 +127,45 @@ def get_orders(MARKETPLACE_API_URL, ORDERS_ENDPOINT, READ_ENDPOINT,  API_KEY, cu
         }
 
     modifiedAfter_date = datetime.datetime.today() - datetime.timedelta(days=3)
+    modifiedAfter_date = modifiedAfter_date.strftime('%Y-%m-%d')
+    
+    data = json.dumps({
+        "itemsPerPage": 100,
+        "currentPage": currentPage,
+        "modifiedAfter": modifiedAfter_date
+    })
+    MAX_RETRIES = 5
+    retry_delay = 5  # seconds
+
+    for attempt in range(MAX_RETRIES):
+        try:
+            response = requests.post(url, data=data, headers=headers, timeout=20)
+            if response.status_code == 200:
+                return response.json()
+            else:
+                logging.info(f"Failed to retrieve orders: {response.status_code}")
+                return None
+        except requests.Timeout:
+            logging.warning(f"Request timed out. Attempt {attempt + 1} of {MAX_RETRIES}. Retrying...")
+            time.sleep(retry_delay)
+    logging.error("All attempts failed. Could not retrieve orders.")
+    return None
+
+def get_months_orders(MARKETPLACE_API_URL, ORDERS_ENDPOINT, READ_ENDPOINT,  API_KEY, currentPage, PUBLIC_KEY=None, usePublicKey=False):
+    url = f"{MARKETPLACE_API_URL}{ORDERS_ENDPOINT}/{READ_ENDPOINT}"
+    if usePublicKey is True:
+        headers = {
+            "X-Request-Public-Key": f"{PUBLIC_KEY}",
+            "X-Request-Signature": f"{API_KEY}"
+        }
+    elif usePublicKey is False:
+        api_key = str(API_KEY).replace("b'", '').replace("'", "")
+        headers = {
+            "Authorization": f"Basic {api_key}",
+            "Content-Type": "application/json"
+        }
+
+    modifiedAfter_date = datetime.datetime.today() - datetime.timedelta(days=180)
     modifiedAfter_date = modifiedAfter_date.strftime('%Y-%m-%d')
     
     data = json.dumps({
@@ -454,6 +520,43 @@ async def refresh_emag_orders(marketplace: Marketplace):
             try:
                 while currentPage <= int(pages):
                     orders = get_orders(baseAPIURL, endpoint, read_endpoint, API_KEY, currentPage)
+                    print(f">>>>>>> Current Page : {currentPage} <<<<<<<<")
+                    if orders and orders['isError'] == False:
+                        # await insert_orders_into_db(orders['results'], customer_table, orders_table, marketplace.marketplaceDomain)
+                        await insert_orders(orders['results'], marketplace)
+                    currentPage += 1
+            except Exception as e:
+                print('++++++++++++++++++++++++++++++++++++++++++')
+                print(e)
+
+async def refresh_months_emag_orders(marketplace: Marketplace):
+    # create_database()
+
+    logging.info(f">>>>>>> Refreshing Marketplace : {marketplace.title} user is {marketplace.user_id} <<<<<<<<")
+    orders_table = f"{marketplace.marketplaceDomain.replace('.', '_')}_orders".lower()
+    
+    settings.orders_table_name.append(orders_table)
+
+    if marketplace.credentials["type"] == "user_pass":
+        USERNAME = marketplace.credentials["firstKey"]
+        PASSWORD = marketplace.credentials["secondKey"]
+        API_KEY = base64.b64encode(f"{USERNAME}:{PASSWORD}".encode('utf-8'))
+        result = count_months_orders(marketplace.baseAPIURL, marketplace.orders_crud["endpoint"], marketplace.orders_crud["count"], API_KEY)
+        if result:
+            pages = result['results']['noOfPages']
+            items = result['results']['noOfItems']
+
+            logging.info(f"Number of Pages: {pages}")
+            logging.info(f"Number of Items: {items}")
+
+            # currentPage = int(pages)
+            currentPage = 1
+            baseAPIURL = marketplace.baseAPIURL
+            endpoint = marketplace.orders_crud['endpoint']
+            read_endpoint = marketplace.orders_crud['read']
+            try:
+                while currentPage <= int(pages):
+                    orders = get_months_orders(baseAPIURL, endpoint, read_endpoint, API_KEY, currentPage)
                     print(f">>>>>>> Current Page : {currentPage} <<<<<<<<")
                     if orders and orders['isError'] == False:
                         # await insert_orders_into_db(orders['results'], customer_table, orders_table, marketplace.marketplaceDomain)
