@@ -22,6 +22,7 @@ class InvoicesBase(BaseModel):
     number: Optional[str] = None
     series: Optional[str] = None
     url: Optional[str] = None
+    type: Optional[str] = None
     user_id: Optional[int] = None
     
 class InvoicesCreate(InvoicesBase):

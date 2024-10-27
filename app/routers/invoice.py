@@ -12,7 +12,7 @@ from app.models.team_member import Team_member
 from app.utils.emag_invoice import post_pdf
 from app.models.billing_software import Billing_software
 from app.schemas.invoice import InvoicesCreate, InvoicesRead, InvoicesUpdate
-from app.utils.smart_api import generate_invoice, download_pdf
+from app.utils.smart_api import generate_invoice, download_pdf, cancel_invoice_smartbill
 import json
 import logging
 
@@ -94,6 +94,22 @@ async def download_invoice(cif: str, seriesname: str, number: str, user: User = 
     db_smartbill = result.scalars().first()
     
     return download_pdf(cif, seriesname, number, db_smartbill)
+
+@router.get("/cancel_invoice")
+async def cancel_invoice(cif: str, seriesname: str, number: str, user: User = Depends(get_current_user), db:AsyncSession = Depends(get_db)):
+    if user.role == -1:
+        raise HTTPException(status_code=401, detail="Authentication error")
+    if user.role != 4:
+        result = await db.execute(select(Team_member).where(Team_member.user == user.id))
+        db_team = result.scalars().first()
+        user_id = db_team.admin
+    else:
+        user_id = user.id
+        
+    result = await db.execute(select(Billing_software).where(Billing_software.user_id == user_id, Billing_software.site_domain == "smartbill.ro"))
+    db_smartbill = result.scalars().first()
+    
+    return cancel_invoice_smartbill(cif, seriesname, number, db_smartbill)
 
 @router.get('/post_pdf')
 async def post_invoice(order_id: int, marketplace: str, name: str, user: User = Depends(get_current_user), db:AsyncSession = Depends(get_db)):

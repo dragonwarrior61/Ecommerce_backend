@@ -102,3 +102,27 @@ def download_pdf(cif: str, seriesname: str, number: str, smartbill: Billing_soft
         return StreamingResponse(content, media_type=response.headers['Content-Type']) 
     else:
         return response
+
+
+def cancel_invoice_smartbill(cif: str, seriesname: str, number: str, smartbill: Billing_software):
+    USERNAME = smartbill.username
+    PASSWORD = smartbill.password
+    credentials = base64.b64encode(f"{USERNAME}:{PASSWORD}".encode()).decode()
+    url = "https://ws.smartbill.ro/SBORO/api/invoice/cancel"
+    headers = {
+        "Authorization": f"Basic {credentials}",
+        "accept": "application/json",
+    }
+    
+    params = {
+        "cif": cif,
+        "seriesname": seriesname,
+        "number": number
+    }
+    
+    response = requests.put(url, headers=headers, params=params)
+    
+    if response.status_code == 200:
+        return response.json().get("message")
+    else:
+        return response.json()
