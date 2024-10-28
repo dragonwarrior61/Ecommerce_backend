@@ -122,7 +122,4 @@ def cancel_invoice_smartbill(cif: str, seriesname: str, number: str, smartbill: 
     
     response = requests.put(url, headers=headers, params=params)
     
-    if response.status_code == 200:
-        return response.json().get("message")
-    else:
-        return response.json()
+    return response

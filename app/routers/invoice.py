@@ -109,7 +109,16 @@ async def cancel_invoice(cif: str, seriesname: str, number: str, user: User = De
     result = await db.execute(select(Billing_software).where(Billing_software.user_id == user_id, Billing_software.site_domain == "smartbill.ro"))
     db_smartbill = result.scalars().first()
     
-    return cancel_invoice_smartbill(cif, seriesname, number, db_smartbill)
+    resopnse = cancel_invoice_smartbill(cif, seriesname, number, db_smartbill)
+    if resopnse.status_code == 200:
+        result = await db.execute(select(Invoice).where(Invoice.number == number))
+        db_invoice = result.scalars().first()
+        db_invoice.type = 'Cancel'
+        await db.commit()
+        cancel_response = resopnse.json()
+        return cancel_response.get("message")
+    else:
+        return resopnse
 
 @router.get('/post_pdf')
 async def post_invoice(order_id: int, marketplace: str, name: str, user: User = Depends(get_current_user), db:AsyncSession = Depends(get_db)):

@@ -291,6 +291,7 @@ async def read_orders(
     no_stock: bool = Query(False, description="No stock"),
     has_invoice: int = Query(-1, description="Has invoice or not"),
     awb_status: str = Query('', description="AWB status"),
+    has_cancel: int = Query(-1, description="Has cnacelled"),
     user: User = Depends(get_current_user), 
     db: AsyncSession = Depends(get_db)
 ):
@@ -307,6 +308,7 @@ async def read_orders(
     Internal_productAlias = aliased(Internal_Product)
     ProductAlias = aliased(Product)
     AWBAlias = aliased(AWB)
+    InvoiceAlias = aliased(Invoice)
     
     offset = (page - 1) * items_per_page
 
@@ -339,6 +341,26 @@ async def read_orders(
         
     elif has_invoice == 0:
         query = query.where(Order.attachments == '[]')
+    
+    if has_cancel == 1:
+        query = query.join(
+            InvoiceAlias,
+            and_(
+                InvoiceAlias.order_id == Order.id,
+                InvoiceAlias.user_id == Order.user_id,
+                InvoiceAlias.type == 'Cancel'
+            )
+        ).where(Order.attachments.ilike('Storno'))
+    elif has_cancel == 0:
+        query = query.join(
+            InvoiceAlias,
+            and_(
+                InvoiceAlias.order_id == Order.id,
+                InvoiceAlias.user_id == Order.user_id,
+                InvoiceAlias.type == 'Post'
+            )
+        ).where(Order.attachments.ilike('Storno'))
+        
         
     # Sorting
     if flag:
