@@ -11,6 +11,7 @@ from app.models.user import User
 from app.routers.auth import get_current_user
 from app.models.product import Product
 from app.models.invoice import Invoice
+from app.models.reverse_invoice import Reverse_Invoice
 from app.models.team_member import Team_member
 from app.models.internal_product import Internal_Product
 from app.models.awb import AWB
@@ -18,7 +19,7 @@ from app.models.marketplace import Marketplace
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.config import settings
-from sqlalchemy import any_, and_
+from sqlalchemy import any_, and_, or_, not_
 from sqlalchemy import cast, String, BigInteger
 from decimal import Decimal
 from collections import defaultdict
@@ -295,6 +296,8 @@ async def read_orders(
     user: User = Depends(get_current_user), 
     db: AsyncSession = Depends(get_db)
 ):
+    if has_cancel != -1:
+        awb_status = ''
     if user.role == -1:
         raise HTTPException(status_code=401, detail="Authentication error")
     
@@ -308,7 +311,7 @@ async def read_orders(
     Internal_productAlias = aliased(Internal_Product)
     ProductAlias = aliased(Product)
     AWBAlias = aliased(AWB)
-    InvoiceAlias = aliased(Invoice)
+    Reverse_InvoiceAlias = aliased(Reverse_Invoice)
     
     offset = (page - 1) * items_per_page
 
@@ -342,25 +345,38 @@ async def read_orders(
     elif has_invoice == 0:
         query = query.where(Order.attachments == '[]')
     
-    if has_cancel == 1:
-        query = query.join(
-            InvoiceAlias,
+    if has_cancel != -1:
+        query = query.outerjoin(
+            AWBAlias,
             and_(
-                InvoiceAlias.order_id == Order.id,
-                InvoiceAlias.user_id == Order.user_id,
-                InvoiceAlias.type == 'Cancel'
+                AWBAlias.order_id == Order.id,
+                AWBAlias.number > 0
             )
-        ).where(Order.attachments.ilike('Storno'))
-    elif has_cancel == 0:
-        query = query.join(
-            InvoiceAlias,
-            and_(
-                InvoiceAlias.order_id == Order.id,
-                InvoiceAlias.user_id == Order.user_id,
-                InvoiceAlias.type == 'Post'
-            )
-        ).where(Order.attachments.ilike('Storno'))
+        ).where(or_(Order.status == 5, AWBAlias.awb_status == any_([16, 35, 93])))
         
+        query = query.outerjoin(
+            Reverse_InvoiceAlias,
+            and_(
+                Reverse_InvoiceAlias.order_id == Order.id,
+                Reverse_InvoiceAlias.user_id == Order.user_id
+            )
+        )
+        if has_cancel == 1:
+            query = query.where(
+                or_(
+                    Order.attachments.ilike("%storno%"),
+                    Reverse_InvoiceAlias.id != None
+                )
+            )
+        if has_cancel == 0:
+            query = query.where(
+                not_(
+                    or_(
+                        Order.attachments.ilike("%storno%"),
+                        Reverse_InvoiceAlias.id != None
+                    )
+                )
+            )
         
     # Sorting
     if flag:

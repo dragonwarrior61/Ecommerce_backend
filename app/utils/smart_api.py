@@ -123,3 +123,29 @@ def cancel_invoice_smartbill(cif: str, seriesname: str, number: str, smartbill: 
     response = requests.put(url, headers=headers, params=params)
     
     return response
+
+def reverse_invoice_smartbill(cif: str, seriesname: str, factura_number:str, smartbill: Billing_software):
+    USERNAME = smartbill.username
+    PASSWORD = smartbill.password
+    credentials = base64.b64encode(f"{USERNAME}:{PASSWORD}".encode()).decode()
+    
+    today = datetime.today()
+    today = today.strftime("%Y-%m-%d")
+    
+    url = "https://ws.smartbill.ro/SBORO/api/invoice/reverse"
+    
+    headers = {
+        "Authorization": f"Basic {credentials}",
+        "accept": "application/json",
+    }
+    
+    params = {
+        "cif": cif,
+        "seriesname": seriesname,
+        "number": factura_number,
+        "issueDate": today
+    }
+    
+    response = requests.post(url, headers=headers, params=params)
+    
+    return response
