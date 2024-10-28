@@ -419,7 +419,7 @@ async def read_orders(
     
     order_ids = [order.id for order in db_orders]
 
-    awb_query = select(AWB).where(cast(AWB.order_id, BigInteger) == any_(order_ids), AWB.number >= 0)
+    awb_query = select(AWB).where(cast(AWB.order_id, BigInteger) == any_(order_ids), AWB.number >= 0, AWB.user_id == user_id)
     awb_result = await db.execute(awb_query)
     awbs = awb_result.scalars().all() 
 
@@ -427,7 +427,7 @@ async def read_orders(
     for awb in awbs:
         awb_dict[awb.order_id].append(awb)
 
-    invoice_query = select(Invoice).where(cast(Invoice.order_id, BigInteger) == any_(order_ids), Invoice.replacement_id == 0)
+    invoice_query = select(Invoice).where(cast(Invoice.order_id, BigInteger) == any_(order_ids), Invoice.replacement_id == 0, Invoice.user_id == user_id)
     invoice_result = await db.execute(invoice_query)
     invoices = invoice_result.scalars().all()
 
@@ -435,6 +435,14 @@ async def read_orders(
     for invoice in invoices:
         invoice_dict[invoice.order_id].append(invoice)
 
+    reverse_invoice_query = select(Reverse_Invoice).where(cast(Reverse_Invoice.order_id, BigInteger) == any_(order_ids), Reverse_Invoice.user_id == user_id)
+    reverse_invoice_result = await db.execute(reverse_invoice_query)
+    reverse_invoices = reverse_invoice_result.scalars().all()
+    
+    reverse_invoice_dict = defaultdict(list)
+    for reverse_invoice in reverse_invoices:
+        reverse_invoice_dict[reverse_invoice.order_id].append(reverse_invoice)
+        
     orders_data = []
 
     for db_order in db_orders:
@@ -483,7 +491,8 @@ async def read_orders(
             "product_name": product_name,
             "stock": stock,
             "awb": awb_dict[db_order.id],
-            "invoice": invoice_dict[db_order.id]
+            "invoice": invoice_dict[db_order.id],
+            "reverse_invoice": reverse_invoice_dict[db_order.id]
         })
 
     return orders_data

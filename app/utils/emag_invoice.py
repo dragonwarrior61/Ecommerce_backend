@@ -13,6 +13,7 @@ import time
 import logging
 from app.models.marketplace import Marketplace
 from sqlalchemy.dialects.postgresql import insert
+from app.utils.emag_orders import change_status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 from app.database import get_db
@@ -42,6 +43,11 @@ def post_pdf(order_id: int, name: str, marketplace: Marketplace):
         "type": 1,
         "force_download": 1
     }
+    result = change_status(order_id, marketplace)
     response = requests.post(url, data=json.dumps(data), headers=headers)
-    return response.json()
+    return {
+        "change_status": result,
+        "post_status": response.json()
+    }
+    
 

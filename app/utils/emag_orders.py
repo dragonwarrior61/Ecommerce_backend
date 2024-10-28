@@ -603,3 +603,33 @@ async def refresh_emag_all_orders(marketplace: Marketplace, db:AsyncSession):
         except Exception as e:
             print('++++++++++++++++++++++++++++++++++++++++++')
             print(e)
+            
+def change_status(order_id: int, marketplace: Marketplace):
+    USERNAME = marketplace.credentials["firstKey"]
+    PASSWORD = marketplace.credentials["secondKey"]
+    API_KEY = base64.b64encode(f"{USERNAME}:{PASSWORD}".encode('utf-8'))
+    url = f"{marketplace.baseAPIURL}order/read"
+    
+    api_key = str(API_KEY).replace("b'", '').replace("'", "")
+    headers = {
+        "Authorization": f"Basic {api_key}",
+        "Content-Type": "application/json"
+    }
+    
+    data = json.dumps({
+        "order_id": order_id
+    })
+    response = requests.post(url, data=data, headers=headers)
+    if response.status_code != 200:
+        return response.json()
+    result = response.json()
+    order = result.get('results')[0]
+    order['status'] = 5
+    order = [order]
+    
+    save_url = f"{marketplace.baseAPIURL}order/save"
+    save_data = json.dumps(order)
+    
+    save_response = requests.post(save_url, data=save_data, headers=headers)
+    return save_response.json()
+        
