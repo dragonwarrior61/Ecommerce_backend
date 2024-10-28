@@ -8,7 +8,7 @@ from app.models.reverse_invoice import Reverse_Invoice
 from app.models.user import User
 from app.models.team_member import Team_member
 from app.models.billing_software import Billing_software
-from app.utils.smart_api import reverse_invoice_smartbill
+from app.utils.smart_api import reverse_invoice_smartbill, download_storno_pdf
 from app.routers.auth import get_current_user
 from app.schemas.reverse_invoice import Reverse_InvoiceCreate, Reverse_InvoiceRead, Reverse_InvoiceUpdate
 
@@ -50,3 +50,18 @@ async def create_reverse_invoice(reverse_invoice: Reverse_InvoiceCreate, user: U
     await db.refresh(db_reverse_invoice)
     return db_reverse_invoice
 
+@router.get('/download_pdf')
+async def download_invoice(cif: str, seriesname: str, number: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    if user.role == -1:
+        raise HTTPException(status_code=401, detail="Authentication error")
+    if user.role != 4:
+        result = await db.execute(select(Team_member).where(Team_member.user == user.id))
+        db_team = result.scalars().first()
+        user_id = db_team.admin
+    else:
+        user_id = user.id
+        
+    result = await db.execute(select(Billing_software).where(Billing_software.user_id == user_id, Billing_software.site_domain == "smartbill.ro"))
+    db_smartbill = result.scalars().first()
+    
+    return download_storno_pdf(cif, seriesname, number, db_smartbill)
