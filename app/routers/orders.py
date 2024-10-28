@@ -298,6 +298,7 @@ async def read_orders(
 ):
     if has_cancel != -1:
         awb_status = ''
+        status = -1
     if user.role == -1:
         raise HTTPException(status_code=401, detail="Authentication error")
     
@@ -494,10 +495,14 @@ async def get_orders_count(
     warehouse_id: int = Query('', description="warehoues_id"),
     no_stock: bool = Query(False, description="No stock"),
     has_invoice: int = Query(-1, description="Has invoice or not"),
+    has_cancel: int = Query(-1, description="Has storno invoice or not"),
     awb_status: str = Query('', description="AWB status"),
     user: User = Depends(get_current_user), 
     db: AsyncSession = Depends(get_db)
 ):
+    if has_cancel != -1:
+        status == -1
+        awb_status = ''
     if user.role == -1:
         raise HTTPException(status_code=401, detail="Authentication error")
     
@@ -511,7 +516,7 @@ async def get_orders_count(
     Internal_productAlias = aliased(Internal_Product)
     ProductAlias = aliased(Product)
     AWBAlias = aliased(AWB)
-    
+    Reverse_InvoiceAlias = aliased(Reverse_Invoice)
     query = select(Order).filter(
         (cast(Order.id, String).ilike(f"%{search_text}%")) |
         (Order.payment_mode.ilike(f"%{search_text}%")) |
@@ -542,6 +547,40 @@ async def get_orders_count(
     elif has_invoice == 0:
         query = query.where(Order.attachments == '[]')
         
+        
+    if has_cancel != -1:
+        query = query.outerjoin(
+            AWBAlias,
+            and_(
+                AWBAlias.order_id == Order.id,
+                AWBAlias.number > 0
+            )
+        ).where(or_(Order.status == 5, AWBAlias.awb_status == any_([16, 35, 93])))
+        
+        query = query.outerjoin(
+            Reverse_InvoiceAlias,
+            and_(
+                Reverse_InvoiceAlias.order_id == Order.id,
+                Reverse_InvoiceAlias.user_id == Order.user_id
+            )
+        )
+        if has_cancel == 1:
+            query = query.where(
+                or_(
+                    Order.attachments.ilike("%storno%"),
+                    Reverse_InvoiceAlias.id != None
+                )
+            )
+        if has_cancel == 0:
+            query = query.where(
+                not_(
+                    or_(
+                        Order.attachments.ilike("%storno%"),
+                        Reverse_InvoiceAlias.id != None
+                    )
+                )
+            )
+            
     query = query.where(Order.user_id == user_id)
     # Execute query
     
