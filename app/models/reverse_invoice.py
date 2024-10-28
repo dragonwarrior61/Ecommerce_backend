@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, Text, DateTime, ARRAY, Numeric, Boolean
 from app.database import Base
 
 class Reverse_Invoice(Base):
-    __tablename__ = "invoices"
+    __tablename__ = "reverse_invoices"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     replacement_id = Column(Integer, nullable=True, index=True)
