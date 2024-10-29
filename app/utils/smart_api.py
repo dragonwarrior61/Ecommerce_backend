@@ -177,6 +177,8 @@ def reverse_invoice_smartbill(seriesname: str, factura_number:str, smartbill: Bi
         "issueDate": today
     }
     
+    logging.info(f"params: {params}")
+    
     response = requests.post(url, headers=headers, params=params)
     
     return response

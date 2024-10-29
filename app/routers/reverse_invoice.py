@@ -13,6 +13,7 @@ from app.utils.smart_api import reverse_invoice_smartbill, download_storno_pdf
 from app.utils.emag_invoice import post_pdf
 from app.routers.auth import get_current_user
 from app.schemas.reverse_invoice import Reverse_InvoiceCreate, Reverse_InvoiceRead, Reverse_InvoiceUpdate
+import logging
 
 router = APIRouter()
 
