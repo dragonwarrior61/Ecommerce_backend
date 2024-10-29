@@ -37,7 +37,7 @@ async def create_reverse_invoice(reverse_invoice: Reverse_InvoiceCreate, user: U
     result = await db.execute(select(Billing_software).where(Billing_software.user_id == user_id, Billing_software.site_domain == 'smartbill.ro'))
     smartbill = result.scalars().first()
     db_reverse_invoice.companyVatCode = smartbill.registration_number
-    response = reverse_invoice_smartbill(db_reverse_invoice.companyVatCode, db_reverse_invoice.seriesName, db_reverse_invoice.factura_number, smartbill)
+    response = reverse_invoice_smartbill(db_reverse_invoice.seriesName, db_reverse_invoice.factura_number, smartbill)
     if response.status_code != 200:
         return response.json()
     
