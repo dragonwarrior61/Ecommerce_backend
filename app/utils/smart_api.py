@@ -172,8 +172,8 @@ def reverse_invoice_smartbill(seriesname: str, factura_number: str, smartbill: B
     cif = smartbill.registration_number
     
     data = ({
-        "cif": cif,
-        "seriesname": seriesname,
+        "companyVatCode": cif,
+        "seriesName": seriesname,
         "number": factura_number,
         "issueDate": today
     })
