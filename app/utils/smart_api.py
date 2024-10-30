@@ -164,8 +164,9 @@ def reverse_invoice_smartbill(seriesname: str, factura_number: str, smartbill: B
     url = "https://ws.smartbill.ro/SBORO/api/invoice/reverse"
     
     headers = {
-        "Authorization": f"Basic {credentials}",
         "accept": "application/json",
+        "authorization": f"Basic {credentials}",
+        "content-type": "application/json"
     }
     
     cif = smartbill.registration_number
@@ -176,7 +177,7 @@ def reverse_invoice_smartbill(seriesname: str, factura_number: str, smartbill: B
         "number": factura_number,
         "issueDate": today
     })
-    
+    logging.info(data)
     response = requests.post(url, headers=headers, data=data)
     
     return response
