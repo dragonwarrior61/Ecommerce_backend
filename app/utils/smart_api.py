@@ -153,7 +153,7 @@ def cancel_invoice_smartbill(cif: str, seriesname: str, number: str, smartbill: 
     
     return response
 
-def reverse_invoice_smartbill(seriesname: str, factura_number:str, smartbill: Billing_software):
+def reverse_invoice_smartbill(seriesname: str, factura_number: str, smartbill: Billing_software):
     USERNAME = smartbill.username
     PASSWORD = smartbill.password
     credentials = base64.b64encode(f"{USERNAME}:{PASSWORD}".encode()).decode()
