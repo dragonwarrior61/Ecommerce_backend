@@ -141,7 +141,7 @@ def download_pdf_server(seriesname: str, number: str, name: str, smartbill: Bill
     
     response = requests.get(url, headers=headers, params=params, stream=True)
     
-    output_filename = f"/var/www/html/{name}"
+    output_filename = f"/var/www/html/invoices/{name}"
     if response.status_code == 200:
         content = BytesIO(response.content)
         
