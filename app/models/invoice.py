@@ -25,6 +25,7 @@ class Invoice(Base):
     series = Column(Text, nullable=True)
     url = Column(Text, nullable=True)
     type = Column(Text, nullable=True)
+    post = Column(Integer, nullable=True)
     user_id = Column(Integer, index=True, nullable=True)
 
     

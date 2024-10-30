@@ -11,6 +11,7 @@ class Reverse_Invoice(Base):
     seriesName = Column(Text, nullable=True)
     factura_number = Column(Text, nullable=True, index=True)
     storno_number = Column(Text, nullable=True, index=True)
+    post = Column(Integer, nullable=True)
     user_id = Column(Integer, index=True, nullable=True)
 
     

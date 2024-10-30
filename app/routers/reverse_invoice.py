@@ -48,6 +48,7 @@ async def create_reverse_invoice(reverse_invoice: Reverse_InvoiceCreate, user: U
     if response.get('errorText') != '':
         return response
     db_reverse_invoice.storno_number = response.get('number')
+    db_reverse_invoice.post = 0
     db_reverse_invoice.user_id = user_id
     db.add(db_reverse_invoice)
     
@@ -88,6 +89,9 @@ async def post_invoice(order_id: int, marketplace: str, name: str, user: User = 
     result = await db.execute(select(Billing_software).where(Billing_software.user_id == user_id, Billing_software.site_domain == 'smartbill.ro'))
     db_smartbill = result.scalars().first()
     
+    result = await db.execute(select(Reverse_Invoice).where(Reverse_Invoice.order_id == order_id, Reverse_Invoice.user_id == user_id))
+    db_reverse_invoice = result.scalars().first()
+    
     match = re.search(r"_(\D+)(\d+)\.pdf$", name)
     if match:
         seriesname = match.group(1) 
@@ -96,4 +100,12 @@ async def post_invoice(order_id: int, marketplace: str, name: str, user: User = 
         return
 
     download_pdf_server(seriesname, number, name, db_smartbill)
-    return post_pdf(order_id, name, db_marketplace)
+    response = post_pdf(order_id, name, db_marketplace)
+    if response.status_code != 200:
+        return response.json()
+    
+    db_reverse_invoice.post = 1
+    await db.commit()
+    await db.refresh(db_reverse_invoice)
+    
+    return response.json()

@@ -45,10 +45,7 @@ def post_pdf(order_id: int, name: str, marketplace: Marketplace):
     }]
     result = change_status(order_id, marketplace)
     response = requests.post(url, data=json.dumps(data), headers=headers)
-    return {
-        "change_status": result,
-        "post_status": response.json()
-    }
+    return response
     
 def post_factura_pdf(order_id: int, name: str, marketplace: Marketplace):
     MARKETPLACE_API_URL = marketplace.baseAPIURL
@@ -73,4 +70,4 @@ def post_factura_pdf(order_id: int, name: str, marketplace: Marketplace):
         "force_download": 1
     }]
     response = requests.post(url, data=json.dumps(data), headers=headers)
-    return response.json()
+    return response

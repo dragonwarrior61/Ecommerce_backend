@@ -72,6 +72,7 @@ async def create_invoice(invoice: InvoicesCreate, user: User = Depends(get_curre
     db_invoice.number = result.get('number') if result.get('number') else ''
     db_invoice.series = result.get('series') if result.get('series') else ''
     db_invoice.url = result.get('url') if result.get('url') else ''
+    db_invoice.post = 0
     db_invoice.user_id = user_id
     
     db.add(db_invoice)
@@ -119,6 +120,20 @@ async def post_invoice(order_id: int, marketplace: str, name: str, user: User = 
     else:
         return
 
+    result = await db.execute(select(Invoice).where(Invoice.order_id == order_id, Invoice.user_id == user_id))
+    db_invoice = result.scalars().first()
+    
+    
     download_pdf_server(seriesname, number, name, db_smartbill)
-    return post_factura_pdf(order_id, name, db_marketplace)
-
+    response = post_factura_pdf(order_id, name, db_marketplace)
+    
+    if response.status_code != 200:
+        return response.json()
+    
+    db_invoice.post = 1
+    
+    await db.commit()
+    
+    await db.refresh(db_invoice)
+    
+    return response.json()
