@@ -50,4 +50,27 @@ def post_pdf(order_id: int, name: str, marketplace: Marketplace):
         "post_status": response.json()
     }
     
+def post_factura_pdf(order_id: int, name: str, marketplace: Marketplace):
+    MARKETPLACE_API_URL = marketplace.baseAPIURL
+    url = f"{MARKETPLACE_API_URL}/order/attachments/save"
+    USERNAME = marketplace.credentials["firstKey"]
+    PASSWORD = marketplace.credentials["secondKey"]
+    API_KEY = base64.b64encode(f"{USERNAME}:{PASSWORD}".encode('utf-8'))
+    
+    api_key = str(API_KEY).replace("b'", '').replace("'", "")
+    headers = {
+        "Authorization": f"Basic {api_key}",
+        "Content-Type": "application/json"
+    }
 
+    pdf_url = f"https://seller.upsourcing.net/invoices/{name}"
+    
+    data = [{
+        "order_id": order_id,
+        "name": name,
+        "url": pdf_url,
+        "type": 1,
+        "force_download": 1
+    }]
+    response = requests.post(url, data=json.dumps(data), headers=headers)
+    return response.json()

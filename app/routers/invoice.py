@@ -9,7 +9,7 @@ from app.database import get_db
 from app.models.invoice import Invoice
 from app.models.marketplace import Marketplace
 from app.models.team_member import Team_member
-from app.utils.emag_invoice import post_pdf
+from app.utils.emag_invoice import post_pdf, post_factura_pdf
 from app.models.billing_software import Billing_software
 from app.schemas.invoice import InvoicesCreate, InvoicesRead, InvoicesUpdate
 from app.utils.smart_api import generate_invoice, download_pdf, download_pdf_server
@@ -120,5 +120,5 @@ async def post_invoice(order_id: int, marketplace: str, name: str, user: User = 
         return
 
     download_pdf_server(seriesname, number, name, db_smartbill)
-    return post_pdf(order_id, name, db_marketplace)
+    return post_factura_pdf(order_id, name, db_marketplace)
 
