@@ -171,13 +171,13 @@ def reverse_invoice_smartbill(seriesname: str, factura_number: str, smartbill: B
     
     cif = smartbill.registration_number
     
-    data = json.dumps({
+    data = ({
         "cif": cif,
         "seriesname": seriesname,
         "number": factura_number,
         "issueDate": today
     })
     logging.info(data)
-    response = requests.post(url, headers=headers, data=data)
+    response = requests.post(url, headers=headers, json=data)
     
     return response.json()
