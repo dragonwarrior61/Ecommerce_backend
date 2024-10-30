@@ -401,6 +401,7 @@ async def add_product_in_shipment(ean: str, qty: int, ship_id: int, user: User =
     db_product = result.scalars().first()
     pcs_ctn = db_product.pcs_ctn
     supplier = db_product.supplier_id
+    price = db_product.price
     
     if db_product.link_address_1688:
         pp = "agent"
@@ -431,7 +432,7 @@ async def add_product_in_shipment(ean: str, qty: int, ship_id: int, user: User =
     db_shipment.cnt = cnt
     db_shipment.other_cost = db_shipment.other_cost + [0.0]
     db_shipment.received = db_shipment.received + [0]
-    db_shipment.price = db_shipment.price + [0.0]
+    db_shipment.price = db_shipment.price + [price]
     db_shipment.each_note = db_shipment.each_note + [""]
     db_shipment.updated_at = datetime.now()
     
