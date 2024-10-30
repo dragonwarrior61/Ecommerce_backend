@@ -34,7 +34,7 @@ def post_pdf(order_id: int, name: str, marketplace: Marketplace):
         "Content-Type": "application/json"
     }
 
-    pdf_url = f"https://seller.upsourcing.net/{name}"
+    pdf_url = f"https://seller.upsourcing.net/invoices/{name}"
     
     data = [{
         "order_id": order_id,
