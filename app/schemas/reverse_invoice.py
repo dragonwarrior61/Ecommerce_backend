@@ -16,7 +16,7 @@ class Reverse_InvoiceCreate(Reverse_InvoiceBase):
     pass
 
 class Reverse_InvoiceRead(Reverse_InvoiceBase):
-    id:int
+    id: int
 
     class Config:
         orm_mode = True

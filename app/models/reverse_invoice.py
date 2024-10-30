@@ -6,7 +6,7 @@ class Reverse_Invoice(Base):
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     replacement_id = Column(Integer, nullable=True, index=True)
-    order_id = Column(Integer, nullable=True)
+    order_id = Column(Integer, nullable=True, index=True)
     companyVatCode = Column(Text, nullable=True)
     seriesName = Column(Text, nullable=True)
     factura_number = Column(Text, nullable=True, index=True)
