@@ -12,10 +12,10 @@ from app.models.team_member import Team_member
 from app.utils.emag_invoice import post_pdf
 from app.models.billing_software import Billing_software
 from app.schemas.invoice import InvoicesCreate, InvoicesRead, InvoicesUpdate
-from app.utils.smart_api import generate_invoice, download_pdf, cancel_invoice_smartbill
+from app.utils.smart_api import generate_invoice, download_pdf, download_pdf_server
 import json
 import logging
-
+import re
 router = APIRouter()
 
 @router.post("/")
@@ -108,5 +108,17 @@ async def post_invoice(order_id: int, marketplace: str, name: str, user: User = 
         
     result = await db.execute(select(Marketplace).where(Marketplace.marketplaceDomain == marketplace, Marketplace.user_id == user_id))
     db_marketplace = result.scalars().first()
+    
+    result = await db.execute(select(Billing_software).where(Billing_software.user_id == user_id, Billing_software.site_domain == 'smartbill.ro'))
+    db_smartbill = result.scalars().first()
+    
+    match = re.search(r"_(\D+)(\d+)\.pdf$", name)
+    if match:
+        seriesname = match.group(1)  # English letters after "_"
+        number = match.group(2)   # Number after letters
+    else:
+        return
+
+    download_pdf_server(seriesname, number, name, db_smartbill)
     return post_pdf(order_id, name, db_marketplace)
 

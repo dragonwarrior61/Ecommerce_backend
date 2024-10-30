@@ -91,14 +91,8 @@ def download_pdf(cif: str, seriesname: str, number: str, smartbill: Billing_soft
     
     response = requests.get(url, headers=headers, params=params, stream=True)
     
-    output_filename = f"/var/www/html/factura_{seriesname}{number}.pdf"
     if response.status_code == 200:
         content = BytesIO(response.content)
-        
-        with open(output_filename, 'wb') as pdf_file:
-            pdf_file.write(content.getvalue())
-            
-        logging.info(f"PDF saved as {output_filename}")
         return StreamingResponse(content, media_type=response.headers['Content-Type']) 
     else:
         return response
@@ -121,15 +115,39 @@ def download_storno_pdf(cif: str, seriesname: str, number: str, smartbill: Billi
     
     response = requests.get(url, headers=headers, params=params, stream=True)
     
-    output_filename = f"/var/www/html/storno_{seriesname}{number}.pdf"
+    if response.status_code == 200:
+        content = BytesIO(response.content)
+        return StreamingResponse(content, media_type=response.headers['Content-Type']) 
+    else:
+        return response
+
+def download_pdf_server(seriesname: str, number: str, name: str, smartbill: Billing_software):
+    USERNAME = smartbill.username
+    PASSWORD = smartbill.password
+    credentials = base64.b64encode(f"{USERNAME}:{PASSWORD}".encode()).decode()
+    url = "https://ws.smartbill.ro/SBORO/api/invoice/pdf"
+    headers = {
+        "Authorization": f"Basic {credentials}",
+        "accept": "application/json",
+    }
+    
+    cif = smartbill.registration_number
+    
+    params = {
+        "cif": cif,
+        "seriesname": seriesname,
+        "number": number
+    }
+    
+    response = requests.get(url, headers=headers, params=params, stream=True)
+    
+    output_filename = f"/var/www/html/{name}"
     if response.status_code == 200:
         content = BytesIO(response.content)
         
         with open(output_filename, 'wb') as pdf_file:
             pdf_file.write(content.getvalue())
-            
-        logging.info(f"PDF saved as {output_filename}")
-        return StreamingResponse(content, media_type=response.headers['Content-Type']) 
+        return
     else:
         return response
 

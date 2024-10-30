@@ -9,11 +9,12 @@ from app.models.user import User
 from app.models.marketplace import Marketplace
 from app.models.team_member import Team_member
 from app.models.billing_software import Billing_software
-from app.utils.smart_api import reverse_invoice_smartbill, download_storno_pdf
+from app.utils.smart_api import reverse_invoice_smartbill, download_storno_pdf, download_pdf_server
 from app.utils.emag_invoice import post_pdf
 from app.routers.auth import get_current_user
 from app.schemas.reverse_invoice import Reverse_InvoiceCreate, Reverse_InvoiceRead, Reverse_InvoiceUpdate
 import logging
+import re
 
 router = APIRouter()
 
@@ -83,4 +84,16 @@ async def post_invoice(order_id: int, marketplace: str, name: str, user: User = 
         
     result = await db.execute(select(Marketplace).where(Marketplace.marketplaceDomain == marketplace, Marketplace.user_id == user_id))
     db_marketplace = result.scalars().first()
+    
+    result = await db.execute(select(Billing_software).where(Billing_software.user_id == user_id, Billing_software.site_domain == 'smartbill.ro'))
+    db_smartbill = result.scalars().first()
+    
+    match = re.search(r"_(\D+)(\d+)\.pdf$", name)
+    if match:
+        seriesname = match.group(1) 
+        number = match.group(2)
+    else:
+        return
+
+    download_pdf_server(seriesname, number, name, db_smartbill)
     return post_pdf(order_id, name, db_marketplace)
