@@ -608,7 +608,7 @@ def change_status(order_id: int, marketplace: Marketplace):
     USERNAME = marketplace.credentials["firstKey"]
     PASSWORD = marketplace.credentials["secondKey"]
     API_KEY = base64.b64encode(f"{USERNAME}:{PASSWORD}".encode('utf-8'))
-    url = f"{marketplace.baseAPIURL}order/read"
+    url = f"{marketplace.baseAPIURL}/order/read"
     
     api_key = str(API_KEY).replace("b'", '').replace("'", "")
     headers = {
@@ -627,7 +627,7 @@ def change_status(order_id: int, marketplace: Marketplace):
     order['status'] = 5
     order = [order]
     
-    save_url = f"{marketplace.baseAPIURL}order/save"
+    save_url = f"{marketplace.baseAPIURL}/order/save"
     save_data = json.dumps(order)
     
     save_response = requests.post(save_url, data=save_data, headers=headers)

@@ -36,13 +36,13 @@ def post_pdf(order_id: int, name: str, marketplace: Marketplace):
 
     pdf_url = f"https://seller.upsourcing.net//{name}"
     
-    data = {
+    data = [{
         "order_id": order_id,
         "name": name,
         "url": pdf_url,
         "type": 1,
         "force_download": 1
-    }
+    }]
     result = change_status(order_id, marketplace)
     response = requests.post(url, data=json.dumps(data), headers=headers)
     return {
