@@ -313,11 +313,11 @@ async def refresh_months_order(db:AsyncSession = Depends(get_db)):
 #                         #     # logging.info("post stock success in altex")
                         
 #                         product_id = int(product_id)
-#                         response = await post_stock_emag(marketplace, product_id, stock)      
-#                         logging.info(f"{response}") 
-#                         if response == "Stock updated successfully, no content returned.":
-#                             product.sync_stock_time = datetime.now()
-#                             await session.commit() 
+#                         # response = await post_stock_emag(marketplace, product_id, stock)      
+#                         # logging.info(f"{response}") 
+#                         # if response == "Stock updated successfully, no content returned.":
+#                         #     product.sync_stock_time = datetime.now()
+#                         #     await session.commit() 
                         
 #         except Exception as e:
 #             logging.error(f"An error occurred: {e}")

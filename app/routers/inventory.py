@@ -195,7 +195,8 @@ async def get_product_info(
                     "discontinued": product.discontinued,
                     "battery": product.battery,
                     "sales": cnt[ean],
-                    "sales90": cnt90[ean]
+                    "sales90": cnt90[ean],
+                    "product_code": product.product_code
                 })
     return product_data
 
