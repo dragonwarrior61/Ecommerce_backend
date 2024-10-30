@@ -123,13 +123,13 @@ def download_storno_pdf(cif: str, seriesname: str, number: str, smartbill: Billi
     
     output_filename = f"/var/www/html/storno_{seriesname}{number}.pdf"
     if response.status_code == 200:
-        # content = BytesIO(response.content)
+        content = BytesIO(response.content)
         
         with open(output_filename, 'wb') as pdf_file:
-            pdf_file.write(response.content)
+            pdf_file.write(content.getvalue())
             
         logging.info(f"PDF saved as {output_filename}")
-        return StreamingResponse(BytesIO(response.content), media_type=response.headers['Content-Type']) 
+        return StreamingResponse(content, media_type=response.headers['Content-Type']) 
     else:
         return response
 
