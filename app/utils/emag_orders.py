@@ -617,7 +617,7 @@ def change_status(order_id: int, marketplace: Marketplace):
     }
     
     data = json.dumps({
-        "order_id": order_id
+        "id": order_id
     })
     response = requests.post(url, data=data, headers=headers)
     if response.status_code != 200:
