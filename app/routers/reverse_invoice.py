@@ -44,7 +44,7 @@ async def create_reverse_invoice(reverse_invoice: Reverse_InvoiceCreate, user: U
         return response.json()
     
     response = response.json()
-    if response.get('error_text') != '':
+    if response.get('errorText') != '':
         return response
     db_reverse_invoice.storno_number = response.get('number')
     db_reverse_invoice.user_id = user_id
