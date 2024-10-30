@@ -30,7 +30,7 @@ async def create_reverse_invoice(reverse_invoice: Reverse_InvoiceCreate, user: U
         user_id = user.id
         
     db_reverse_invoice = Reverse_Invoice(**reverse_invoice.dict())
-    logging.info(f"params: {db_reverse_invoice}")
+    logging.info(f"params: {reverse_invoice}")
     result = await db.execute(select(Reverse_Invoice).where(Reverse_Invoice.order_id == db_reverse_invoice.order_id, Reverse_Invoice.user_id == user_id))
     invoice = result.scalars().first()
     if invoice:
