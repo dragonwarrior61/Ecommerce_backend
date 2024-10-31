@@ -131,8 +131,8 @@ async def read_new_orders(
 
     query = query.where(Order.user_id == user_id)
     
-    query = query.join(ProductAlias, and_(ProductAlias.id == any_(Order.product_id), ProductAlias.product_marketplace == Order.order_market_place, ProductAlias.user_id == Order.user_id))
-    query = query.join(Internal_productAlias, Internal_productAlias.ean == ProductAlias.ean)
+    query = query.outerjoin(ProductAlias, and_(ProductAlias.id == any_(Order.product_id), ProductAlias.product_marketplace == Order.order_market_place, ProductAlias.user_id == Order.user_id))
+    query = query.outerjoin(Internal_productAlias, Internal_productAlias.ean == ProductAlias.ean)
     
     if warehouse_id == -1:
         query = query.filter(Internal_productAlias.warehouse_id != 0)
@@ -256,8 +256,8 @@ async def count_new_orders(
 
     query = query.where(Order.user_id == user_id) 
 
-    query = query.join(ProductAlias, and_(ProductAlias.id == any_(Order.product_id), ProductAlias.product_marketplace == Order.order_market_place, ProductAlias.user_id == Order.user_id))
-    query = query.join(Internal_productAlias, Internal_productAlias.ean == ProductAlias.ean)
+    query = query.outerjoin(ProductAlias, and_(ProductAlias.id == any_(Order.product_id), ProductAlias.product_marketplace == Order.order_market_place, ProductAlias.user_id == Order.user_id))
+    query = query.outerjoin(Internal_productAlias, Internal_productAlias.ean == ProductAlias.ean)
     
     if warehouse_id == -1:
         query = query.filter(Internal_productAlias.warehouse_id != 0)
@@ -387,8 +387,8 @@ async def read_orders(
         
     query = query.where(Order.user_id == user_id)
 
-    query = query.join(ProductAlias, and_(ProductAlias.id == any_(Order.product_id), ProductAlias.product_marketplace == Order.order_market_place, ProductAlias.user_id == Order.user_id))
-    query = query.join(Internal_productAlias, Internal_productAlias.ean == ProductAlias.ean)
+    query = query.outerjoin(ProductAlias, and_(ProductAlias.id == any_(Order.product_id), ProductAlias.product_marketplace == Order.order_market_place, ProductAlias.user_id == Order.user_id))
+    query = query.outerjoin(Internal_productAlias, Internal_productAlias.ean == ProductAlias.ean)
     if no_stock:
         query = query.filter(Internal_productAlias.stock == 0)
         
