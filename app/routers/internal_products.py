@@ -402,7 +402,7 @@ async def get_products(
     cnt = {}
     
     ProductAlias = aliased(Product)
-    query = select(Order, ProductAlias).join(
+    query = select(Order, ProductAlias).outerjoin(
         ProductAlias,
         and_(
             ProductAlias.id == any_(Order.product_id),
@@ -429,7 +429,7 @@ async def get_products(
                     
     returns_cnt = {}
     ProductAlias = aliased(Product)
-    query = select(Returns, ProductAlias).join(
+    query = select(Returns, ProductAlias).outerjoin(
         ProductAlias,
         and_(
             ProductAlias.id == any_(Returns.products),
