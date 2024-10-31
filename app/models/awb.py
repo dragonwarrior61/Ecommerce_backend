@@ -43,7 +43,7 @@ class AWB(Base):
     awb_barcode = Column(String, nullable=True)
     awb_marketplace = Column(String, nullable=True)
     awb_status = Column(Integer, default=0)
-    pickedup = Column(Boolean, defaulf=False)
+    pickedup = Column(Boolean, default=False)
     awb_date = Column(DateTime, nullable=True)
     awb_trigger = Column(String, nullable=True)
     awb_creation_date = Column(String, nullable=True)
