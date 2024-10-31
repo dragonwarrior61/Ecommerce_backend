@@ -30,7 +30,7 @@ class InvoicesCreate(InvoicesBase):
     pass
 
 class InvoicesRead(InvoicesBase):
-    id:int
+    id: int
 
     class Config:
         orm_mode = True
