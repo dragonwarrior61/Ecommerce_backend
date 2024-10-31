@@ -85,152 +85,152 @@ ssl_context.load_cert_chain('ssl/cert.pem', keyfile='ssl/key.pem')
 #                     # await refresh_emag_all_orders(marketplace, session)
 #                     continue
 
-# @app.on_event("startup")
-# @repeat_every(seconds=14400)  # Run daily for deleting video last 30 days
-# async def update_sameday(db: AsyncSession = Depends(get_db)): 
-#     async for db in get_db():
-#         async with db as session:
-#             logging.info("Starting update api_key in sameday")
-#             result = await session.execute(select(Billing_software).where(Billing_software.site_domain == "sameday.ro"))
-#             samedays = result.scalars().all()
-#             for sameday in samedays:
-#                 api_key = await auth_sameday(sameday)
-#                 sameday.registration_number = api_key
-#             await session.commit()
+@app.on_event("startup")
+@repeat_every(seconds=14400)  # Run daily for deleting video last 30 days
+async def update_sameday(db: AsyncSession = Depends(get_db)): 
+    async for db in get_db():
+        async with db as session:
+            logging.info("Starting update api_key in sameday")
+            result = await session.execute(select(Billing_software).where(Billing_software.site_domain == "sameday.ro"))
+            samedays = result.scalars().all()
+            for sameday in samedays:
+                api_key = await auth_sameday(sameday)
+                sameday.registration_number = api_key
+            await session.commit()
 
-# @app.on_event("startup")
-# @repeat_every(seconds=14400)
-# async def update_awb(db: AsyncSession = Depends(get_db)):
-#     async for db in get_db():
-#         async with db as session:
-#             logging.info("Starting update api_key in sameday")
-#             result = await session.execute(select(Billing_software).where(Billing_software.site_domain == "sameday.ro"))
-#             samedays = result.scalars().all()
-#             for sameday in samedays:
-#                 api_key = await auth_sameday(sameday)
-#                 sameday.registration_number = api_key
-#             await session.commit()
+@app.on_event("startup")
+@repeat_every(seconds=14400)
+async def update_awb(db: AsyncSession = Depends(get_db)):
+    async for db in get_db():
+        async with db as session:
+            logging.info("Starting update api_key in sameday")
+            result = await session.execute(select(Billing_software).where(Billing_software.site_domain == "sameday.ro"))
+            samedays = result.scalars().all()
+            for sameday in samedays:
+                api_key = await auth_sameday(sameday)
+                sameday.registration_number = api_key
+            await session.commit()
             
-#             awb_status_list = [56, 85, 84, 37, 63, 1, 2, 25, 33, 7, 78, 6, 26, 14, 23, 35, 79, 112, 81, 10, 113, 27, 87, 4, 99, 74, 116, 18, 61, 111, 57, 137, 82, 3, 11, 28, 127, 17,
-#                             68, 101, 147, 73, 126, 47, 145, 128, 19, 0, 5, 22, 62, 65, 140, 149, 153]
-#             # awb_status_list = [93, 16, 15, 9]
-#             logging.info("Start updating AWB status")
+            awb_status_list = [56, 85, 84, 37, 63, 1, 2, 25, 33, 7, 78, 6, 26, 14, 23, 35, 79, 112, 81, 10, 113, 27, 87, 4, 99, 74, 116, 18, 61, 111, 57, 137, 82, 3, 11, 28, 127, 17,
+                            68, 101, 147, 73, 126, 47, 145, 128, 19, 0, 5, 22, 62, 65, 140, 149, 153]
+            # awb_status_list = [93, 16, 15, 9]
+            logging.info("Start updating AWB status")
 
-#             error_barcode = []
+            error_barcode = []
             
-#             try:
-#                 result = await session.execute(
-#                     select(AWB)
-#                     .where(AWB.awb_status == any_(awb_status_list))
-#                 )
-#                 db_awbs = result.scalars().all()
+            try:
+                result = await session.execute(
+                    select(AWB)
+                    .where(AWB.awb_status == any_(awb_status_list))
+                )
+                db_awbs = result.scalars().all()
 
-#                 if not db_awbs:
-#                     return
+                if not db_awbs:
+                    return
 
-#                 for awb in db_awbs:
-#                     awb_barcode = awb.awb_barcode
-#                     awb_user_id = awb.user_id
-#                     result = await session.execute(select(Billing_software).where(Billing_software.user_id == awb_user_id, Billing_software.site_domain == "sameday.ro"))
-#                     sameday = result.scalars().first()
-#                     try:
-#                         # Track and update awb status
-#                         awb_status_result = await tracking(sameday, awb_barcode)
-#                         pickedup = awb_status_result.get('parcelSummary').get('isPickedUp')
-#                         weight = awb_status_result.get('parcelSummary').get('parcelWeight')
-#                         length = awb_status_result.get('parcelSummary').get('parcelLength')
-#                         width = awb_status_result.get('parcelSummary').get('parcelWidth')
-#                         height = awb_status_result.get('parcelSummary').get('parcelHeight')
-#                         history_list = awb_status_result.get('parcelHistory')
-#                         statusID = []
-#                         statusDate = []
-#                         for history in history_list:
-#                             statusID.append(history.get('statusId'))
-#                             statusDate.append(history.get('statusDate'))
-#                         parsed_dates = [datetime.fromisoformat(date) for date in statusDate]
-#                         latest_index = parsed_dates.index(max(parsed_dates))
-#                         first_index = parsed_dates.index(min(parsed_dates))
-#                         awb_status = statusID[latest_index]
-#                         awb.awb_creation_date = statusDate[first_index]
-#                         awb.awb_status = awb_status
-#                         awb.pickedup = pickedup
-#                         awb.weight = weight
-#                         awb.height = height
-#                         awb.width = width
-#                         awb.length = length
-#                         awb.awb_status_update_time = datetime.now()
-#                     except Exception as track_ex:
-#                         error_barcode.append(awb_barcode)
-#                         logging.error(f"Tracking API error for AWB {awb_barcode}: {str(track_ex)}")
-#                         continue  # Continue to next AWB if tracking fails
-#                 #     count += 1
-#                 MAX_RETRIES = 5
-#                 retries = 0
+                for awb in db_awbs:
+                    awb_barcode = awb.awb_barcode
+                    awb_user_id = awb.user_id
+                    result = await session.execute(select(Billing_software).where(Billing_software.user_id == awb_user_id, Billing_software.site_domain == "sameday.ro"))
+                    sameday = result.scalars().first()
+                    try:
+                        # Track and update awb status
+                        awb_status_result = await tracking(sameday, awb_barcode)
+                        pickedup = awb_status_result.get('parcelSummary').get('isPickedUp')
+                        weight = awb_status_result.get('parcelSummary').get('parcelWeight')
+                        length = awb_status_result.get('parcelSummary').get('parcelLength')
+                        width = awb_status_result.get('parcelSummary').get('parcelWidth')
+                        height = awb_status_result.get('parcelSummary').get('parcelHeight')
+                        history_list = awb_status_result.get('parcelHistory')
+                        statusID = []
+                        statusDate = []
+                        for history in history_list:
+                            statusID.append(history.get('statusId'))
+                            statusDate.append(history.get('statusDate'))
+                        parsed_dates = [datetime.fromisoformat(date) for date in statusDate]
+                        latest_index = parsed_dates.index(max(parsed_dates))
+                        first_index = parsed_dates.index(min(parsed_dates))
+                        awb_status = statusID[latest_index]
+                        awb.awb_creation_date = statusDate[first_index]
+                        awb.awb_status = awb_status
+                        awb.pickedup = pickedup
+                        awb.weight = weight
+                        awb.height = height
+                        awb.width = width
+                        awb.length = length
+                        awb.awb_status_update_time = datetime.now()
+                    except Exception as track_ex:
+                        error_barcode.append(awb_barcode)
+                        logging.error(f"Tracking API error for AWB {awb_barcode}: {str(track_ex)}")
+                        continue  # Continue to next AWB if tracking fails
+                #     count += 1
+                MAX_RETRIES = 5
+                retries = 0
                 
-#                 while retries < MAX_RETRIES:
-#                     try:
-#                         await session.commit()
-#                         logging.info(f"Successfully committed AWBs so far")
-#                         break  # Break out of the retry loop if commit succeeds
-#                     except Exception as e:
-#                         await session.rollback()
-#                         retries += 1
-#                         logging.error(f"Failed to commit batch, attempt {retries}/{MAX_RETRIES}: {str(e)}")
-#                         if retries == MAX_RETRIES:
-#                             logging.error(f"Max retries reached. Aborting commit.")
-#                             break
-#                         else:
-#                             logging.info(f"Retrying commit...")
-#                             await asyncio.sleep(2)
-#             except Exception as db_ex:
-#                 logging.error(f"Database query failed: {str(db_ex)}")
-#                 await session.rollback()
+                while retries < MAX_RETRIES:
+                    try:
+                        await session.commit()
+                        logging.info(f"Successfully committed AWBs so far")
+                        break  # Break out of the retry loop if commit succeeds
+                    except Exception as e:
+                        await session.rollback()
+                        retries += 1
+                        logging.error(f"Failed to commit batch, attempt {retries}/{MAX_RETRIES}: {str(e)}")
+                        if retries == MAX_RETRIES:
+                            logging.error(f"Max retries reached. Aborting commit.")
+                            break
+                        else:
+                            logging.info(f"Retrying commit...")
+                            await asyncio.sleep(2)
+            except Exception as db_ex:
+                logging.error(f"Database query failed: {str(db_ex)}")
+                await session.rollback()
             
-#             logging.info(f"Getting awb status error barcodes {error_barcode}")
-#             logging.info("AWB status update completed")
+            logging.info(f"Getting awb status error barcodes {error_barcode}")
+            logging.info("AWB status update completed")
             
 # # @app.on_event("startup")
 # # @repeat_every(seconds=86400)
 # # def backup_db():
 # #     export_to_csv()
 
-# @app.on_event("startup")
-# @repeat_every(seconds=900)
-# async def refresh_orders_data(db:AsyncSession = Depends(get_db)):
-#     async for db in get_db():
-#         async with db as session:
-#             logging.info("Starting orders refresh")
-#             result = await session.execute(select(Marketplace).order_by(Marketplace.id.asc()))
-#             marketplaces = result.scalars().all()
-#             logging.info(f"Success getting {len(marketplaces)} marketplaces")
-#             for marketplace in marketplaces:
-#                 if marketplace.marketplaceDomain == "altex.ro":
-#                     logging.info("Refresh products from marketplace")
-#                     await refresh_altex_products(marketplace)
-#                     logging.info("Refresh orders from marketplace")
-#                     await refresh_altex_orders(marketplace)
-#                 else:
-#                     logging.info("Refresh products from marketplace")
-#                     await refresh_emag_products(marketplace)
-#                     logging.info("Refresh orders from marketplace")
-#                     await refresh_emag_orders(marketplace)
+@app.on_event("startup")
+@repeat_every(seconds=900)
+async def refresh_orders_data(db:AsyncSession = Depends(get_db)):
+    async for db in get_db():
+        async with db as session:
+            logging.info("Starting orders refresh")
+            result = await session.execute(select(Marketplace).order_by(Marketplace.id.asc()))
+            marketplaces = result.scalars().all()
+            logging.info(f"Success getting {len(marketplaces)} marketplaces")
+            for marketplace in marketplaces:
+                if marketplace.marketplaceDomain == "altex.ro":
+                    logging.info("Refresh products from marketplace")
+                    await refresh_altex_products(marketplace)
+                    logging.info("Refresh orders from marketplace")
+                    await refresh_altex_orders(marketplace)
+                else:
+                    logging.info("Refresh products from marketplace")
+                    await refresh_emag_products(marketplace)
+                    logging.info("Refresh orders from marketplace")
+                    await refresh_emag_orders(marketplace)
                     
-# @app.on_event("startup")
-# @repeat_every(seconds=28800)
-# async def refresh_months_order(db:AsyncSession = Depends(get_db)):
-#     async for db in get_db():
-#         async with db as session:
-#             logging.info("Starting orders refresh")
-#             result = await session.execute(select(Marketplace).order_by(Marketplace.id.asc()))
-#             marketplaces = result.scalars().all()
-#             logging.info(f"Success getting {len(marketplaces)} marketplaces")
-#             for marketplace in marketplaces:
-#                 if marketplace.marketplaceDomain == "altex.ro":
-#                     logging.info("Refresh orders from marketplace")
-#                     await refresh_altex_orders(marketplace)
-#                 else:
-#                     logging.info("Refresh orders from marketplace")
-#                     await refresh_months_emag_orders(marketplace)
+@app.on_event("startup")
+@repeat_every(seconds=28800)
+async def refresh_months_order(db:AsyncSession = Depends(get_db)):
+    async for db in get_db():
+        async with db as session:
+            logging.info("Starting orders refresh")
+            result = await session.execute(select(Marketplace).order_by(Marketplace.id.asc()))
+            marketplaces = result.scalars().all()
+            logging.info(f"Success getting {len(marketplaces)} marketplaces")
+            for marketplace in marketplaces:
+                if marketplace.marketplaceDomain == "altex.ro":
+                    logging.info("Refresh orders from marketplace")
+                    await refresh_altex_orders(marketplace)
+                else:
+                    logging.info("Refresh orders from marketplace")
+                    await refresh_months_emag_orders(marketplace)
 
 @app.on_event("startup")
 @repeat_every(seconds=900)
@@ -373,29 +373,29 @@ async def refresh_stock(db: AsyncSession = Depends(get_db)):
             logging.info(f"product_code_list: {product_code_list}")
             logging.info("Finish sync stock")
 
-# @app.on_event("startup")
-# @repeat_every(seconds=86400)  # Run daily for deleting video last 30 days
-# async def refresh_data(db: AsyncSession = Depends(get_db)): 
-#     async for db in get_db():
-#         async with db as session:
-#             logging.info("Starting product refresh")
-#             result = await session.execute(select(Marketplace).order_by(Marketplace.id.asc()))
-#             marketplaces = result.scalars().all()
-#             logging.info(f"Success getting {len(marketplaces)} marketplaces")
-#             for marketplace in marketplaces:
-#                 if marketplace.marketplaceDomain == "altex.ro":
+@app.on_event("startup")
+@repeat_every(seconds=86400)  # Run daily for deleting video last 30 days
+async def refresh_data(db: AsyncSession = Depends(get_db)): 
+    async for db in get_db():
+        async with db as session:
+            logging.info("Starting product refresh")
+            result = await session.execute(select(Marketplace).order_by(Marketplace.id.asc()))
+            marketplaces = result.scalars().all()
+            logging.info(f"Success getting {len(marketplaces)} marketplaces")
+            for marketplace in marketplaces:
+                if marketplace.marketplaceDomain == "altex.ro":
                     
-#                     logging.info("Refresh rmas from altex")
-#                     await refresh_altex_rmas(marketplace)
-#                     continue
-#                 else:
-#                     logging.info("Refresh refunds from marketplace")
-#                     await refresh_emag_returns(marketplace)
+                    logging.info("Refresh rmas from altex")
+                    await refresh_altex_rmas(marketplace)
+                    continue
+                else:
+                    logging.info("Refresh refunds from marketplace")
+                    await refresh_emag_returns(marketplace)
                     
-#                     # logging.info("Refresh reviews from emag")
-#                     # await refresh_emag_reviews(marketplace, session)
-#                     # logging.info("Check hijacker and review")
-#                     # await check_hijacker_and_bad_reviews(marketplace, session)
+                    # logging.info("Refresh reviews from emag")
+                    # await refresh_emag_reviews(marketplace, session)
+                    # logging.info("Check hijacker and review")
+                    # await check_hijacker_and_bad_reviews(marketplace, session)
 
 if __name__ == "__main__":
     import uvicorn
