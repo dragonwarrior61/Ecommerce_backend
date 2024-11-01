@@ -465,7 +465,7 @@ async def get_products(
         (Internal_Product.product_name.ilike(f"%{search_text}%")) |
         (Internal_Product.model_name.ilike(f"%{search_text}%")) |
         (Internal_Product.ean.ilike(f"%{search_text}%"))).order_by(Internal_Product.id)
-    query = query.where(Internal_Product.user_id == user_id).offset(offset).limit(items_per_page)
+    query = query.where(Internal_Product.user_id == user_id, Internal_Product.ean != '').offset(offset).limit(items_per_page)
     result = await db.execute(query)
     db_products = result.scalars().all()
 
