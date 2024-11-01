@@ -474,6 +474,8 @@ async def get_products(
     
     product_data = []
     for db_product in db_products:
+        if db_product.ean is None:
+            continue
         ean = db_product.ean
         if ean not in cnt:
             sales = 0
