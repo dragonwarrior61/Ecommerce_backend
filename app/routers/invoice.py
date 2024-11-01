@@ -63,9 +63,10 @@ async def create_invoice(invoice: InvoicesCreate, user: User = Depends(get_curre
         "estimate": json.loads(db_invoice.estimate),
         "currency": db_invoice.currency,
         "issueDate": db_invoice.issueDate.strftime('%Y-%m-%d'),
-        "products": json.loads(db_invoice.products),
-        "warehouseName": db_invoice.warehouseName
+        "products": json.loads(db_invoice.products)
     }
+    
+    logging.info(f"data: {data}")
     result = generate_invoice(data, smartbill)
     if result.get('errorText') != '':
         return result

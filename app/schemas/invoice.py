@@ -19,7 +19,6 @@ class InvoicesBase(BaseModel):
     estimate: Optional[str] = None
     currency: Optional[str] = None
     products: Optional[str] = None
-    warehouseName: Optional[str] = None
     number: Optional[str] = None
     series: Optional[str] = None
     url: Optional[str] = None

@@ -21,7 +21,6 @@ class Invoice(Base):
     estimate = Column(Text, nullable=True)
     currency = Column(Text, nullable=True)
     products = Column(Text, nullable=True)
-    warehouseName = Column(Text, nullable=True)
     number = Column(Text, nullable=True, index=True)
     series = Column(Text, nullable=True)
     url = Column(Text, nullable=True)
