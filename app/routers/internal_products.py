@@ -418,6 +418,8 @@ async def get_products(
     orders_with_products = result.all()
 
     for order, product in orders_with_products:
+        if product is None:
+            continue
         product_ids = order.product_id
         quantities = order.quantity
         for i in range(len(product_ids)):
@@ -445,6 +447,8 @@ async def get_products(
     returns_with_products = result.all()
 
     for returns, product in returns_with_products:
+        if product is None:
+            continue
         product_ids = returns.products
         quantities = returns.quantity
         for i in range(len(product_ids)):
