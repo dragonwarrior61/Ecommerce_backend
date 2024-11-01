@@ -702,8 +702,8 @@ async def read_order(order_id: int, user: User = Depends(get_current_user), db: 
         result = await db.execute(select(Product).where(Product.id == product_id, Product.product_marketplace == db_order.order_market_place, Product.user_id == db_order.user_id))
         db_product = result.scalars().first()
         if db_product is None:
-                result = await db.execute(select(Product).where(Product.id == product_id, Product.user_id == db_order.user_id))
-                db_product = result.scalars().first()
+            result = await db.execute(select(Product).where(Product.id == product_id, Product.user_id == db_order.user_id))
+            db_product = result.scalars().first()
         ean.append(db_product.ean)
         product_name.append(db_product.product_name)
 
