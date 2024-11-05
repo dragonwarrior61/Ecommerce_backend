@@ -1,18 +1,23 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import func, any_, or_
+from sqlalchemy import func, any_, or_, and_
+from sqlalchemy.orm import aliased
 from typing import List
 from app.database import get_db
 from app.models.user import User
+from app.models.orders import Order
 from app.routers.auth import get_current_user
 from app.models.internal_product import Internal_Product
 from app.models.returns import Returns
+from app.models.invoice import Invoice
+from app.models.reverse_invoice import Reverse_Invoice
 from app.models.scan_awb import Scan_awb
 from app.models.team_member import Team_member
 from app.models.awb import AWB
 from app.schemas.scan_awb import Scan_awbCreate, Scan_awbRead, Scan_awbUpdate
 from app.config import settings
+from collections import defaultdict
 
 router = APIRouter()
 
@@ -103,13 +108,24 @@ async def get_scan_awbs(
         user_id = user.id
         
     offset = (page - 1) * itmes_per_page
-    query = select(Scan_awb).where(Scan_awb.user_id == user_id)
+    
+    AWBAlias = aliased(AWB)
+    InvoiceAlias = aliased(Invoice)
+    OrderAlias = aliased(Order)
+    Reverse_InvoiceAlias = aliased(Reverse_Invoice)
+    
+    query = select(Scan_awb, OrderAlias, InvoiceAlias, Reverse_InvoiceAlias).where(Scan_awb.user_id == user_id)
+    query = query.outerjoin(AWBAlias, AWBAlias.awb_number == Scan_awb.awb_number)
+    query = query.outerjoin(OrderAlias, and_(OrderAlias.id == AWBAlias.order_id, OrderAlias.user_id == AWBAlias.user_id, AWBAlias.number > 0))
+    query = query.outerjoin(InvoiceAlias, and_(InvoiceAlias.order_id == OrderAlias.id, InvoiceAlias.user_id == OrderAlias.user_id))
+    query = query.outerjoin(Reverse_InvoiceAlias, and_(Reverse_InvoiceAlias.order_id == OrderAlias.id, Reverse_InvoiceAlias.user_id == OrderAlias.user_id))
     query = query.offset(offset).limit(itmes_per_page)
     result = await db.execute(query)
     db_scan_awbs = result.scalars().all()
+    
     if db_scan_awbs is None:
         raise HTTPException(status_code=404, detail="scan_awb not found")
-    for db_scan_awb in db_scan_awbs:
+    for db_scan_awb, order, invoice, reverse_invoice in db_scan_awbs:
         awb_number = db_scan_awb.awb_number
         if db_scan_awb.awb_type == "Return":
             continue
