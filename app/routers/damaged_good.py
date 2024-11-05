@@ -10,6 +10,7 @@ from app.models.internal_product import Internal_Product
 from app.models.damaged_good import Damaged_good
 from app.models.team_member import Team_member
 from app.schemas.damaged_good import Damaged_goodCreate, Damaged_goodRead, Damaged_goodUpdate
+from app.config import settings
 
 router = APIRouter()
 
@@ -36,9 +37,12 @@ async def create_damaged_good(damaged_good: Damaged_goodCreate, db: AsyncSession
     db_internal_product = result.scalars().first()
     user_id = db_internal_product.user_id
     db_damaged_good.user_id = user_id
+    
+    settings.update_flag = 1
     db.add(db_damaged_good)
     await db.commit()
     await db.refresh(db_damaged_good)
+    settings.update_flag = 0
     return db_damaged_good
 
 @router.get('/count')
@@ -115,8 +119,11 @@ async def update_damaged_good(damaged_good_id: int, damaged_good: Damaged_goodUp
         raise HTTPException(status_code=404, detail="damaged_good not found")
     for var, value in vars(damaged_good).items():
         setattr(db_damaged_good, var, value) if value is not None else None
+    
+    settings.update_flag = 1
     await db.commit()
     await db.refresh(db_damaged_good)
+    settings.update_flag = 0
     return db_damaged_good
 
 @router.delete("/{damaged_good_id}", response_model=Damaged_goodRead)
@@ -135,6 +142,9 @@ async def delete_damaged_good(damaged_good_id: int, user: User = Depends(get_cur
     damaged_good = result.scalars().first()
     if damaged_good is None:
         raise HTTPException(status_code=404, detail="damaged_good not found")
+
+    settings.update_flag = 1
     await db.delete(damaged_good)
     await db.commit()
+    settings.update_flag = 0
     return damaged_good

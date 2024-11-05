@@ -15,6 +15,7 @@ from app.models.invoice import Invoice
 from app.models.team_member import Team_member
 from app.models.replacement import Replacement
 from app.schemas.replacement import ReplacementsCreate, ReplacementsRead, ReplacementsUpdate
+from app.config import settings
 
 router = APIRouter()
 
@@ -37,9 +38,13 @@ async def create_replacement(replacement: ReplacementsCreate, user: User = Depen
     count = len(replacements)
     db_replacement.number = count + 1
     db_replacement.user_id = user_id
+    
+    settings.update_flag = 1
     db.add(db_replacement)
     await db.commit()
     await db.refresh(db_replacement)
+    settings.update_flag = 0
+    
     return db_replacement
 
 @router.get('/count')
@@ -195,8 +200,11 @@ async def update_replacement(replacement_id: int, replacement: ReplacementsUpdat
         raise HTTPException(status_code=404, detail="replacement not found")
     for var, value in vars(replacement).items():
         setattr(db_replacement, var, value) if value is not None else None
+    
+    settings.update_flag = 1
     await db.commit()
     await db.refresh(db_replacement)
+    settings.update_flag = 0
     return db_replacement
 
 @router.delete("/{replacement_id}", response_model=ReplacementsRead)
@@ -215,6 +223,9 @@ async def delete_replacement(replacement_id: int, user: User = Depends(get_curre
     replacement = result.scalars().first()
     if replacement is None:
         raise HTTPException(status_code=404, detail="replacement not found")
+    
+    settings.update_flag = 1
     await db.delete(replacement)
     await db.commit()
+    settings.update_flag = 0
     return replacement

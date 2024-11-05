@@ -15,6 +15,7 @@ from sqlalchemy.future import select
 from app.config import settings
 from sqlalchemy import text
 from datetime import datetime
+from app.config import settings
 
 app = FastAPI()
 
@@ -77,7 +78,6 @@ def check_bad_reviews(review_list: List[Review]):
     return bad_reviews
 
 async def check_hijacker_and_bad_reviews(marketplace: Marketplace, db: AsyncSession):
-
     conn = psycopg2.connect(
         dbname=settings.DB_NAME,
         user=settings.DB_USERNAME,
@@ -196,7 +196,10 @@ async def check_hijacker_and_bad_reviews(marketplace: Marketplace, db: AsyncSess
             id += 1
         except Exception as e:
             logging.info(f"Failed to insert hijacker into notification: {e}")
-            await db.rollback()    
+            await db.rollback()
+            
+    settings.update_flag = 1
     conn.commit()
     cursor.close()
     conn.close()
+    settings.update_flag = 0

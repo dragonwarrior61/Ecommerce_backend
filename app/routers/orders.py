@@ -24,6 +24,7 @@ from sqlalchemy import cast, String, BigInteger
 from decimal import Decimal
 from collections import defaultdict
 import json
+from app.config import settings
 
 async def get_order(db: AsyncSession, order_id: int):
     result = await db.execute(select(Order).filter(Order.id == order_id))
@@ -48,8 +49,11 @@ async def update_order(db: AsyncSession, order_id: int, order: OrderUpdate, user
     if db_order:
         for key, value in order.dict().items():
             setattr(db_order, key, value) if value is not None else None
+        
+        settings.update_flag = 1
         db.commit()
         db.refresh(db_order)
+        settings.update_flag = 0
     return db_order
 
 async def delete_order(db: AsyncSession, order_id: int, user: User):
@@ -66,8 +70,10 @@ async def delete_order(db: AsyncSession, order_id: int, user: User):
     result = await db.execute(select(Order).filter(Order.id == order_id, Order.user_id == user_id))
     db_order = result.scalars().first()
     if db_order:
+        settings.update_flag = 1
         db.delete(db_order)
         db.commit()
+        settings.update_flag = 0
     return db_order
 
 
@@ -86,9 +92,13 @@ async def create_order(order: OrderCreate, user: User = Depends(get_current_user
         
     db_order = Order(**order.dict())
     db_order.user_id == user_id
+    
+    settings.update_flag = 1
     db.add(db_order)
     await db.commit()
     await db.refresh(db_order)
+    settings.update_flag = 0
+    
     return db_order
 
 @router.get("/new_order")

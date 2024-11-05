@@ -9,6 +9,7 @@ from app.models.team_member import Team_member
 from app.database import get_db
 from app.models.warehouse import Warehouse
 from app.schemas.warehouse import WarehouseCreate, WarehouseRead, WarehouseUpdate
+from app.config import settings
 
 router = APIRouter()
 
@@ -26,9 +27,13 @@ async def create_warehouse(warehouse: WarehouseCreate, user: User = Depends(get_
         
     db_warehouse = Warehouse(**warehouse.dict())
     db_warehouse.user_id = user_id
+    
+    settings.update_flag = 1
     db.add(db_warehouse)
     await db.commit()
     await db.refresh(db_warehouse)
+    settings.update_flag = 0
+    
     return db_warehouse
 
 @router.get('/count')
@@ -87,8 +92,12 @@ async def update_warehouse(warehouse_id: int, warehouse: WarehouseUpdate, user: 
     update_data = warehouse.dict(exclude_unset=True)  # Only update fields that are set
     for key, value in update_data.items():
         setattr(db_warehouse, key, value) if value is not None else None
+        
+    settings.update_flag = 1
     await db.commit()
     await db.refresh(db_warehouse)
+    settings.update_flag = 0
+    
     return db_warehouse
 
 @router.delete("/{warehouse_id}", response_model=WarehouseRead)
@@ -107,6 +116,10 @@ async def delete_warehouse(warehouse_id: int, user: User = Depends(get_current_u
     warehouse = result.scalars().first()
     if warehouse is None:
         raise HTTPException(status_code=404, detail="Warehouse not found")
+    
+    settings.update_flag = 1
     await db.delete(warehouse)
     await db.commit()
+    settings.update_flag = 0
+    
     return warehouse

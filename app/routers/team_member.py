@@ -9,6 +9,7 @@ from app.models.user import User
 from app.routers.auth import get_current_user
 from app.models.team_member import Team_member
 from app.schemas.team_member import Team_memberCreate, Team_memberRead, Team_memberUpdate
+from app.config import settings
 
 import logging
 
@@ -24,9 +25,13 @@ async def create_team_member(team_member: Team_memberCreate, user: User = Depend
     result = await db.execute(select(User).where(User.id == user_id))
     db_user = result.scalars().first()
     db_user.role = 1
+    
+    settings.update_flag = 1
     db.add(db_team_member)
     await db.commit()
     await db.refresh(db_team_member)
+    settings.update_flag = 0
+    
     return db_team_member
 
 @router.get('/count')
@@ -78,9 +83,11 @@ async def update_team_member(team_member: Team_memberUpdate, user: User = Depend
     db_user = result.scalars().first()
     db_user.role = role
     
-    db.add(db_team_member)
+    settings.update_flag = 1
     await db.commit()
     await db.refresh(db_team_member)
+    settings.update_flag = 0
+    
     return db_team_member
 
 @router.delete("/", response_model=Team_memberRead)
@@ -89,6 +96,10 @@ async def delete_team_member(user: int, admin: User = Depends(get_current_user),
     team_member = result.scalars().first()
     if team_member is None:
         raise HTTPException(status_code=404, detail="Team_member not found")
+    
+    settings.update_flag = 1
     await db.delete(team_member)
     await db.commit()
+    settings.update_flag = 0
+    
     return team_member

@@ -14,6 +14,7 @@ from app.utils.altex_product import post_stock_altex
 from app.utils.emag_products import post_stock_emag
 from sqlalchemy import update
 import logging
+from app.config import settings
 
 router = APIRouter()
 
@@ -22,8 +23,10 @@ async def send_stock(
     db: AsyncSession = Depends(get_db)
 ):
     logging.info("Init orders_stock")
+    settings.update_flag = 1
     await db.execute(update(Internal_Product).values(orders_stock=0))
     await db.commit()
+    settings.update_flag = 0
     logging.info("Calculate orders_stock")
     result = await db.execute(select(Order).where(Order.status == any_([1,2,3])))
     new_orders = result.scalars().all()
@@ -59,7 +62,11 @@ async def send_stock(
                     continue
                 db_internal_product.orders_stock = db_internal_product.orders_stock + quantity
                 # logging.info(f"#$$$#$#$#$#$ Orders_stock is {db_internal_product.orders_stock}")
+        
+        settings.update_flag = 1
         await db.commit()
+        settings.update_flag = 0
+        
         logging.info(f"#$$$#$#$#$#$ Orders_stock is {db_internal_product.orders_stock}")
         logging.info("Sync stock")
         result = await db.execute(select(Internal_Product))

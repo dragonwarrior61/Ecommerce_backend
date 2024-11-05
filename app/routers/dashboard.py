@@ -21,6 +21,8 @@ from decimal import Decimal
 from sqlalchemy import any_
 import calendar
 
+router = APIRouter()
+
 def get_valid_date(year, month, day):
     # Find the last day of the month
     last_day_of_month = calendar.monthrange(year, month)[1]
@@ -43,9 +45,6 @@ async def get_db_connection():
         host=settings.DB_URL,
         port=settings.DB_PORT,
     )
-
-router = APIRouter()
-
 
 async def get_return(st_datetime, en_datetime, user: User, db:AsyncSession):
     if user.role == -1:

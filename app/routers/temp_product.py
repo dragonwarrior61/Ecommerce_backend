@@ -9,6 +9,7 @@ from app.database import get_db
 from app.models.temp_product import Temp_product
 from app.models.team_member import Team_member
 from app.schemas.temp_product import Temp_productCreate, Temp_productRead, Temp_productUpdate
+from app.config import settings
 
 router = APIRouter()
 
@@ -26,9 +27,12 @@ async def create_temp_product(temp_product: Temp_productCreate, user: User = Dep
         
     db_temp_product = Temp_product(**temp_product.dict())
     db_temp_product.user_id = user_id
+    
+    settings.update_flag = 1
     db.add(db_temp_product)
     await db.commit()
     await db.refresh(db_temp_product)
+    settings.update_flag = 0
     return db_temp_product
 
 @router.get('/count')
@@ -86,9 +90,12 @@ async def update_temp_product(temp_product_id: int, temp_product: Temp_productUp
         raise HTTPException(status_code=404, detail="temp_product not found")
     for var, value in vars(temp_product).items():
         setattr(db_temp_product, var, value) if value is not None else None
-    db.add(db_temp_product)
+    
+    settings.update_flag = 1
     await db.commit()
     await db.refresh(db_temp_product)
+    settings.update_flag = 0
+    
     return db_temp_product
 
 @router.delete("/{temp_product_id}", response_model=Temp_productRead)
@@ -107,6 +114,9 @@ async def delete_temp_product(temp_product_id: int, user: User = Depends(get_cur
     temp_product = result.scalars().first()
     if temp_product is None:
         raise HTTPException(status_code=404, detail="temp_product not found")
+    
+    settings.update_flag = 1
     await db.delete(temp_product)
     await db.commit()
+    settings.update_flag = 0
     return temp_product

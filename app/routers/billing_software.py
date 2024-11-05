@@ -8,6 +8,7 @@ from app.models.user import User
 from app.routers.auth import get_current_user
 from app.models.billing_software import Billing_software
 from app.schemas.billing_software import Billing_softwaresCreate, Billing_softwaresRead, Billing_softwaresUpdate
+from app.config import settings
 
 router = APIRouter()
 
@@ -17,9 +18,12 @@ async def create_billing_software(billing_software: Billing_softwaresCreate, use
         raise HTTPException(status_code=401, detail="Authentication error")
     db_billing_software = Billing_software(**billing_software.dict())
     db_billing_software.user_id = user.id
+    
+    settings.update_flag = 1
     db.add(db_billing_software)
     await db.commit()
     await db.refresh(db_billing_software)
+    settings.update_flag = 1
     return db_billing_software
 
 @router.get('/count')
@@ -52,8 +56,11 @@ async def update_billing_software(billing_software_id: int, billing_software: Bi
         raise HTTPException(status_code=404, detail="billing_software not found")
     for var, value in vars(billing_software).items():
         setattr(db_billing_software, var, value) if value is not None else None
+    
+    settings.update_flag = 1
     await db.commit()
     await db.refresh(db_billing_software)
+    settings.update_flag = 0
     return db_billing_software
 
 @router.delete("/{billing_software_id}", response_model=Billing_softwaresRead)
@@ -64,6 +71,8 @@ async def delete_billing_software(billing_software_id: int, user: User = Depends
     billing_software = result.scalars().first()
     if billing_software is None:
         raise HTTPException(status_code=404, detail="billing_software not found")
+    settings.update_flag = 1
     await db.delete(billing_software)
     await db.commit()
+    settings.update_flag = 0
     return billing_software

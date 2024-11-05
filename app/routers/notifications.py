@@ -13,6 +13,7 @@ from typing import List
 import logging
 from pydantic import ValidationError
 from app.config import settings
+from app.config import settings
 
 async def create_notification(db: AsyncSession, notifications: NotificationCreate, user: User):
     if user.role == -1:
@@ -27,9 +28,13 @@ async def create_notification(db: AsyncSession, notifications: NotificationCreat
         
     db_notification = Notification(**notifications.dict())
     db_notification.user_id = user_id
+    
+    settings.update_flag = 1
     db.add(db_notification)
     await db.commit()
     await db.refresh(db_notification)
+    settings.update_flag = 0
+    
     return {"msg": "success"}
 
 async def get_notification(db: AsyncSession, notification_id: int, user: User):
@@ -68,16 +73,24 @@ async def update_notification(db: AsyncSession, notification_id: int, notificati
     update_data = notification.dict(exclude_unset=True)  # Only update fields that are set
     for key, value in update_data.items():
         setattr(notification, key, value) if value is not None else None
+        
+    settings.update_flag = 1
     await db.commit()
     await db.refresh(db_notification)
+    settings.update_flag = 0
+    
     return db_notification
 
 async def delete_notification(db: AsyncSession, notification_id: int, user: User):
     db_notification = await get_notification(db, notification_id, user)
     if db_notification is None:
         return None
+    
+    settings.update_flag = 1
     await db.delete(db_notification)
     await db.commit()
+    settings.update_flag = 0
+    
     return db_notification
 
 router = APIRouter()
@@ -110,8 +123,11 @@ async def read_notification(notification_id: int, user: User = Depends(get_curre
     db_notification = result.scalars().first()
     db_notification.read = True
 
+    settings.update_flag = 1
     await db.commit()
     await db.refresh(db_notification)
+    settings.update_flag = 0
+    
     return db_notification
 
 @router.put("/{notification_id}", response_model=NotificationRead)

@@ -6,7 +6,7 @@ from app.database import get_db
 from app.routers.auth import get_current_user
 from app.models.user import User
 from app.models.profile import Profile
-
+from app.config import settings
 router = APIRouter()
 
 async def get_profile(db: AsyncSession, user_id: int):
@@ -15,9 +15,11 @@ async def get_profile(db: AsyncSession, user_id: int):
 
 async def create_profile(db: AsyncSession, profile: ProfileCreate, user_id: int):
     db_profile = Profile(**profile.dict(), user_id=user_id)
+    settings.update_flag = 1
     db.add(db_profile)
     await db.commit()
     await db.refresh(db_profile)
+    settings.update_flag = 0
     return db_profile
 
 async def update_profile(db: AsyncSession, profile: ProfileUpdate, user_id: int):
@@ -25,8 +27,12 @@ async def update_profile(db: AsyncSession, profile: ProfileUpdate, user_id: int)
     if db_profile:
         for key, value in profile.dict(exclude_unset=True).items():
             setattr(db_profile, key, value) if value is not None else None
+        
+        settings.update_flag = 1
         await db.commit()
         await db.refresh(db_profile)
+        settings.update_flag = 0
+        
     return db_profile
 
 @router.get("/profile", response_model=ProfileRead)

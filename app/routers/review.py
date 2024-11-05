@@ -9,6 +9,7 @@ from app.database import get_db
 from app.models.review import Review
 from app.models.team_member import Team_member
 from app.schemas.review import ReviewCreate, ReviewRead, ReviewUpdate
+from app.config import settings
 
 router = APIRouter()
 
@@ -25,9 +26,13 @@ async def create_review(review: ReviewCreate, user: User = Depends(get_current_u
         user_id = user.id
     db_review = Review(**review.dict())
     db_review.admin_id = user_id
+    
+    settings.update_flag = 1
     db.add(db_review)
     await db.commit()
     await db.refresh(db_review)
+    settings.update_flag = 0
+    
     return db_review
 
 @router.get('/count')
@@ -85,9 +90,13 @@ async def update_review(review_id: int, review: ReviewUpdate, user: User = Depen
         raise HTTPException(status_code=404, detail="Review not found")
     for var, value in vars(review).items():
         setattr(db_review, var, value) if value is not None else None
+        
+    settings.update_flag = 1
     db.add(db_review)
     await db.commit()
     await db.refresh(db_review)
+    settings.update_flag = 0
+    
     return db_review
 
 @router.delete("/{review_id}", response_model=ReviewRead)
@@ -106,6 +115,10 @@ async def delete_review(review_id: int, user: User = Depends(get_current_user), 
     review = result.scalars().first()
     if review is None:
         raise HTTPException(status_code=404, detail="Review not found")
+    
+    settings.update_flag = 1
     await db.delete(review)
     await db.commit()
+    settings.update_flag = 0
+    
     return review

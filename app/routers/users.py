@@ -19,6 +19,7 @@ from app.utils.role_utils import convert_role_to_string
 from datetime import datetime
 import humanize
 import random
+from app.config import settings
 
 router = APIRouter()
 
@@ -110,6 +111,8 @@ async def create_user(user: UserCreate, db: AsyncSession = Depends(get_db)):
         country="",
         avatar=""
     )
+    
+    settings.update_flag = 1
     db.add(db_profile)
     await db.commit()
     await db.refresh(db_user)
@@ -127,6 +130,8 @@ async def create_user(user: UserCreate, db: AsyncSession = Depends(get_db)):
     refresh_token_expires = timedelta(minutes=settings.REFRESH_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(data={"email": user.email}, expires_delta=access_token_expires)
     refresh_token = create_refresh_token(data={"email": user.email}, expires_delta=refresh_token_expires)
+    settings.update_flag = 0
+    
     return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
 
 
@@ -173,8 +178,12 @@ async def update_user(user_id: int, user: UserUpdate, db: AsyncSession = Depends
     if user.password:
         db_user.hashed_password = get_password_hash(user.password)
     db_user.updated_at = datetime.utcnow()
+    
+    settings.update_flag = 1
     await db.commit()
     await db.refresh(db_user)
+    settings.update_flag = 0
+    
     return db_user
 
 @router.delete("/{user_id}", response_model=UserRead)
@@ -183,6 +192,9 @@ async def delete_user(user_id: int, db: AsyncSession = Depends(get_db)):
     user = result.scalars().first()
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
+    
+    settings.update_flag = 1
     await db.delete(user)
     await db.commit()
+    settings.update_flag = 0
     return user

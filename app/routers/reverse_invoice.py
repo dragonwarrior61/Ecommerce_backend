@@ -15,6 +15,7 @@ from app.routers.auth import get_current_user
 from app.schemas.reverse_invoice import Reverse_InvoiceCreate, Reverse_InvoiceRead, Reverse_InvoiceUpdate
 import logging
 import re
+from app.config import settings
 
 router = APIRouter()
 
@@ -50,10 +51,13 @@ async def create_reverse_invoice(reverse_invoice: Reverse_InvoiceCreate, user: U
     db_reverse_invoice.storno_number = response.get('number')
     db_reverse_invoice.post = 0
     db_reverse_invoice.user_id = user_id
-    db.add(db_reverse_invoice)
     
+    settings.update_flag = 1
+    db.add(db_reverse_invoice)
     await db.commit()
     await db.refresh(db_reverse_invoice)
+    settings.update_flag = 0
+    
     return db_reverse_invoice
 
 @router.get('/download_pdf')
@@ -105,7 +109,10 @@ async def post_invoice(order_id: int, marketplace: str, name: str, user: User = 
         return response.json()
     
     db_reverse_invoice.post = 1
+    
+    settings.update_flag = 1
     await db.commit()
     await db.refresh(db_reverse_invoice)
+    settings.update_flag = 0
     
     return response.json()

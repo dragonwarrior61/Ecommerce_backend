@@ -12,6 +12,7 @@ from app.models.scan_awb import Scan_awb
 from app.models.team_member import Team_member
 from app.models.awb import AWB
 from app.schemas.scan_awb import Scan_awbCreate, Scan_awbRead, Scan_awbUpdate
+from app.config import settings
 
 router = APIRouter()
 
@@ -29,9 +30,13 @@ async def create_scan_awb(scan_awb: Scan_awbCreate, db: AsyncSession = Depends(g
     if db_return:
         db_scan_awb.awb_type = "Return"
         user_id = db_return.user_id
+        
+        settings.update_flag = 1
         db.add(db_scan_awb)
         await db.commit()
         await db.refresh(db_scan_awb)
+        settings.update_flag = 0
+        
         return db_scan_awb
     
     result = await db.execute(select(AWB).where(or_(AWB.awb_number == awb_numer, AWB.awb_number == awb_numer[:-3])))
@@ -47,9 +52,13 @@ async def create_scan_awb(scan_awb: Scan_awbCreate, db: AsyncSession = Depends(g
         return
     if db_scan_awb.awb_number[-3:] == '001':
         db_scan_awb.awb_number = db_scan_awb.awb_number[:-3]
+    
+    settings.update_flag = 1
     db.add(db_scan_awb)
     await db.commit()
     await db.refresh(db_scan_awb)
+    settings.update_flag = 0
+    
     return db_scan_awb
 
 @router.get('/count')
@@ -102,10 +111,13 @@ async def get_scan_awbs(
             continue
         else:
             db_scan_awb.awb_type = "Finish"
+    
+    settings.update_flag = 1
     await db.commit()
     
     for db_scan_awb in db_scan_awbs:
         await db.refresh(db_scan_awb)
+    settings.update_flag = 0
     return db_scan_awbs
 
 @router.get("/awb_number")
@@ -148,8 +160,12 @@ async def update_scan_awb(scan_awb_id: int, scan_awb: Scan_awbUpdate, user: User
         raise HTTPException(status_code=404, detail="scan_awb not found")
     for var, value in vars(scan_awb).items():
         setattr(db_scan_awb, var, value) if value is not None else None
+        
+    settings.update_flag = 1
     await db.commit()
     await db.refresh(db_scan_awb)
+    settings.update_flag = 0
+    
     return db_scan_awb
 
 @router.delete("/{scan_awb_id}", response_model=Scan_awbRead)
@@ -168,6 +184,10 @@ async def delete_scan_awb(scan_awb_id: int, user: User = Depends(get_current_use
     scan_awb = result.scalars().first()
     if scan_awb is None:
         raise HTTPException(status_code=404, detail="scan_awb not found")
+    
+    settings.update_flag = 1
     await db.delete(scan_awb)
     await db.commit()
+    settings.update_flag = 0
+    
     return scan_awb

@@ -16,6 +16,8 @@ from app.utils.smart_api import generate_invoice, download_pdf, download_pdf_ser
 import json
 import logging
 import re
+from app.config import settings
+
 router = APIRouter()
 
 @router.post("/")
@@ -77,9 +79,11 @@ async def create_invoice(invoice: InvoicesCreate, user: User = Depends(get_curre
     db_invoice.post = 0
     db_invoice.user_id = user_id
     
+    settings.update_flag = 1
     db.add(db_invoice)
     await db.commit()
     await db.refresh(db_invoice)
+    settings.update_flag = 0
     return db_invoice
 
 @router.get('/download_pdf')
@@ -134,8 +138,9 @@ async def post_invoice(order_id: int, marketplace: str, name: str, user: User = 
     
     db_invoice.post = 1
     
+    settings.update_flag = 1
     await db.commit()
-    
     await db.refresh(db_invoice)
+    settings.update_flag = 0
     
     return response.json()

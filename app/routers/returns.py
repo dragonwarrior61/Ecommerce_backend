@@ -10,6 +10,7 @@ from app.routers.auth import get_current_user
 from app.models.returns import Returns
 from app.models.team_member import Team_member
 from app.schemas.returns import ReturnsCreate, ReturnsRead, ReturnsUpdate
+from app.config import settings
 
 router = APIRouter()
 
@@ -26,9 +27,13 @@ async def create_return(returns: ReturnsCreate, user: User = Depends(get_current
         user_id = user.id
     db_return = Returns(**returns.dict())
     db_return.user_id = user_id
+    
+    settings.update_flag = 1
     db.add(db_return)
     await db.commit()
     await db.refresh(db_return)
+    settings.update_flag = 0
+    
     return db_return
 
 @router.get('/count')
@@ -156,8 +161,12 @@ async def update_return(return_id: int, returns: ReturnsUpdate, user: User = Dep
         raise HTTPException(status_code=404, detail="return not found")
     for var, value in vars(returns).items():
         setattr(db_return, var, value) if value is not None else None
+    
+    settings.update_flag = 1
     await db.commit()
     await db.refresh(db_return)
+    settings.update_flag = 0
+    
     return db_return
 
 @router.delete("/{return_id}", response_model=ReturnsRead)
@@ -176,6 +185,10 @@ async def delete_return(return_id: int, user: User = Depends(get_current_user), 
     returns = result.scalars().first()
     if ReturnsCreate is None:
         raise HTTPException(status_code=404, detail="return not found")
+    
+    settings.update_flag = 1
     await db.delete(returns)
     await db.commit()
+    settings.update_flag = 0
+    
     return Returns

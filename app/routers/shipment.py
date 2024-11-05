@@ -18,6 +18,7 @@ import json
 from datetime import datetime
 import time
 import math
+from app.config import settings
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -36,9 +37,13 @@ async def create_shipment(shipment: ShipmentCreate, user: User = Depends(get_cur
         user_id = user.id
     db_shipment = Shipment(**shipment.dict())
     db_shipment.user_id = user_id
+    
+    settings.update_flag = 1
     db.add(db_shipment)
     await db.commit()
     await db.refresh(db_shipment)
+    settings.update_flag = 0
+    
     return db_shipment
 
 @router.get('/count')
@@ -306,11 +311,12 @@ async def move_products(shipment_id1: int, shipment_id2: int, ean: str, ship_id:
     shipment_2.price = shipment_2.price + [price]
     shipment_2.each_note = shipment_2.each_note + [each_note]
 
+    settings.update_flag = 1
     await db.commit()
     await db.refresh(shipment_1)
-
     logging.info(f"@@@@@After update: {shipment_1}")
-
+    settings.update_flag = 0
+    
     return shipment_1
 
 @router.get("/product_info")
@@ -435,9 +441,11 @@ async def add_product_in_shipment(ean: str, qty: int, ship_id: int, user: User =
     db_shipment.price = db_shipment.price + [price]
     db_shipment.each_note = db_shipment.each_note + [""]
     db_shipment.updated_at = datetime.now()
-    
+
+    settings.update_flag = 1
     await db.commit()
     await db.refresh(db_shipment)
+    settings.update_flag = 0
     
     return db_shipment
 
@@ -476,8 +484,12 @@ async def update_shipment(shipment_id: int, shipment: ShipmentUpdate, db: AsyncS
     update_data = shipment.dict(exclude_unset=True)  # Only update fields that are set
     for key, value in update_data.items():
         setattr(db_shipment, key, value) if value is not None else None
+        
+    settings.update_flag = 1
     await db.commit()
     await db.refresh(db_shipment)
+    settings.update_flag = 0
+    
     return db_shipment
 
 @router.delete("/{shipment_id}", response_model=ShipmentRead)
@@ -495,6 +507,10 @@ async def delete_shipment(shipment_id: int, user: User = Depends(get_current_use
     shipment = result.scalars().first()
     if shipment is None:
         raise HTTPException(status_code=404, detail="shipment not found")
+    
+    settings.update_flag = 1
     await db.delete(shipment)
     await db.commit()
+    settings.update_flag = 0
+    
     return shipment

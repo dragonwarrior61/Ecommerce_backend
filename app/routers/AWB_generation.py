@@ -23,6 +23,7 @@ from app.utils.altex_awb import save_altex_awb
 from app.utils.sameday import tracking
 from sqlalchemy import any_
 import datetime
+from app.config import settings
 
 router = APIRouter()
 
@@ -48,9 +49,13 @@ async def create_awb_manually(awb: AWBCreate, user: User = Depends(get_current_u
     if awb:
         return awb
     db_awb.user_id = user_id
+    
+    settings.update_flag = 1
     db.add(db_awb)
     await db.commit()
     await db.refresh(db_awb)
+    settings.update_flag = 0
+    
     return db_awb
 
 @router.post("/")
@@ -150,6 +155,9 @@ async def create_awbs(awb: AWBCreate, marketplace: str, user: User = Depends(get
         
         db_awb.awb_marketplace = marketplace
         db_awb.user_id = user_id
+        
+        settings.update_flag = 1
+        
         db.add(db_awb)
         await db.commit()
         await db.refresh(db_awb)
@@ -164,9 +172,13 @@ async def create_awbs(awb: AWBCreate, marketplace: str, user: User = Depends(get
         
         if db_replacement:
             await db.refresh(db_replacement) 
+        settings.update_flag = 0
+        
         return db_awb
     except Exception as e:  # Roll back any changes made before the error
         logging.info(f"Error processing AWB: {str(e)}")
+        
+        settings.update_flag = 0
         return {"error": "Failed to process AWB", "message": str(e)}
 
 @router.get("/backup")
@@ -372,8 +384,11 @@ async def update_awbs(awb_number: str, awb: AWBUpdate, user: User = Depends(get_
     update_data = awb.dict(exclude_unset=True)  # Only update fields that are set
     for key, value in update_data.items():
         setattr(awb, key, value) if value is not None else None
+        
+    settings.update_flag = 1
     await db.commit()
     await db.refresh(db_awb)
+    settings.update_flag = 0
     return db_awb
 
 @router.delete("/{awb_number}", response_model=AWBRead)
@@ -392,6 +407,9 @@ async def delete_awbs(awb_number: str, user: User = Depends(get_current_user), d
     awb = result.scalars().first()
     if awb is None:
         raise HTTPException(status_code=404, detail="awbs not found")
+    
+    settings.update_flag = 1
     await db.delete(awb)
     await db.commit()
+    settings.update_flag = 0
     return awb

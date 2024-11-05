@@ -9,15 +9,20 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 from pydantic import ValidationError
+from app.config import settings
 
 async def create_marketplace(db: AsyncSession, marketplace: MarketplaceCreate, user: User):
     if user.role != 4:
         raise HTTPException(status_code=401, detail="Authentication error")
     db_marketplace = Marketplace(**marketplace.dict())
     db_marketplace.user_id = user.id
+    
+    settings.update_flag = 1
     db.add(db_marketplace)
     await db.commit()
     await db.refresh(db_marketplace)
+    settings.update_flag = 0
+    
     return {"msg": "success"}
 
 async def get_marketplace(db: AsyncSession, marketplace_id: int, user: User):
@@ -34,16 +39,23 @@ async def update_marketplace(db: AsyncSession, marketplace_id: int, marketplace:
         return None
     for key, value in marketplace.dict().items():
         setattr(db_marketplace, key, value) if value is not None else None
+    
+    settings.update_flag = 1
     await db.commit()
     await db.refresh(db_marketplace)
+    settings.update_flag = 0
+    
     return db_marketplace
 
 async def delete_marketplace(db: AsyncSession, marketplace_id: int, user: User):
     db_marketplace = await get_marketplace(db, marketplace_id, user)
     if db_marketplace is None:
         return None
+    
+    settings.update_flag = 1
     await db.delete(db_marketplace)
     await db.commit()
+    settings.update_flag = 0
     return db_marketplace
 
 router = APIRouter()

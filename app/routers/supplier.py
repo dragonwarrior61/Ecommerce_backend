@@ -9,6 +9,7 @@ from app.models.user import User
 from app.models.team_member import Team_member
 from app.routers.auth import get_current_user
 from app.schemas.supplier import SupplierCreate, SupplierRead, SupplierUpdate
+from app.config import settings
 
 router = APIRouter()
 
@@ -26,9 +27,13 @@ async def create_supplier(supplier: SupplierCreate, user: User = Depends(get_cur
         
     db_supplier = Supplier(**supplier.dict())
     db_supplier.user_id = user_id
+    
+    settings.update_flag = 1
     db.add(db_supplier)
     await db.commit()
     await db.refresh(db_supplier)
+    settings.update_flag = 0
+    
     return db_supplier
 
 @router.get('/count')
@@ -86,9 +91,12 @@ async def update_supplier(supplier_id: int, supplier: SupplierUpdate, user: User
         raise HTTPException(status_code=404, detail="Supplier not found")
     for var, value in vars(supplier).items():
         setattr(db_supplier, var, value) if value is not None else None
-    db.add(db_supplier)
+    
+    settings.update_flag = 1
     await db.commit()
     await db.refresh(db_supplier)
+    settings.update_flag = 0
+    
     return db_supplier
 
 @router.delete("/{supplier_id}", response_model=SupplierRead)
@@ -107,6 +115,10 @@ async def delete_supplier(supplier_id: int, user: User = Depends(get_current_use
     supplier = result.scalars().first()
     if supplier is None:
         raise HTTPException(status_code=404, detail="Supplier not found")
+    
+    settings.update_flag = 1
     await db.delete(supplier)
     await db.commit()
+    settings.update_flag = 0
+    
     return supplier

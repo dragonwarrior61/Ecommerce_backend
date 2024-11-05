@@ -20,6 +20,7 @@ from app.models.team_member import Team_member
 from sqlalchemy import cast, String
 from app.models.marketplace import Marketplace
 import json
+from app.config import settings
 
 import datetime
 from datetime import timedelta
@@ -153,9 +154,13 @@ async def create_product(product: Internal_ProductCreate, user: User = Depends(g
         
     db_product = Internal_Product(**product.dict())
     db_product.user_id = user_id
+    
+    settings.update_flag = 1
     db.add(db_product)
     await db.commit()
     await db.refresh(db_product)
+    settings.update_flag = 0
+    
     return db_product
 
 @router.get('/count')
@@ -536,8 +541,11 @@ async def update_product(ean: str, product: Internal_ProductUpdate, user: User =
     for var, value in vars(product).items():
         setattr(db_product, var, value) if value is not None else None
 
+    settings.update_flag = 1
     await db.commit()
     await db.refresh(db_product)
+    settings.update_flag = 0
+    
     return db_product
 
 @router.delete("/{ean}", response_model=Internal_ProductRead)
@@ -564,6 +572,9 @@ async def delete_product(ean: str, user: User = Depends(get_current_user), db: A
     shipment = result.scalars().all()
     if shipment:
         raise HTTPException(status_code=500, detail="This product is in shipment")
+    
+    settings.update_flag = 1
     await db.delete(product)
     await db.commit()
+    settings.update_flag = 0
     return product
