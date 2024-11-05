@@ -151,14 +151,11 @@ async def get_scan_awbs(
     settings.update_flag = 1
     try:
         await db.commit()
-        
-        for db_scan_awb in db_scan_awbs:
-            await db.refresh(db_scan_awb)
     except Exception as e:
         db.rollback()
     finally:
         settings.update_flag = 0
-    return db_scan_awbs
+    return scan_awb_data
 
 @router.get("/awb_number")
 async def get_scan_awb_number(awb_number: str, db: AsyncSession = Depends(get_db)):
