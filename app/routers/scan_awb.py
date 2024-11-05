@@ -115,7 +115,7 @@ async def get_scan_awbs(
     OrderAlias = aliased(Order)
     Reverse_InvoiceAlias = aliased(Reverse_Invoice)
     
-    query = select(Scan_awb, OrderAlias, InvoiceAlias, Reverse_InvoiceAlias).where(Scan_awb.user_id == user_id)
+    query = select(Scan_awb, AWBAlias, OrderAlias, InvoiceAlias, Reverse_InvoiceAlias).where(Scan_awb.user_id == user_id)
     query = query.outerjoin(AWBAlias, AWBAlias.awb_number == Scan_awb.awb_number)
     query = query.outerjoin(OrderAlias, and_(OrderAlias.id == AWBAlias.order_id, OrderAlias.user_id == AWBAlias.user_id, AWBAlias.number > 0))
     query = query.outerjoin(InvoiceAlias, and_(InvoiceAlias.order_id == OrderAlias.id, InvoiceAlias.user_id == OrderAlias.user_id))
@@ -126,7 +126,9 @@ async def get_scan_awbs(
     
     if db_scan_awbs is None:
         raise HTTPException(status_code=404, detail="scan_awb not found")
-    for db_scan_awb, order, invoice, reverse_invoice in db_scan_awbs:
+    
+    scan_awb_data = []
+    for db_scan_awb, awb, order, invoice, reverse_invoice in db_scan_awbs:
         awb_number = db_scan_awb.awb_number
         if db_scan_awb.awb_type == "Return":
             continue
@@ -136,7 +138,15 @@ async def get_scan_awbs(
             continue
         else:
             db_scan_awb.awb_type = "Finish"
-    
+
+        scan_awb_data.append({
+            "scan_awb": db_scan_awb,
+            "awb": awb,
+            "order": order,
+            "invoice": invoice,
+            "reverse_invoice": reverse_invoice
+        })
+        
     settings.update_flag = 1
     try:
         await db.commit()
