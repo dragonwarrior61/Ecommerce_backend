@@ -527,7 +527,7 @@ async def update_product(ean: str, product: Internal_ProductUpdate, user: User =
     else:
         user_id = user.id
         
-    result = await db.execute(select(Internal_Product).filter(Internal_Product.ean == ean, Internal_Product.user_id == user_id))
+    result = await db.execute(select(Internal_Product).filter(Internal_Product.ean == ean, Internal_Product.user_id == user_id).with_for_update())
     db_product = result.scalars().first()
 
     if db_product is None:
