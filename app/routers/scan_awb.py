@@ -130,15 +130,15 @@ async def get_scan_awbs(
     
     scan_awb_data = []
     for db_scan_awb, awb, order, invoice, reverse_invoice in db_scan_awbs:
-        awb_number = db_scan_awb.awb_number
-        if db_scan_awb.awb_type == "Return":
-            continue
-        result = await db.execute(select(AWB).where(AWB.awb_number == awb_number))
-        db_awb = result.scalars().first()
-        if db_awb.awb_status in ([16, 35, 93]):
-            continue
-        else:
-            db_scan_awb.awb_type = "Finish"
+        # awb_number = db_scan_awb.awb_number
+        # if db_scan_awb.awb_type == "Return":
+        #     continue
+        # result = await db.execute(select(AWB).where(AWB.awb_number == awb_number))
+        # db_awb = result.scalars().first()
+        # if db_awb.awb_status in ([16, 35, 93]):
+        #     continue
+        # else:
+        #     db_scan_awb.awb_type = "Finish"
 
         scan_awb_data.append({
             "scan_awb": jsonable_encoder(db_scan_awb),
