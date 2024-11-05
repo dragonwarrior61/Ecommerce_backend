@@ -14,5 +14,5 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
     REFRESH_TOKEN_EXPIRE_MINUTES: int = 1440
     
-    update_flag = 0
+    update_flag: int = 0
 settings = Settings()
