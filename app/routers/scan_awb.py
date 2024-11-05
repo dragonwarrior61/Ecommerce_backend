@@ -18,6 +18,7 @@ from app.models.awb import AWB
 from app.schemas.scan_awb import Scan_awbCreate, Scan_awbRead, Scan_awbUpdate
 from app.config import settings
 from collections import defaultdict
+from fastapi.encoders import jsonable_encoder
 
 router = APIRouter()
 
@@ -140,11 +141,11 @@ async def get_scan_awbs(
             db_scan_awb.awb_type = "Finish"
 
         scan_awb_data.append({
-            "scan_awb": db_scan_awb,
-            "awb": awb,
-            "order": order,
-            "invoice": invoice,
-            "reverse_invoice": reverse_invoice
+            "scan_awb": jsonable_encoder(db_scan_awb),
+            "awb": jsonable_encoder(awb),
+            "order": jsonable_encoder(order),
+            "invoice": jsonable_encoder(invoice),
+            "reverse_invoice": jsonable_encoder(reverse_invoice)
         })
         
     settings.update_flag = 1
