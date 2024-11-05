@@ -142,20 +142,20 @@ async def get_scan_awbs(
         #     db_scan_awb.awb_type = "Finish"
 
         scan_awb_data.append({
-            "scan_awb": jsonable_encoder(db_scan_awb),
-            "awb": jsonable_encoder(awb),
-            "order": jsonable_encoder(order),
-            "invoice": jsonable_encoder(invoice),
-            "reverse_invoice": jsonable_encoder(reverse_invoice)
+            "scan_awb": db_scan_awb,
+            "awb": awb,
+            "order": order,
+            "invoice": invoice,
+            "reverse_invoice": reverse_invoice
         })
         
-    settings.update_flag = 1
-    try:
-        await db.commit()
-    except Exception as e:
-        db.rollback()
-    finally:
-        settings.update_flag = 0
+    # settings.update_flag = 1
+    # try:
+    #     await db.commit()
+    # except Exception as e:
+    #     db.rollback()
+    # finally:
+    #     settings.update_flag = 0
     return scan_awb_data
 
 @router.get("/awb_number")
