@@ -37,7 +37,8 @@ async def create_scan_awb(scan_awb: Scan_awbCreate, db: AsyncSession = Depends(g
         db_scan_awb.awb_type = "Return"
         user_id = db_return.user_id
         db_scan_awb.user_id == user_id
-        
+        if db_scan_awb.awb_number[-3:] == '001':
+            db_scan_awb.awb_number = db_scan_awb.awb_number[:-3]
         settings.update_flag = 1
         try:
             db.add(db_scan_awb)
