@@ -40,10 +40,14 @@ async def create_replacement(replacement: ReplacementsCreate, user: User = Depen
     db_replacement.user_id = user_id
     
     settings.update_flag = 1
-    db.add(db_replacement)
-    await db.commit()
-    await db.refresh(db_replacement)
-    settings.update_flag = 0
+    try:
+        db.add(db_replacement)
+        await db.commit()
+        await db.refresh(db_replacement)
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     
     return db_replacement
 
@@ -202,9 +206,13 @@ async def update_replacement(replacement_id: int, replacement: ReplacementsUpdat
         setattr(db_replacement, var, value) if value is not None else None
     
     settings.update_flag = 1
-    await db.commit()
-    await db.refresh(db_replacement)
-    settings.update_flag = 0
+    try:
+        await db.commit()
+        await db.refresh(db_replacement)
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     return db_replacement
 
 @router.delete("/{replacement_id}", response_model=ReplacementsRead)
@@ -225,7 +233,11 @@ async def delete_replacement(replacement_id: int, user: User = Depends(get_curre
         raise HTTPException(status_code=404, detail="replacement not found")
     
     settings.update_flag = 1
-    await db.delete(replacement)
-    await db.commit()
-    settings.update_flag = 0
+    try:
+        await db.delete(replacement)
+        await db.commit()
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     return replacement

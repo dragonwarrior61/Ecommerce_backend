@@ -29,10 +29,14 @@ async def create_return(returns: ReturnsCreate, user: User = Depends(get_current
     db_return.user_id = user_id
     
     settings.update_flag = 1
-    db.add(db_return)
-    await db.commit()
-    await db.refresh(db_return)
-    settings.update_flag = 0
+    try:
+        db.add(db_return)
+        await db.commit()
+        await db.refresh(db_return)
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     
     return db_return
 
@@ -163,9 +167,13 @@ async def update_return(return_id: int, returns: ReturnsUpdate, user: User = Dep
         setattr(db_return, var, value) if value is not None else None
     
     settings.update_flag = 1
-    await db.commit()
-    await db.refresh(db_return)
-    settings.update_flag = 0
+    try:
+        await db.commit()
+        await db.refresh(db_return)
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     
     return db_return
 
@@ -187,8 +195,12 @@ async def delete_return(return_id: int, user: User = Depends(get_current_user), 
         raise HTTPException(status_code=404, detail="return not found")
     
     settings.update_flag = 1
-    await db.delete(returns)
-    await db.commit()
-    settings.update_flag = 0
+    try:
+        await db.delete(returns)
+        await db.commit()
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     
     return Returns

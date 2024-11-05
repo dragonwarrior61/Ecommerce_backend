@@ -39,10 +39,14 @@ async def create_shipment(shipment: ShipmentCreate, user: User = Depends(get_cur
     db_shipment.user_id = user_id
     
     settings.update_flag = 1
-    db.add(db_shipment)
-    await db.commit()
-    await db.refresh(db_shipment)
-    settings.update_flag = 0
+    try:
+        db.add(db_shipment)
+        await db.commit()
+        await db.refresh(db_shipment)
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     
     return db_shipment
 
@@ -312,8 +316,13 @@ async def move_products(shipment_id1: int, shipment_id2: int, ean: str, ship_id:
     shipment_2.each_note = shipment_2.each_note + [each_note]
 
     settings.update_flag = 1
-    await db.commit()
-    await db.refresh(shipment_1)
+    try:
+        await db.commit()
+        await db.refresh(shipment_1)
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     logging.info(f"@@@@@After update: {shipment_1}")
     settings.update_flag = 0
     
@@ -443,9 +452,13 @@ async def add_product_in_shipment(ean: str, qty: int, ship_id: int, user: User =
     db_shipment.updated_at = datetime.now()
 
     settings.update_flag = 1
-    await db.commit()
-    await db.refresh(db_shipment)
-    settings.update_flag = 0
+    try:
+        await db.commit()
+        await db.refresh(db_shipment)
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     
     return db_shipment
 
@@ -486,9 +499,13 @@ async def update_shipment(shipment_id: int, shipment: ShipmentUpdate, db: AsyncS
         setattr(db_shipment, key, value) if value is not None else None
         
     settings.update_flag = 1
-    await db.commit()
-    await db.refresh(db_shipment)
-    settings.update_flag = 0
+    try:
+        await db.commit()
+        await db.refresh(db_shipment)
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     
     return db_shipment
 
@@ -509,8 +526,12 @@ async def delete_shipment(shipment_id: int, user: User = Depends(get_current_use
         raise HTTPException(status_code=404, detail="shipment not found")
     
     settings.update_flag = 1
-    await db.delete(shipment)
-    await db.commit()
-    settings.update_flag = 0
+    try:
+        await db.delete(shipment)
+        await db.commit()
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     
     return shipment

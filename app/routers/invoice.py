@@ -80,10 +80,14 @@ async def create_invoice(invoice: InvoicesCreate, user: User = Depends(get_curre
     db_invoice.user_id = user_id
     
     settings.update_flag = 1
-    db.add(db_invoice)
-    await db.commit()
-    await db.refresh(db_invoice)
-    settings.update_flag = 0
+    try:
+        db.add(db_invoice)
+        await db.commit()
+        await db.refresh(db_invoice)
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     return db_invoice
 
 @router.get('/download_pdf')
@@ -139,8 +143,12 @@ async def post_invoice(order_id: int, marketplace: str, name: str, user: User = 
     db_invoice.post = 1
     
     settings.update_flag = 1
-    await db.commit()
-    await db.refresh(db_invoice)
-    settings.update_flag = 0
+    try:
+        await db.commit()
+        await db.refresh(db_invoice)
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     
     return response.json()

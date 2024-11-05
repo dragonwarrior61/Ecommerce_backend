@@ -16,10 +16,14 @@ async def get_profile(db: AsyncSession, user_id: int):
 async def create_profile(db: AsyncSession, profile: ProfileCreate, user_id: int):
     db_profile = Profile(**profile.dict(), user_id=user_id)
     settings.update_flag = 1
-    db.add(db_profile)
-    await db.commit()
-    await db.refresh(db_profile)
-    settings.update_flag = 0
+    try:
+        db.add(db_profile)
+        await db.commit()
+        await db.refresh(db_profile)
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     return db_profile
 
 async def update_profile(db: AsyncSession, profile: ProfileUpdate, user_id: int):
@@ -29,9 +33,13 @@ async def update_profile(db: AsyncSession, profile: ProfileUpdate, user_id: int)
             setattr(db_profile, key, value) if value is not None else None
         
         settings.update_flag = 1
-        await db.commit()
-        await db.refresh(db_profile)
-        settings.update_flag = 0
+        try:
+            await db.commit()
+            await db.refresh(db_profile)
+        except Exception as e:
+            db.rollback()
+        finally:
+            settings.update_flag = 0
         
     return db_profile
 

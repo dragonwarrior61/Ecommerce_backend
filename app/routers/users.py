@@ -113,24 +113,28 @@ async def create_user(user: UserCreate, db: AsyncSession = Depends(get_db)):
     )
     
     settings.update_flag = 1
-    db.add(db_profile)
-    await db.commit()
-    await db.refresh(db_user)
+    try:
+        db.add(db_profile)
+        await db.commit()
+        await db.refresh(db_user)
     
-    user = await authenticate_user(db, user.email, user.password)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "bearer"},
-        )
-    
-    await update_last_logged_in(db, user.id)
-    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    refresh_token_expires = timedelta(minutes=settings.REFRESH_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(data={"email": user.email}, expires_delta=access_token_expires)
-    refresh_token = create_refresh_token(data={"email": user.email}, expires_delta=refresh_token_expires)
-    settings.update_flag = 0
+        user = await authenticate_user(db, user.email, user.password)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect username or password",
+                headers={"WWW-Authenticate": "bearer"},
+            )
+        
+        await update_last_logged_in(db, user.id)
+        access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        refresh_token_expires = timedelta(minutes=settings.REFRESH_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(data={"email": user.email}, expires_delta=access_token_expires)
+        refresh_token = create_refresh_token(data={"email": user.email}, expires_delta=refresh_token_expires)
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     
     return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
 
@@ -180,9 +184,13 @@ async def update_user(user_id: int, user: UserUpdate, db: AsyncSession = Depends
     db_user.updated_at = datetime.utcnow()
     
     settings.update_flag = 1
-    await db.commit()
-    await db.refresh(db_user)
-    settings.update_flag = 0
+    try:
+        await db.commit()
+        await db.refresh(db_user)
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     
     return db_user
 
@@ -194,7 +202,11 @@ async def delete_user(user_id: int, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=404, detail="User not found")
     
     settings.update_flag = 1
-    await db.delete(user)
-    await db.commit()
-    settings.update_flag = 0
+    try:
+        await db.delete(user)
+        await db.commit()
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     return user

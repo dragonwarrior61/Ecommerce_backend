@@ -18,10 +18,14 @@ async def create_marketplace(db: AsyncSession, marketplace: MarketplaceCreate, u
     db_marketplace.user_id = user.id
     
     settings.update_flag = 1
-    db.add(db_marketplace)
-    await db.commit()
-    await db.refresh(db_marketplace)
-    settings.update_flag = 0
+    try:
+        db.add(db_marketplace)
+        await db.commit()
+        await db.refresh(db_marketplace)
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     
     return {"msg": "success"}
 
@@ -41,9 +45,13 @@ async def update_marketplace(db: AsyncSession, marketplace_id: int, marketplace:
         setattr(db_marketplace, key, value) if value is not None else None
     
     settings.update_flag = 1
-    await db.commit()
-    await db.refresh(db_marketplace)
-    settings.update_flag = 0
+    try:
+        await db.commit()
+        await db.refresh(db_marketplace)
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     
     return db_marketplace
 
@@ -53,9 +61,13 @@ async def delete_marketplace(db: AsyncSession, marketplace_id: int, user: User):
         return None
     
     settings.update_flag = 1
-    await db.delete(db_marketplace)
-    await db.commit()
-    settings.update_flag = 0
+    try:
+        await db.delete(db_marketplace)
+        await db.commit()
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     return db_marketplace
 
 router = APIRouter()

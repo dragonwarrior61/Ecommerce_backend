@@ -93,8 +93,9 @@ async def insert_couriers_into_db(couriers, place:str, user_id: int):
 
             print(value)
             cursor.execute(insert_query, value)
-            conn.commit()
-        
+        while settings.update_flag == 1:
+            continue
+        conn.commit()
         cursor.close()
         conn.close()
         print("Couriers inserted successfully")

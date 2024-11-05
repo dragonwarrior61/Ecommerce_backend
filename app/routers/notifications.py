@@ -30,10 +30,14 @@ async def create_notification(db: AsyncSession, notifications: NotificationCreat
     db_notification.user_id = user_id
     
     settings.update_flag = 1
-    db.add(db_notification)
-    await db.commit()
-    await db.refresh(db_notification)
-    settings.update_flag = 0
+    try:
+        db.add(db_notification)
+        await db.commit()
+        await db.refresh(db_notification)
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     
     return {"msg": "success"}
 
@@ -75,9 +79,13 @@ async def update_notification(db: AsyncSession, notification_id: int, notificati
         setattr(notification, key, value) if value is not None else None
         
     settings.update_flag = 1
-    await db.commit()
-    await db.refresh(db_notification)
-    settings.update_flag = 0
+    try:
+        await db.commit()
+        await db.refresh(db_notification)
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     
     return db_notification
 
@@ -87,9 +95,13 @@ async def delete_notification(db: AsyncSession, notification_id: int, user: User
         return None
     
     settings.update_flag = 1
-    await db.delete(db_notification)
-    await db.commit()
-    settings.update_flag = 0
+    try:
+        await db.delete(db_notification)
+        await db.commit()
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     
     return db_notification
 
@@ -124,9 +136,13 @@ async def read_notification(notification_id: int, user: User = Depends(get_curre
     db_notification.read = True
 
     settings.update_flag = 1
-    await db.commit()
-    await db.refresh(db_notification)
-    settings.update_flag = 0
+    try:
+        await db.commit()
+        await db.refresh(db_notification)
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     
     return db_notification
 

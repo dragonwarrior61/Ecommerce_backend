@@ -51,9 +51,13 @@ async def update_order(db: AsyncSession, order_id: int, order: OrderUpdate, user
             setattr(db_order, key, value) if value is not None else None
         
         settings.update_flag = 1
-        db.commit()
-        db.refresh(db_order)
-        settings.update_flag = 0
+        try:
+            await db.commit()
+            await db.refresh(db_order)
+        except Exception as e:
+            await db.rollback()
+        finally:
+            settings.update_flag = 0
     return db_order
 
 async def delete_order(db: AsyncSession, order_id: int, user: User):
@@ -71,9 +75,13 @@ async def delete_order(db: AsyncSession, order_id: int, user: User):
     db_order = result.scalars().first()
     if db_order:
         settings.update_flag = 1
-        db.delete(db_order)
-        db.commit()
-        settings.update_flag = 0
+        try:
+            await db.delete(db_order)
+            await db.commit()
+        except Exception as e:
+            db.rollback()
+        finally:
+            settings.update_flag = 0
     return db_order
 
 
@@ -94,10 +102,14 @@ async def create_order(order: OrderCreate, user: User = Depends(get_current_user
     db_order.user_id == user_id
     
     settings.update_flag = 1
-    db.add(db_order)
-    await db.commit()
-    await db.refresh(db_order)
-    settings.update_flag = 0
+    try:
+        db.add(db_order)
+        await db.commit()
+        await db.refresh(db_order)
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     
     return db_order
 

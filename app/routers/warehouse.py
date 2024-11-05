@@ -29,10 +29,14 @@ async def create_warehouse(warehouse: WarehouseCreate, user: User = Depends(get_
     db_warehouse.user_id = user_id
     
     settings.update_flag = 1
-    db.add(db_warehouse)
-    await db.commit()
-    await db.refresh(db_warehouse)
-    settings.update_flag = 0
+    try:
+        db.add(db_warehouse)
+        await db.commit()
+        await db.refresh(db_warehouse)
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     
     return db_warehouse
 
@@ -94,9 +98,13 @@ async def update_warehouse(warehouse_id: int, warehouse: WarehouseUpdate, user: 
         setattr(db_warehouse, key, value) if value is not None else None
         
     settings.update_flag = 1
-    await db.commit()
-    await db.refresh(db_warehouse)
-    settings.update_flag = 0
+    try:
+        await db.commit()
+        await db.refresh(db_warehouse)
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     
     return db_warehouse
 
@@ -118,8 +126,12 @@ async def delete_warehouse(warehouse_id: int, user: User = Depends(get_current_u
         raise HTTPException(status_code=404, detail="Warehouse not found")
     
     settings.update_flag = 1
-    await db.delete(warehouse)
-    await db.commit()
-    settings.update_flag = 0
+    try:
+        await db.delete(warehouse)
+        await db.commit()
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     
     return warehouse

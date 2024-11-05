@@ -29,10 +29,14 @@ async def create_temp_product(temp_product: Temp_productCreate, user: User = Dep
     db_temp_product.user_id = user_id
     
     settings.update_flag = 1
-    db.add(db_temp_product)
-    await db.commit()
-    await db.refresh(db_temp_product)
-    settings.update_flag = 0
+    try:
+        db.add(db_temp_product)
+        await db.commit()
+        await db.refresh(db_temp_product)
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     return db_temp_product
 
 @router.get('/count')
@@ -92,9 +96,13 @@ async def update_temp_product(temp_product_id: int, temp_product: Temp_productUp
         setattr(db_temp_product, var, value) if value is not None else None
     
     settings.update_flag = 1
-    await db.commit()
-    await db.refresh(db_temp_product)
-    settings.update_flag = 0
+    try:
+        await db.commit()
+        await db.refresh(db_temp_product)
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     
     return db_temp_product
 
@@ -116,7 +124,11 @@ async def delete_temp_product(temp_product_id: int, user: User = Depends(get_cur
         raise HTTPException(status_code=404, detail="temp_product not found")
     
     settings.update_flag = 1
-    await db.delete(temp_product)
-    await db.commit()
-    settings.update_flag = 0
+    try:
+        await db.delete(temp_product)
+        await db.commit()
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     return temp_product

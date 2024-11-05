@@ -103,6 +103,8 @@ async def insert_review_into_db(review, place, ean):
         )
 
         cursor.execute(insert_query, values)
+        while settings.update_flag == 1:
+            continue
         conn.commit()
         print(f"Successfully inserted review")
 

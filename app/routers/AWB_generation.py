@@ -51,10 +51,15 @@ async def create_awb_manually(awb: AWBCreate, user: User = Depends(get_current_u
     db_awb.user_id = user_id
     
     settings.update_flag = 1
-    db.add(db_awb)
-    await db.commit()
-    await db.refresh(db_awb)
-    settings.update_flag = 0
+    
+    try:
+        db.add(db_awb)
+        await db.commit()
+        await db.refresh(db_awb)
+    except Exception as e:
+        await db.rollback()
+    finally:
+        settings.update_flag = 0
     
     return db_awb
 
@@ -159,8 +164,6 @@ async def create_awbs(awb: AWBCreate, marketplace: str, user: User = Depends(get
         settings.update_flag = 1
         
         db.add(db_awb)
-        await db.commit()
-        await db.refresh(db_awb)
 
         db_replacement = None
 
@@ -170,9 +173,13 @@ async def create_awbs(awb: AWBCreate, marketplace: str, user: User = Depends(get
             if db_replacement:
                 db_replacement.awb = db_awb.awb_number
         
-        if db_replacement:
-            await db.refresh(db_replacement) 
-        settings.update_flag = 0
+        try:
+            await db.commit()
+            await db.refresh(db_awb)
+        except Exception as ex:
+            await db.rollback()
+        finally:
+            settings.update_flag = 0
         
         return db_awb
     except Exception as e:  # Roll back any changes made before the error
@@ -386,9 +393,13 @@ async def update_awbs(awb_number: str, awb: AWBUpdate, user: User = Depends(get_
         setattr(awb, key, value) if value is not None else None
         
     settings.update_flag = 1
-    await db.commit()
-    await db.refresh(db_awb)
-    settings.update_flag = 0
+    try:
+        await db.commit()
+        await db.refresh(db_awb)
+    except Exception as e:
+        await db.rollback()
+    finally:
+        settings.update_flag = 0
     return db_awb
 
 @router.delete("/{awb_number}", response_model=AWBRead)
@@ -409,7 +420,11 @@ async def delete_awbs(awb_number: str, user: User = Depends(get_current_user), d
         raise HTTPException(status_code=404, detail="awbs not found")
     
     settings.update_flag = 1
-    await db.delete(awb)
-    await db.commit()
-    settings.update_flag = 0
+    try:
+        await db.delete(awb)
+        await db.commit()
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     return awb

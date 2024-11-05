@@ -96,8 +96,9 @@ async def insert_locations(locations, place, user_id):
             )
 
             cursor.execute(insert_query, value)
-            conn.commit()
-        
+        while settings.update_flag == 1:
+            continue
+        conn.commit()
         cursor.close()
         conn.close()
         print("Localities inserted successfully")

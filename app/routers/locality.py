@@ -15,10 +15,14 @@ async def create_locality(db: AsyncSession, locality: LocalityCreate):
     db_locality = Locality(**locality.dict())
     
     settings.update_flag = 1
-    db.add(db_locality)
-    await db.commit()
-    await db.refresh(db_locality)
-    settings.update_flag = 0
+    try:
+        db.add(db_locality)
+        await db.commit()
+        await db.refresh(db_locality)
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     return {"msg": "success"}
 
 async def get_locality(db: AsyncSession, locality_id: int):
@@ -37,9 +41,13 @@ async def update_locality(db: AsyncSession, locality_id: int, locality: Locality
         setattr(db_locality, key, value) if value is not None else None
         
     settings.update_flag = 1
-    await db.commit()
-    await db.refresh(db_locality)
-    settings.update_flag = 0
+    try:
+        await db.commit()
+        await db.refresh(db_locality)
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     
     return db_locality
 
@@ -49,9 +57,13 @@ async def delete_locality(db: AsyncSession, locality_id: int):
         return None
     
     settings.update_flag = 1
-    await db.delete(db_locality)
-    await db.commit()
-    settings.update_flag = 0
+    try:
+        await db.delete(db_locality)
+        await db.commit()
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     
     return db_locality
 

@@ -28,10 +28,14 @@ async def create_review(review: ReviewCreate, user: User = Depends(get_current_u
     db_review.admin_id = user_id
     
     settings.update_flag = 1
-    db.add(db_review)
-    await db.commit()
-    await db.refresh(db_review)
-    settings.update_flag = 0
+    try:
+        db.add(db_review)
+        await db.commit()
+        await db.refresh(db_review)
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     
     return db_review
 
@@ -92,10 +96,14 @@ async def update_review(review_id: int, review: ReviewUpdate, user: User = Depen
         setattr(db_review, var, value) if value is not None else None
         
     settings.update_flag = 1
-    db.add(db_review)
-    await db.commit()
-    await db.refresh(db_review)
-    settings.update_flag = 0
+    try:
+        db.add(db_review)
+        await db.commit()
+        await db.refresh(db_review)
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     
     return db_review
 
@@ -117,8 +125,12 @@ async def delete_review(review_id: int, user: User = Depends(get_current_user), 
         raise HTTPException(status_code=404, detail="Review not found")
     
     settings.update_flag = 1
-    await db.delete(review)
-    await db.commit()
-    settings.update_flag = 0
+    try:
+        await db.delete(review)
+        await db.commit()
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     
     return review

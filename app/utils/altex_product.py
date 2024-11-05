@@ -173,10 +173,12 @@ async def insert_products(products, offers, mp_name, user_id):
                 market_place,
                 user_id
             )
-
+            
             cursor.execute(insert_query, values)
-            conn.commit()
-        
+            
+        while settings.update_flag == 1:
+            continue
+        conn.commit()
         cursor.close()
         conn.close()
         logging.info("Internal_Products inserted into table successfully")
@@ -314,8 +316,12 @@ async def insert_products_into_db(products, offers, place, user_id):
                 product_marketplace,
                 user_id
             )
+            
             cursor.execute(insert_query, values)
-            conn.commit()
+        
+        while settings.update_flag == 1:
+            continue
+        conn.commit()
         
         cursor.close()
         conn.close()

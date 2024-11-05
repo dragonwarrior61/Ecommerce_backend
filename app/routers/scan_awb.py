@@ -32,10 +32,14 @@ async def create_scan_awb(scan_awb: Scan_awbCreate, db: AsyncSession = Depends(g
         user_id = db_return.user_id
         
         settings.update_flag = 1
-        db.add(db_scan_awb)
-        await db.commit()
-        await db.refresh(db_scan_awb)
-        settings.update_flag = 0
+        try:
+            db.add(db_scan_awb)
+            await db.commit()
+            await db.refresh(db_scan_awb)
+        except Exception as e:
+            db.rollback()
+        finally:
+            settings.update_flag = 0
         
         return db_scan_awb
     
@@ -54,10 +58,14 @@ async def create_scan_awb(scan_awb: Scan_awbCreate, db: AsyncSession = Depends(g
         db_scan_awb.awb_number = db_scan_awb.awb_number[:-3]
     
     settings.update_flag = 1
-    db.add(db_scan_awb)
-    await db.commit()
-    await db.refresh(db_scan_awb)
-    settings.update_flag = 0
+    try:
+        db.add(db_scan_awb)
+        await db.commit()
+        await db.refresh(db_scan_awb)
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     
     return db_scan_awb
 
@@ -113,11 +121,15 @@ async def get_scan_awbs(
             db_scan_awb.awb_type = "Finish"
     
     settings.update_flag = 1
-    await db.commit()
-    
-    for db_scan_awb in db_scan_awbs:
-        await db.refresh(db_scan_awb)
-    settings.update_flag = 0
+    try:
+        await db.commit()
+        
+        for db_scan_awb in db_scan_awbs:
+            await db.refresh(db_scan_awb)
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     return db_scan_awbs
 
 @router.get("/awb_number")
@@ -162,9 +174,13 @@ async def update_scan_awb(scan_awb_id: int, scan_awb: Scan_awbUpdate, user: User
         setattr(db_scan_awb, var, value) if value is not None else None
         
     settings.update_flag = 1
-    await db.commit()
-    await db.refresh(db_scan_awb)
-    settings.update_flag = 0
+    try:
+        await db.commit()
+        await db.refresh(db_scan_awb)
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     
     return db_scan_awb
 
@@ -186,8 +202,12 @@ async def delete_scan_awb(scan_awb_id: int, user: User = Depends(get_current_use
         raise HTTPException(status_code=404, detail="scan_awb not found")
     
     settings.update_flag = 1
-    await db.delete(scan_awb)
-    await db.commit()
-    settings.update_flag = 0
+    try:
+        await db.delete(scan_awb)
+        await db.commit()
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     
     return scan_awb

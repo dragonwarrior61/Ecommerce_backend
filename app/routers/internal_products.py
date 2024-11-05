@@ -156,10 +156,14 @@ async def create_product(product: Internal_ProductCreate, user: User = Depends(g
     db_product.user_id = user_id
     
     settings.update_flag = 1
-    db.add(db_product)
-    await db.commit()
-    await db.refresh(db_product)
-    settings.update_flag = 0
+    try:
+        db.add(db_product)
+        await db.commit()
+        await db.refresh(db_product)
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     
     return db_product
 
@@ -542,9 +546,13 @@ async def update_product(ean: str, product: Internal_ProductUpdate, user: User =
         setattr(db_product, var, value) if value is not None else None
 
     settings.update_flag = 1
-    await db.commit()
-    await db.refresh(db_product)
-    settings.update_flag = 0
+    try:
+        await db.commit()
+        await db.refresh(db_product)
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     
     return db_product
 
@@ -574,7 +582,11 @@ async def delete_product(ean: str, user: User = Depends(get_current_user), db: A
         raise HTTPException(status_code=500, detail="This product is in shipment")
     
     settings.update_flag = 1
-    await db.delete(product)
-    await db.commit()
-    settings.update_flag = 0
+    try:
+        await db.delete(product)
+        await db.commit()
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     return product

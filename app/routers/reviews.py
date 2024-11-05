@@ -199,7 +199,11 @@ async def check_hijacker_and_bad_reviews(marketplace: Marketplace, db: AsyncSess
             await db.rollback()
             
     settings.update_flag = 1
-    conn.commit()
-    cursor.close()
-    conn.close()
-    settings.update_flag = 0
+    try:
+        conn.commit()
+        cursor.close()
+        conn.close()
+    except Exception as e:
+        conn.rollback()
+    finally:
+        settings.update_flag = 0

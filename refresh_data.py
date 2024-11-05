@@ -40,7 +40,7 @@ from sqlalchemy import update
 from datetime import datetime
 import openpyxl
 from openpyxl import Workbook
-
+from app.config import settings
 
 # member
 from fastapi import FastAPI, HTTPException
@@ -86,19 +86,6 @@ ssl_context.load_cert_chain('ssl/cert.pem', keyfile='ssl/key.pem')
 #                     continue
 
 @app.on_event("startup")
-@repeat_every(seconds=14400)  # Run daily for deleting video last 30 days
-async def update_sameday(db: AsyncSession = Depends(get_db)): 
-    async for db in get_db():
-        async with db as session:
-            logging.info("Starting update api_key in sameday")
-            result = await session.execute(select(Billing_software).where(Billing_software.site_domain == "sameday.ro"))
-            samedays = result.scalars().all()
-            for sameday in samedays:
-                api_key = await auth_sameday(sameday)
-                sameday.registration_number = api_key
-            await session.commit()
-
-@app.on_event("startup")
 @repeat_every(seconds=14400)
 async def update_awb(db: AsyncSession = Depends(get_db)):
     async for db in get_db():
@@ -109,6 +96,9 @@ async def update_awb(db: AsyncSession = Depends(get_db)):
             for sameday in samedays:
                 api_key = await auth_sameday(sameday)
                 sameday.registration_number = api_key
+                
+            while settings.update_flag == 1:
+                continue
             await session.commit()
             
             awb_status_list = [56, 85, 84, 37, 63, 1, 2, 25, 33, 7, 78, 6, 26, 14, 23, 35, 79, 112, 81, 10, 113, 27, 87, 4, 99, 74, 116, 18, 61, 111, 57, 137, 82, 3, 11, 28, 127, 17,
@@ -169,6 +159,8 @@ async def update_awb(db: AsyncSession = Depends(get_db)):
                 
                 while retries < MAX_RETRIES:
                     try:
+                        while settings.update_flag == 1:
+                            continue
                         await session.commit()
                         logging.info(f"Successfully committed AWBs so far")
                         break  # Break out of the retry loop if commit succeeds
@@ -240,6 +232,8 @@ async def send_stock(db:AsyncSession = Depends(get_db)):
             async with db as session:
                 logging.info("Init orders_stock")
                 await session.execute(update(Internal_Product).values(orders_stock=0))
+                while settings.update_flag == 1:
+                    continue
                 await session.commit()
                 logging.info("Calculate orders_stock")
                 result = await session.execute(select(Order).where(Order.status == any_([1,2,3])))
@@ -273,6 +267,8 @@ async def send_stock(db:AsyncSession = Depends(get_db)):
                                 logging.info(f"Can't find {ean}")
                             db_internal_product.orders_stock = db_internal_product.orders_stock + quantity
                             # logging.info(f"#$$$#$#$#$#$ Orders_stock is {db_internal_product.orders_stock}")
+                    while settings.update_flag == 1:
+                        continue    
                     await db.commit()
                 except Exception as e:
                     logging.error(f"An error occurred: {e}")
@@ -369,6 +365,8 @@ async def refresh_stock(db: AsyncSession = Depends(get_db)):
                             })
                             continue
                         db_product.smartbill_stock = int(product.get('quantity'))
+            while settings.update_flag == 1:
+                continue
             await session.commit()
             logging.info(f"product_code_list: {product_code_list}")
             logging.info("Finish sync stock")
@@ -384,10 +382,8 @@ async def refresh_data(db: AsyncSession = Depends(get_db)):
             logging.info(f"Success getting {len(marketplaces)} marketplaces")
             for marketplace in marketplaces:
                 if marketplace.marketplaceDomain == "altex.ro":
-                    
                     logging.info("Refresh rmas from altex")
                     await refresh_altex_rmas(marketplace)
-                    continue
                 else:
                     logging.info("Refresh refunds from marketplace")
                     await refresh_emag_returns(marketplace)

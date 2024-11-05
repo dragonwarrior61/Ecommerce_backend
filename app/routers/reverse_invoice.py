@@ -53,10 +53,14 @@ async def create_reverse_invoice(reverse_invoice: Reverse_InvoiceCreate, user: U
     db_reverse_invoice.user_id = user_id
     
     settings.update_flag = 1
-    db.add(db_reverse_invoice)
-    await db.commit()
-    await db.refresh(db_reverse_invoice)
-    settings.update_flag = 0
+    try:
+        db.add(db_reverse_invoice)
+        await db.commit()
+        await db.refresh(db_reverse_invoice)
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     
     return db_reverse_invoice
 
@@ -111,8 +115,12 @@ async def post_invoice(order_id: int, marketplace: str, name: str, user: User = 
     db_reverse_invoice.post = 1
     
     settings.update_flag = 1
-    await db.commit()
-    await db.refresh(db_reverse_invoice)
-    settings.update_flag = 0
+    try:
+        await db.commit()
+        await db.refresh(db_reverse_invoice)
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     
     return response.json()

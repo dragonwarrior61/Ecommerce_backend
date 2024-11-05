@@ -29,10 +29,14 @@ async def create_supplier(supplier: SupplierCreate, user: User = Depends(get_cur
     db_supplier.user_id = user_id
     
     settings.update_flag = 1
-    db.add(db_supplier)
-    await db.commit()
-    await db.refresh(db_supplier)
-    settings.update_flag = 0
+    try:
+        db.add(db_supplier)
+        await db.commit()
+        await db.refresh(db_supplier)
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     
     return db_supplier
 
@@ -93,10 +97,13 @@ async def update_supplier(supplier_id: int, supplier: SupplierUpdate, user: User
         setattr(db_supplier, var, value) if value is not None else None
     
     settings.update_flag = 1
-    await db.commit()
-    await db.refresh(db_supplier)
-    settings.update_flag = 0
-    
+    try:
+        await db.commit()
+        await db.refresh(db_supplier)
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0    
     return db_supplier
 
 @router.delete("/{supplier_id}", response_model=SupplierRead)
@@ -117,8 +124,12 @@ async def delete_supplier(supplier_id: int, user: User = Depends(get_current_use
         raise HTTPException(status_code=404, detail="Supplier not found")
     
     settings.update_flag = 1
-    await db.delete(supplier)
-    await db.commit()
-    settings.update_flag = 0
+    try:
+        await db.delete(supplier)
+        await db.commit()
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     
     return supplier

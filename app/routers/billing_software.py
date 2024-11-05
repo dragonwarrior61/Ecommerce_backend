@@ -21,9 +21,13 @@ async def create_billing_software(billing_software: Billing_softwaresCreate, use
     
     settings.update_flag = 1
     db.add(db_billing_software)
-    await db.commit()
-    await db.refresh(db_billing_software)
-    settings.update_flag = 1
+    try:
+        await db.commit()
+        await db.refresh(db_billing_software)
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     return db_billing_software
 
 @router.get('/count')
@@ -58,9 +62,14 @@ async def update_billing_software(billing_software_id: int, billing_software: Bi
         setattr(db_billing_software, var, value) if value is not None else None
     
     settings.update_flag = 1
-    await db.commit()
-    await db.refresh(db_billing_software)
-    settings.update_flag = 0
+    try:
+        await db.commit()
+        await db.refresh(db_billing_software)
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
+        
     return db_billing_software
 
 @router.delete("/{billing_software_id}", response_model=Billing_softwaresRead)
@@ -72,7 +81,11 @@ async def delete_billing_software(billing_software_id: int, user: User = Depends
     if billing_software is None:
         raise HTTPException(status_code=404, detail="billing_software not found")
     settings.update_flag = 1
-    await db.delete(billing_software)
-    await db.commit()
-    settings.update_flag = 0
+    try:
+        await db.delete(billing_software)
+        await db.commit()
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     return billing_software

@@ -24,9 +24,13 @@ async def send_stock(
 ):
     logging.info("Init orders_stock")
     settings.update_flag = 1
-    await db.execute(update(Internal_Product).values(orders_stock=0))
-    await db.commit()
-    settings.update_flag = 0
+    try:
+        await db.execute(update(Internal_Product).values(orders_stock=0))
+        await db.commit()
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     logging.info("Calculate orders_stock")
     result = await db.execute(select(Order).where(Order.status == any_([1,2,3])))
     new_orders = result.scalars().all()
@@ -64,8 +68,12 @@ async def send_stock(
                 # logging.info(f"#$$$#$#$#$#$ Orders_stock is {db_internal_product.orders_stock}")
         
         settings.update_flag = 1
-        await db.commit()
-        settings.update_flag = 0
+        try:
+            await db.commit()
+        except Exception as e:
+            db.rollback()
+        finally:
+            settings.update_flag = 0
         
         logging.info(f"#$$$#$#$#$#$ Orders_stock is {db_internal_product.orders_stock}")
         logging.info("Sync stock")

@@ -27,10 +27,14 @@ async def create_team_member(team_member: Team_memberCreate, user: User = Depend
     db_user.role = 1
     
     settings.update_flag = 1
-    db.add(db_team_member)
-    await db.commit()
-    await db.refresh(db_team_member)
-    settings.update_flag = 0
+    try:
+        db.add(db_team_member)
+        await db.commit()
+        await db.refresh(db_team_member)
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     
     return db_team_member
 
@@ -84,9 +88,13 @@ async def update_team_member(team_member: Team_memberUpdate, user: User = Depend
     db_user.role = role
     
     settings.update_flag = 1
-    await db.commit()
-    await db.refresh(db_team_member)
-    settings.update_flag = 0
+    try:
+        await db.commit()
+        await db.refresh(db_team_member)
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     
     return db_team_member
 
@@ -98,8 +106,12 @@ async def delete_team_member(user: int, admin: User = Depends(get_current_user),
         raise HTTPException(status_code=404, detail="Team_member not found")
     
     settings.update_flag = 1
-    await db.delete(team_member)
-    await db.commit()
-    settings.update_flag = 0
+    try:
+        await db.delete(team_member)
+        await db.commit()
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     
     return team_member

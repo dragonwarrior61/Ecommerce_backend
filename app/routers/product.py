@@ -33,10 +33,14 @@ router = APIRouter()
 async def create_product(product: ProductCreate, db: AsyncSession = Depends(get_db)):
     db_product = Product(**product.dict())
     settings.update_flag = 1
-    db.add(db_product)
-    await db.commit()
-    await db.refresh(db_product)
-    settings.update_flag = 0
+    try:
+        db.add(db_product)
+        await db.commit()
+        await db.refresh(db_product)
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     return db_product
 
 @router.get('/count')
@@ -270,9 +274,13 @@ async def update_product(product_id: int, product: ProductUpdate, db: AsyncSessi
         setattr(db_product, var, value) if value is not None else None
 
     settings.update_flag = 1
-    await db.commit()
-    await db.refresh(db_product)
-    settings.update_flag = 0
+    try:
+        await db.commit()
+        await db.refresh(db_product)
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     
     return db_product
 
@@ -284,8 +292,12 @@ async def delete_product(product_id: int, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Product not found")
     
     settings.update_flag = 1
-    await db.delete(product)
-    await db.commit()
-    settings.update_flag = 0
+    try:
+        await db.delete(product)
+        await db.commit()
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     
     return product
