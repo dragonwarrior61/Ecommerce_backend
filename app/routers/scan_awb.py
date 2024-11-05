@@ -122,7 +122,7 @@ async def get_scan_awbs(
     query = query.outerjoin(Reverse_InvoiceAlias, and_(Reverse_InvoiceAlias.order_id == OrderAlias.id, Reverse_InvoiceAlias.user_id == OrderAlias.user_id))
     query = query.offset(offset).limit(itmes_per_page)
     result = await db.execute(query)
-    db_scan_awbs = result.scalars().all()
+    db_scan_awbs = result.fetchall()
     
     if db_scan_awbs is None:
         raise HTTPException(status_code=404, detail="scan_awb not found")
