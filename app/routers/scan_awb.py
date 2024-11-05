@@ -35,6 +35,7 @@ async def create_scan_awb(scan_awb: Scan_awbCreate, db: AsyncSession = Depends(g
     if db_return:
         db_scan_awb.awb_type = "Return"
         user_id = db_return.user_id
+        db_scan_awb.user_id == user_id
         
         settings.update_flag = 1
         try:
