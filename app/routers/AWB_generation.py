@@ -195,7 +195,7 @@ async def get_awb_status():
 @router.get("/count")
 async def count_awb(
     status_str: str = Query('', description="awb_status"),
-    warehouse_id: int = Query('', description='warehouse_id'),
+    warehouse_id: int = Query(0, description='warehouse_id'),
     flag: bool = Query(False, description="Generated today or not"),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -301,7 +301,7 @@ async def get_awbs(
     page: int = Query(1, ge=1, description="Page number"),
     items_per_page: int = Query(50, ge=1, le=100, description="Number of items per page"),
     status_str: str = Query('', description="awb_status"),
-    warehouse_id: int = Query('', description="warehouse_id"),
+    warehouse_id: int = Query(0, description="warehouse_id"),
     flag: bool = Query(False, description="Generated today or not"),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
