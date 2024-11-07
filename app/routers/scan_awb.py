@@ -9,6 +9,7 @@ from app.models.user import User
 from app.models.orders import Order
 from app.routers.auth import get_current_user
 from app.models.internal_product import Internal_Product
+from app.models.product import Product
 from app.models.returns import Returns
 from app.models.invoice import Invoice
 from app.models.reverse_invoice import Reverse_Invoice
@@ -133,13 +134,37 @@ async def get_scan_awbs(
     
     scan_awb_data = []
     for db_scan_awb, return_info, awb, order, invoice, reverse_invoice in db_scan_awbs:
+        if return_info:
+            ean = []
+            product_id_list = return_info.products
+            for product_id in product_id_list:
+                result = await db.execute(select(Product).where(Product.id == product_id, Product.product_marketplace == return_info.return_market_place, Product.user_id == return_info.user_id))
+                db_product = result.scalars().first()
+                if db_product is None:
+                    result = await db.execute(select(Product).where(Product.id == product_id, Product.user_id == return_info.user_id))
+                    db_product = result.scalars().first()
+                ean.append(db_product.ean)
+        elif order:
+            ean = []
+            product_id_list = order.product_id
+            for product_id in product_id_list:
+                result = await db.execute(select(Product).where(Product.id == product_id, Product.product_marketplace == order.order_market_place, Product.user_id == order.user_id))
+                db_product = result.scalars().first()
+                if db_product is None:
+                    result = await db.execute(select(Product).where(Product.id == product_id, Product.user_id == order.user_id))
+                    db_product = result.scalars().first()
+                ean.append(db_product.ean)
+        else:
+            ean = []
+            
         scan_awb_data.append({
             "scan_awb": db_scan_awb,
             "awb": awb,
             "order": order,
             "invoice": invoice,
             "reverse_invoice": reverse_invoice,
-            "return": return_info
+            "return": return_info,
+            "ean": ean
         })
     return scan_awb_data
 
