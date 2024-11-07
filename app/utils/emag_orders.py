@@ -390,7 +390,7 @@ async def insert_orders(orders, marketplace: Marketplace):
             payment_status = order.get('payment_status')
             products_id = [str(product.get('product_id')) for product in order.get('products')]
             quantity = [product.get('quantity') for product in order.get('products')]
-            initial_quantity = [product.get('initial_quantity') for product in order.get('products')]
+            initial_quantity = [product.get('initial_qty') for product in order.get('products')]
             sale_price = [Decimal(product.get('sale_price', '0')) for product in order.get('products')]
             shipping_tax = Decimal(order.get('shipping_tax'))
             shipping_tax_voucher_split = json.dumps(order.get('shipping_tax_voucher_split', []))
