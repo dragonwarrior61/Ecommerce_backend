@@ -36,18 +36,14 @@ class ProductBase(BaseModel):
     warehouse_id: Optional[int] = None
     internal_shipping_price: Optional[Decimal] = None
     observation: Optional[str] = None
-    marketplace: str
+    product_marketplace: str
     user_id: Optional[int] = None
 
 class ProductCreate(ProductBase):
     pass
 
 class ProductRead(ProductBase):
-    ean: str
-    marketplace: str
-
-    class Config:
-        orm_mode = True
+    pass
 
 class ProductUpdate(ProductBase):
     pass
