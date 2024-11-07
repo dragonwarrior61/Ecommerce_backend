@@ -117,7 +117,7 @@ async def create_order(order: OrderCreate, user: User = Depends(get_current_user
 async def read_new_orders(
     flag: bool = Query(1),
     search_text: str = Query('', description="Text for searching"),
-    warehouse_id: int = Query('', description='warehouse_id'),
+    warehouse_id: int = Query(0, description='warehouse_id'),
     status: int = Query(-1, description="Status of the new order"),
     user: User = Depends(get_current_user), 
     db: AsyncSession = Depends(get_db)
@@ -249,7 +249,7 @@ async def read_new_orders(
 @router.get("/count/new_order")
 async def count_new_orders(
     search_text: str = Query('', description="Text for searching"),
-    warehouse_id: int = Query('', description="warehouse_id"),
+    warehouse_id: int = Query(0, description="warehouse_id"),
     status: int = Query(-1, description="Status of the order"),
     user: User = Depends(get_current_user), 
     db: AsyncSession = Depends(get_db)
@@ -313,7 +313,7 @@ async def read_orders(
     items_per_page: int = Query(50, ge=1, le=100, description="Number of items per page"),
     status: int = Query(-1, description="Status of the order"),
     search_text: str = Query('', description="Text for searching"),
-    warehouse_id: int = Query('', description="warehouse_id"),
+    warehouse_id: int = Query(0, description="warehouse_id"),
     no_stock: bool = Query(False, description="No stock"),
     has_invoice: int = Query(-1, description="Has invoice or not"),
     awb_status: str = Query('', description="AWB status"),
@@ -529,7 +529,7 @@ async def read_orders(
 async def get_orders_count(
     status: int = Query(-1, description="Status of the order"),
     search_text: str = Query('', description="Text for searching"),
-    warehouse_id: int = Query('', description="warehoues_id"),
+    warehouse_id: int = Query(0, description="warehoues_id"),
     no_stock: bool = Query(False, description="No stock"),
     has_invoice: int = Query(-1, description="Has invoice or not"),
     has_cancel: int = Query(-1, description="Has storno invoice or not"),
