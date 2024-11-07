@@ -15,6 +15,7 @@ class Order(Base):
     customer_id = Column(BigInteger, nullable=True)
     product_id = Column(ARRAY(String), nullable=True)
     quantity = Column(ARRAY(Integer), nullable=True)
+    initial_quantity = Column(ARRAY(Integer), nullable=True)
     sale_price = Column(ARRAY(Float), nullable=True)
     shipping_tax = Column(Float, nullable=True)
     shipping_tax_voucher_split = Column(String, nullable=True)

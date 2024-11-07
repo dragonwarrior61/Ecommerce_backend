@@ -259,6 +259,7 @@ async def insert_orders(orders, marketplace: Marketplace):
                 customer_id,
                 product_id,
                 quantity,
+                initial_quantity,
                 sale_price,
                 shipping_tax,
                 shipping_tax_voucher_split,
@@ -312,7 +313,7 @@ async def insert_orders(orders, marketplace: Marketplace):
                 registration_number,
                 user_id
             ) VALUES (
-                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
             ) ON CONFLICT (id, user_id) DO UPDATE SET
                 vendor_name = EXCLUDED.vendor_name,
                 type = EXCLUDED.type,
@@ -322,6 +323,7 @@ async def insert_orders(orders, marketplace: Marketplace):
                 payment_status = EXCLUDED.payment_status,
                 product_id = EXCLUDED.product_id,
                 quantity = EXCLUDED.quantity,
+                initial_quantity = EXCLUDED.initial_quantity,
                 sale_price = EXCLUDED.sale_price,
                 shipping_tax = EXCLUDED.shipping_tax,
                 shipping_tax_voucher_split = EXCLUDED.shipping_tax_voucher_split,
@@ -388,6 +390,7 @@ async def insert_orders(orders, marketplace: Marketplace):
             payment_status = order.get('payment_status')
             products_id = [str(product.get('product_id')) for product in order.get('products')]
             quantity = [product.get('quantity') for product in order.get('products')]
+            initial_quantity = [product.get('initial_quantity') for product in order.get('products')]
             sale_price = [Decimal(product.get('sale_price', '0')) for product in order.get('products')]
             shipping_tax = Decimal(order.get('shipping_tax'))
             shipping_tax_voucher_split = json.dumps(order.get('shipping_tax_voucher_split', []))
@@ -429,6 +432,7 @@ async def insert_orders(orders, marketplace: Marketplace):
                 customer_id,
                 products_id,
                 quantity,
+                initial_quantity,
                 sale_price,
                 shipping_tax,
                 shipping_tax_voucher_split,

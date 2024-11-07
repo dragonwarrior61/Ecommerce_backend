@@ -15,6 +15,7 @@ class OrderBase(BaseModel):
     customer_id: Optional[int] = None
     product_id: Optional[List[str]] = None
     quantity: Optional[List[int]] = None
+    initial_quantity: Optional[List[int]] = None
     sale_price: Optional[List[float]] = None
     shipping_tax: Optional[float] = None
     shipping_tax_voucher_split: Optional[str] = None
