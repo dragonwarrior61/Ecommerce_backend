@@ -38,11 +38,11 @@ def save(MARKETPLACE_API_URL, awb_ENDPOINT, save_ENDPOINT,  API_KEY, data, PUBLI
             "Authorization": f"Basic {api_key}",
             "Content-Type": "application/json"
         }
-    MAX_RETRIES = 5
+    MAX_RETRIES = 1
     retry_delay = 5
     for attempt in range(MAX_RETRIES):
         try:
-            response = requests.post(url, data=json.dumps(data, default=convert_decimal_to_float), headers=headers, timeout=20)
+            response = requests.post(url, data=json.dumps(data, default=convert_decimal_to_float), headers=headers, timeout=60)
             if response.status_code == 200:
                 return response
             else:
