@@ -84,9 +84,24 @@ async def create_awbs(awb: AWBCreate, marketplace: str, user: User = Depends(get
     if awb:
         return awb
 
+    db_awb.awb_marketplace = marketplace
+    db_awb.user_id = user_id
+    
+    settings.update_flag = 1
+    
+    db.add(db_awb)
+    
+    try:
+        await db.commit()
+        await db.refresh(db_awb)
+    except Exception as ex:
+        await db.rollback()
+    finally:
+        settings.update_flag = 0
+    
     result = await db.execute(select(Marketplace).where(Marketplace.marketplaceDomain == marketplace))
     market_place = result.scalars().first()
-
+    
     try:
         if market_place.marketplaceDomain == "altex.ro":
             data = {
@@ -160,13 +175,6 @@ async def create_awbs(awb: AWBCreate, marketplace: str, user: User = Depends(get
             db_awb.awb_number = result_awb.get('awb_number') if result_awb.get('awb_number') else ""
             db_awb.awb_barcode = result_awb.get('awb_barcode') if result_awb.get('awb_barcode') else ""
         
-        db_awb.awb_marketplace = marketplace
-        db_awb.user_id = user_id
-        
-        settings.update_flag = 1
-        
-        db.add(db_awb)
-
         db_replacement = None
 
         if db_awb.number < 0:
@@ -175,14 +183,8 @@ async def create_awbs(awb: AWBCreate, marketplace: str, user: User = Depends(get
             if db_replacement:
                 db_replacement.awb = db_awb.awb_number
         
-        try:
-            await db.commit()
-            await db.refresh(db_awb)
-        except Exception as ex:
-            await db.rollback()
-        finally:
-            settings.update_flag = 0
-        
+        await db.commit()
+        await db.refresh(db_awb)
         return db_awb
     except Exception as e:  # Roll back any changes made before the error
         logging.info(f"Error processing AWB: {str(e)}")
