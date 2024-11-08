@@ -245,8 +245,7 @@ async def insert_products(products, mp_name: str, user_id):
                     user_id
                 )
                 cursor.execute(insert_query, values)
-                
-            conn.commit()
+                conn.commit()
             
             cursor.close()
             conn.close()
@@ -387,7 +386,7 @@ async def insert_products_into_db(products, place, user_id):
                     user_id
                 )
                 cursor.execute(insert_query, values)
-            conn.commit()
+                conn.commit()
             cursor.close()
             conn.close()
             logging.info("Products inserted successfully")
