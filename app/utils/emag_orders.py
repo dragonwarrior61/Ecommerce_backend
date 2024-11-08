@@ -311,9 +311,10 @@ async def insert_orders(orders, marketplace: Marketplace):
                 email,
                 product_voucher_split,
                 registration_number,
+                update_time,
                 user_id
             ) VALUES (
-                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
             ) ON CONFLICT (id, user_id) DO UPDATE SET
                 vendor_name = EXCLUDED.vendor_name,
                 type = EXCLUDED.type,
@@ -337,6 +338,7 @@ async def insert_orders(orders, marketplace: Marketplace):
                 finalization_date = EXCLUDED.finalization_date,
                 details = EXCLUDED.details,
                 payment_mode_id = EXCLUDED.payment_mode_id,
+                update_time = EXCLUDED.update_time,
                 product_voucher_split = EXCLUDED.product_voucher_split
         """).format(sql.Identifier("orders"))
         
@@ -417,6 +419,7 @@ async def insert_orders(orders, marketplace: Marketplace):
             payment_mode_id = order.get('payment_mode_id')
             product_voucher_split = [str(product.get('product_voucher_split')) for product in order.get('products')]
             order_martet_place = marketplace.marketplaceDomain
+            update_time = datetime.datetime.now()
             user_id = marketplace.user_id
             
             values = (
@@ -484,6 +487,7 @@ async def insert_orders(orders, marketplace: Marketplace):
                 email,
                 product_voucher_split,
                 registration_number,
+                update_time,
                 user_id
             )
             

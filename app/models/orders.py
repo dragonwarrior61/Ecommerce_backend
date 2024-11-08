@@ -67,6 +67,7 @@ class Order(Base):
     email = Column(String, nullable=True)
     product_voucher_split = Column(ARRAY(String), nullable=True)
     registration_number = Column(String, nullable=True)
+    update_time = Column(DateTime, nullable=True)
     user_id = Column(Integer, index=True)
     
     __table_args__ = (

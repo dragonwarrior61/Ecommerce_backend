@@ -67,6 +67,7 @@ class OrderBase(BaseModel):
     email: Optional[str] = None
     product_voucher_split: Optional[List[str]] = None
     registration_number: Optional[str] = None
+    update_time: Optional[datetime] = None
     user_id: Optional[int] = None
 
 class OrderCreate(OrderBase):

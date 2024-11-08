@@ -47,4 +47,4 @@ async def calc_order_stock(db: AsyncSession):
         await db.commit()
     except Exception as e:
         logging.error(f"An error occurred: {e}")
-        await db.rollback() 
+        await db.rollback()
