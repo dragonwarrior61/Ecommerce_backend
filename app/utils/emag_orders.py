@@ -488,7 +488,7 @@ async def insert_orders(orders, marketplace: Marketplace):
             )
             
             cursor_order.execute(insert_orders_query, values)
-        conn.commit()
+            conn.commit()
         cursor_order.close()
         conn.close()
         logging.info("Orders inserted successfully")

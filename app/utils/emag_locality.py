@@ -134,7 +134,7 @@ async def insert_localities_into_db(localities, place:str, user_id):
                 user_id
             )
             cursor.execute(insert_query, value)
-        conn.commit()
+            conn.commit()
         cursor.close()
         conn.close()
         print("Localities inserted successfully")

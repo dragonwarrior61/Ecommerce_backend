@@ -176,7 +176,7 @@ async def insert_products(products, offers, mp_name, user_id):
             
             cursor.execute(insert_query, values)
             
-        conn.commit()
+            conn.commit()
         cursor.close()
         conn.close()
         logging.info("Internal_Products inserted into table successfully")

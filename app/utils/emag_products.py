@@ -101,295 +101,293 @@ def get_all_products(MARKETPLACE_API_URL, PRODUCTS_ENDPOINT, READ_ENDPOINT,  API
 
 async def insert_products(products, mp_name: str, user_id):
     try:
-        with lock:
-            conn = psycopg2.connect(
-                dbname=settings.DB_NAME,
-                user=settings.DB_USERNAME,
-                password=settings.DB_PASSOWRD,
-                host=settings.DB_URL,
-                port=settings.DB_PORT
+        conn = psycopg2.connect(
+            dbname=settings.DB_NAME,
+            user=settings.DB_USERNAME,
+            password=settings.DB_PASSOWRD,
+            host=settings.DB_URL,
+            port=settings.DB_PORT
+        )
+        cursor = conn.cursor()
+        insert_query = sql.SQL("""
+            INSERT INTO {} (
+                id,
+                part_number_key,
+                product_code,
+                product_name,
+                model_name,
+                buy_button_rank,
+                price,
+                sale_price,
+                ean,
+                image_link,
+                barcode_title,
+                masterbox_title,
+                link_address_1688,
+                price_1688,
+                variation_name_1688,
+                pcs_ctn,
+                weight,
+                volumetric_weight,
+                dimensions,
+                supplier_id,
+                english_name,
+                romanian_name,
+                material_name_en,
+                material_name_ro,
+                hs_code,
+                battery,
+                default_usage,
+                production_time,
+                discontinued,
+                stock,
+                smartbill_stock,
+                orders_stock,
+                damaged_goods, 
+                warehouse_id,
+                internal_shipping_price,
+                market_place,
+                sync_stock_time,
+                user_id
+            ) VALUES (
+                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+            ) ON CONFLICT (ean) DO UPDATE SET
+                id = EXCLUDED.id,
+                buy_button_rank = EXCLUDED.buy_button_rank,
+                stock = EXCLUDED.stock,
+                market_place = array(SELECT DISTINCT unnest(array_cat(EXCLUDED.market_place, internal_products.market_place))),
+                user_id = EXCLUDED.user_id
+        """).format(sql.Identifier("internal_products"))
+
+        for product in products:
+            id = product.get('id')
+            part_number_key = product.get('part_number_key')
+            product_code = ""
+            product_name = product.get('name')
+            model_name = product.get('brand')
+            buy_button_rank = product.get('buy_button_rank')
+            price = 0
+            sale_price = Decimal(product.get('sale_price', '0.0'))
+            ean = str(product.get('ean')[0]) if product.get('ean') else None
+            ean = change_string(ean)
+            image_link = product.get('images')[0]['url'] if product.get('images') else None
+            barcode_title = ""
+            masterbox_title = ""
+            link_address_1688 = ""
+            price_1688 = Decimal('0')
+            variation_name_1688 = ""
+            pcs_ctn = ""
+            weight_value = product.get('weight')
+            if isinstance(weight_value, str):
+                weight_value = weight_value.replace(',', '.')  # Handle any comma as decimal separator
+            weight = Decimal(weight_value) if weight_value else Decimal('0')
+            volumetric_weight = 0
+            dimensions = ""
+            supplier_id = 0
+            english_name = ""
+            romanian_name = ""
+            material_name_en = ""
+            material_name_ro = ""
+            hs_code = ""
+            battery = False
+            default_usage = ""
+            production_time = Decimal('0')
+            discontinued = False
+            stock = int(product.get('stock')[0].get('value') if product.get('stock') else 0)
+            smartbill_stock = 0
+            orders_stock = 0
+            damaged_goods = 0
+            warehouse_id = 0
+            internal_shipping_price = Decimal('0')
+            market_place = [mp_name]  # Ensure this is an array to use array_cat
+            sync_stock_time = None
+            user_id = user_id
+
+            values = (
+                id,
+                part_number_key,
+                product_code,
+                product_name,
+                model_name,
+                buy_button_rank,
+                price,
+                sale_price,
+                ean,
+                image_link,
+                barcode_title,
+                masterbox_title,
+                link_address_1688,
+                price_1688,
+                variation_name_1688,
+                pcs_ctn,
+                weight,
+                volumetric_weight,
+                dimensions,
+                supplier_id,
+                english_name,
+                romanian_name,
+                material_name_en,
+                material_name_ro,
+                hs_code,
+                battery,
+                default_usage,
+                production_time,
+                discontinued,
+                stock,
+                smartbill_stock,
+                orders_stock,
+                damaged_goods,
+                warehouse_id,
+                internal_shipping_price,
+                market_place,
+                sync_stock_time,
+                user_id
             )
-            cursor = conn.cursor()
-            insert_query = sql.SQL("""
-                INSERT INTO {} (
-                    id,
-                    part_number_key,
-                    product_code,
-                    product_name,
-                    model_name,
-                    buy_button_rank,
-                    price,
-                    sale_price,
-                    ean,
-                    image_link,
-                    barcode_title,
-                    masterbox_title,
-                    link_address_1688,
-                    price_1688,
-                    variation_name_1688,
-                    pcs_ctn,
-                    weight,
-                    volumetric_weight,
-                    dimensions,
-                    supplier_id,
-                    english_name,
-                    romanian_name,
-                    material_name_en,
-                    material_name_ro,
-                    hs_code,
-                    battery,
-                    default_usage,
-                    production_time,
-                    discontinued,
-                    stock,
-                    smartbill_stock,
-                    orders_stock,
-                    damaged_goods, 
-                    warehouse_id,
-                    internal_shipping_price,
-                    market_place,
-                    sync_stock_time,
-                    user_id
-                ) VALUES (
-                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
-                ) ON CONFLICT (ean) DO UPDATE SET
-                    id = EXCLUDED.id,
-                    buy_button_rank = EXCLUDED.buy_button_rank,
-                    stock = EXCLUDED.stock,
-                    market_place = array(SELECT DISTINCT unnest(array_cat(EXCLUDED.market_place, internal_products.market_place))),
-                    user_id = EXCLUDED.user_id
-            """).format(sql.Identifier("internal_products"))
-
-            for product in products:
-                id = product.get('id')
-                part_number_key = product.get('part_number_key')
-                product_code = ""
-                product_name = product.get('name')
-                model_name = product.get('brand')
-                buy_button_rank = product.get('buy_button_rank')
-                price = 0
-                sale_price = Decimal(product.get('sale_price', '0.0'))
-                ean = str(product.get('ean')[0]) if product.get('ean') else None
-                ean = change_string(ean)
-                image_link = product.get('images')[0]['url'] if product.get('images') else None
-                barcode_title = ""
-                masterbox_title = ""
-                link_address_1688 = ""
-                price_1688 = Decimal('0')
-                variation_name_1688 = ""
-                pcs_ctn = ""
-                weight_value = product.get('weight')
-                if isinstance(weight_value, str):
-                    weight_value = weight_value.replace(',', '.')  # Handle any comma as decimal separator
-                weight = Decimal(weight_value) if weight_value else Decimal('0')
-                volumetric_weight = 0
-                dimensions = ""
-                supplier_id = 0
-                english_name = ""
-                romanian_name = ""
-                material_name_en = ""
-                material_name_ro = ""
-                hs_code = ""
-                battery = False
-                default_usage = ""
-                production_time = Decimal('0')
-                discontinued = False
-                stock = int(product.get('stock')[0].get('value') if product.get('stock') else 0)
-                smartbill_stock = 0
-                orders_stock = 0
-                damaged_goods = 0
-                warehouse_id = 0
-                internal_shipping_price = Decimal('0')
-                market_place = [mp_name]  # Ensure this is an array to use array_cat
-                sync_stock_time = None
-                user_id = user_id
-
-                values = (
-                    id,
-                    part_number_key,
-                    product_code,
-                    product_name,
-                    model_name,
-                    buy_button_rank,
-                    price,
-                    sale_price,
-                    ean,
-                    image_link,
-                    barcode_title,
-                    masterbox_title,
-                    link_address_1688,
-                    price_1688,
-                    variation_name_1688,
-                    pcs_ctn,
-                    weight,
-                    volumetric_weight,
-                    dimensions,
-                    supplier_id,
-                    english_name,
-                    romanian_name,
-                    material_name_en,
-                    material_name_ro,
-                    hs_code,
-                    battery,
-                    default_usage,
-                    production_time,
-                    discontinued,
-                    stock,
-                    smartbill_stock,
-                    orders_stock,
-                    damaged_goods,
-                    warehouse_id,
-                    internal_shipping_price,
-                    market_place,
-                    sync_stock_time,
-                    user_id
-                )
-                cursor.execute(insert_query, values)
-                conn.commit()
-            
-            cursor.close()
-            conn.close()
-            logging.info("Internal_Products inserted into Products successfully")
+            cursor.execute(insert_query, values)
+            conn.commit()
+        
+        cursor.close()
+        conn.close()
+        logging.info("Internal_Products inserted into Products successfully")
     except Exception as e:
         logging.info(f"Failed to insert Internal_Products into database: {e}")
 
 async def insert_products_into_db(products, place, user_id):
     try:
-        with lock:
-            conn = psycopg2.connect(
-                dbname=settings.DB_NAME,
-                user=settings.DB_USERNAME,
-                password=settings.DB_PASSOWRD,
-                host=settings.DB_URL,
-                port=settings.DB_PORT
+        conn = psycopg2.connect(
+            dbname=settings.DB_NAME,
+            user=settings.DB_USERNAME,
+            password=settings.DB_PASSOWRD,
+            host=settings.DB_URL,
+            port=settings.DB_PORT
+        )
+        cursor = conn.cursor()
+        insert_query = sql.SQL("""
+            INSERT INTO {} (
+                id,
+                part_number_key,
+                product_name,
+                model_name,
+                buy_button_rank,
+                price,
+                sale_price,
+                sku,
+                ean,
+                image_link,
+                barcode_title,
+                masterbox_title,
+                link_address_1688,
+                price_1688,
+                variation_name_1688,
+                pcs_ctn,
+                weight,
+                volumetric_weight,
+                dimensions,
+                supplier_id,
+                english_name,
+                romanian_name,
+                material_name_en,
+                material_name_ro,
+                hs_code,
+                battery,
+                default_usage,
+                production_time,
+                discontinued,
+                stock,
+                warehouse_id,
+                internal_shipping_price,
+                product_marketplace,
+                user_id
+            ) VALUES (
+                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+            ) ON CONFLICT (ean, product_marketplace) DO UPDATE SET
+                id = EXCLUDED.id,
+                sale_price = EXCLUDED.sale_price,
+                stock = EXCLUDED.stock,
+                user_id = EXCLUDED.user_id
+        """).format(sql.Identifier("products"))
+
+        for product in products:
+            id = str(product.get('id'))
+            part_number_key = product.get('part_number_key')
+            product_name = product.get('name')
+            model_name = product.get('brand')
+            buy_button_rank = product.get('buy_button_rank')
+            price = 0
+            sale_price = Decimal(product.get('sale_price', '0.0'))
+            sku = ""
+            ean = str(product.get('ean')[0]) if product.get('ean') else None
+            ean = change_string(ean)
+            image_link = product.get('images')[0]['url'] if product.get('images') else None
+            barcode_title = ""
+            masterbox_title = ""
+            link_address_1688 = ""
+            price_1688 = Decimal('0')
+            variation_name_1688 = ""
+            pcs_ctn = ""
+            weight_value = product.get('weight')
+            if isinstance(weight_value, str):
+                weight_value = weight_value.replace(',', '.')  # Handle any comma as decimal separator
+            weight = Decimal(weight_value) if weight_value else Decimal('0')
+            volumetric_weight = 0
+            dimensions = ""
+            supplier_id = 0
+            english_name = ""
+            romanian_name = ""
+            material_name_en = ""
+            material_name_ro = ""
+            hs_code = ""
+            battery = False
+            default_usage = ""
+            production_time = Decimal('0')
+            discontinued = False
+            stock = int(product.get('stock')[0].get('value') if product.get('stock') else 0)
+            warehouse_id = 0
+            internal_shipping_price = Decimal('0')
+            product_marketplace = place  # Ensure this is an array to use array_cat
+            user_id = user_id
+
+            values = (
+                id,
+                part_number_key,
+                product_name,
+                model_name,
+                buy_button_rank,
+                price,
+                sale_price,
+                sku,
+                ean,
+                image_link,
+                barcode_title,
+                masterbox_title,
+                link_address_1688,
+                price_1688,
+                variation_name_1688,
+                pcs_ctn,
+                weight,
+                volumetric_weight,
+                dimensions,
+                supplier_id,
+                english_name,
+                romanian_name,
+                material_name_en,
+                material_name_ro,
+                hs_code,
+                battery,
+                default_usage,
+                production_time,
+                discontinued,
+                stock,
+                warehouse_id,
+                internal_shipping_price,
+                product_marketplace,
+                user_id
             )
-            cursor = conn.cursor()
-            insert_query = sql.SQL("""
-                INSERT INTO {} (
-                    id,
-                    part_number_key,
-                    product_name,
-                    model_name,
-                    buy_button_rank,
-                    price,
-                    sale_price,
-                    sku,
-                    ean,
-                    image_link,
-                    barcode_title,
-                    masterbox_title,
-                    link_address_1688,
-                    price_1688,
-                    variation_name_1688,
-                    pcs_ctn,
-                    weight,
-                    volumetric_weight,
-                    dimensions,
-                    supplier_id,
-                    english_name,
-                    romanian_name,
-                    material_name_en,
-                    material_name_ro,
-                    hs_code,
-                    battery,
-                    default_usage,
-                    production_time,
-                    discontinued,
-                    stock,
-                    warehouse_id,
-                    internal_shipping_price,
-                    product_marketplace,
-                    user_id
-                ) VALUES (
-                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
-                ) ON CONFLICT (ean, product_marketplace) DO UPDATE SET
-                    id = EXCLUDED.id,
-                    sale_price = EXCLUDED.sale_price,
-                    stock = EXCLUDED.stock,
-                    user_id = EXCLUDED.user_id
-            """).format(sql.Identifier("products"))
-
-            for product in products:
-                id = str(product.get('id'))
-                part_number_key = product.get('part_number_key')
-                product_name = product.get('name')
-                model_name = product.get('brand')
-                buy_button_rank = product.get('buy_button_rank')
-                price = 0
-                sale_price = Decimal(product.get('sale_price', '0.0'))
-                sku = ""
-                ean = str(product.get('ean')[0]) if product.get('ean') else None
-                ean = change_string(ean)
-                image_link = product.get('images')[0]['url'] if product.get('images') else None
-                barcode_title = ""
-                masterbox_title = ""
-                link_address_1688 = ""
-                price_1688 = Decimal('0')
-                variation_name_1688 = ""
-                pcs_ctn = ""
-                weight_value = product.get('weight')
-                if isinstance(weight_value, str):
-                    weight_value = weight_value.replace(',', '.')  # Handle any comma as decimal separator
-                weight = Decimal(weight_value) if weight_value else Decimal('0')
-                volumetric_weight = 0
-                dimensions = ""
-                supplier_id = 0
-                english_name = ""
-                romanian_name = ""
-                material_name_en = ""
-                material_name_ro = ""
-                hs_code = ""
-                battery = False
-                default_usage = ""
-                production_time = Decimal('0')
-                discontinued = False
-                stock = int(product.get('stock')[0].get('value') if product.get('stock') else 0)
-                warehouse_id = 0
-                internal_shipping_price = Decimal('0')
-                product_marketplace = place  # Ensure this is an array to use array_cat
-                user_id = user_id
-
-                values = (
-                    id,
-                    part_number_key,
-                    product_name,
-                    model_name,
-                    buy_button_rank,
-                    price,
-                    sale_price,
-                    sku,
-                    ean,
-                    image_link,
-                    barcode_title,
-                    masterbox_title,
-                    link_address_1688,
-                    price_1688,
-                    variation_name_1688,
-                    pcs_ctn,
-                    weight,
-                    volumetric_weight,
-                    dimensions,
-                    supplier_id,
-                    english_name,
-                    romanian_name,
-                    material_name_en,
-                    material_name_ro,
-                    hs_code,
-                    battery,
-                    default_usage,
-                    production_time,
-                    discontinued,
-                    stock,
-                    warehouse_id,
-                    internal_shipping_price,
-                    product_marketplace,
-                    user_id
-                )
-                cursor.execute(insert_query, values)
-                conn.commit()
-            cursor.close()
-            conn.close()
-            logging.info("Products inserted successfully")
+            cursor.execute(insert_query, values)
+            conn.commit()
+        cursor.close()
+        conn.close()
+        logging.info("Products inserted successfully")
     except Exception as e:
         logging.info(f"Failed to insert products into database: {e}")
 

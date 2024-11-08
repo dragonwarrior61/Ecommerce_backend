@@ -249,7 +249,7 @@ async def insert_rmas_into_db(rmas, marketplace: Marketplace):
             except Exception as inner_error:
                 logging.error(f"Failed to insert RMA with emag_id {rma}: {inner_error}")
                 continue
-        conn.commit()
+            conn.commit()
         cursor.close()
         conn.close()
         logging.info("Refunds inserted successfully")

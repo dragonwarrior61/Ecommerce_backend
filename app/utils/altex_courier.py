@@ -80,7 +80,7 @@ async def insert_couriers(couriers, place, user_id):
             print(value)
             cursor.execute(insert_query, value)
         
-        conn.commit()
+            conn.commit()
         cursor.close()
         conn.close()
         print("Couriers inserted successfully")

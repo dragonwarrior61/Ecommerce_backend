@@ -309,7 +309,7 @@ async def insert_orders(orders, mp_name:str, user_id):
 
             cursor_order.execute(insert_orders_query, values)
 
-        conn.commit()
+            conn.commit()
         cursor_order.close()
         conn.close()
         logging.info("Orders inserted successfully")
