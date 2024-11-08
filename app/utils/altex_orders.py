@@ -308,8 +308,7 @@ async def insert_orders(orders, mp_name:str, user_id):
             )
 
             cursor_order.execute(insert_orders_query, values)
-        while settings.update_flag == 1:
-            continue
+
         conn.commit()
         cursor_order.close()
         conn.close()

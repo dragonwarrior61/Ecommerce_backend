@@ -176,8 +176,6 @@ async def insert_products(products, offers, mp_name, user_id):
             
             cursor.execute(insert_query, values)
             
-        while settings.update_flag == 1:
-            continue
         conn.commit()
         cursor.close()
         conn.close()

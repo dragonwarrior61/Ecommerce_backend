@@ -44,8 +44,6 @@ async def calc_order_stock(db: AsyncSession):
                     logging.info(f"Can't find {ean}")
                 db_internal_product.orders_stock = db_internal_product.orders_stock + quantity
                 # logging.info(f"#$$$#$#$#$#$ Orders_stock is {db_internal_product.orders_stock}")
-        while settings.update_flag == 1:
-            continue
         await db.commit()
     except Exception as e:
         logging.error(f"An error occurred: {e}")

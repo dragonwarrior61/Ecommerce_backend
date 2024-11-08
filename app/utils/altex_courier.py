@@ -80,8 +80,6 @@ async def insert_couriers(couriers, place, user_id):
             print(value)
             cursor.execute(insert_query, value)
         
-        while settings.update_flag == 1:
-            continue
         conn.commit()
         cursor.close()
         conn.close()
