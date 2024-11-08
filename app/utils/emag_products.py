@@ -8,6 +8,7 @@ import base64
 import urllib
 import hashlib
 import json
+import asyncio
 import os
 import time
 import logging
@@ -419,6 +420,7 @@ async def refresh_emag_products(marketplace: Marketplace):
                 logging.info(f">>>>>>> Current Page : {currentPage} <<<<<<<<")
                 if products and not products.get('isError'):
                     await insert_products_into_db(products['results'], marketplace.marketplaceDomain, user_id)
+                    await asyncio.sleep(2)
                     await insert_products(products['results'], marketplace.marketplaceDomain, user_id)
                 currentPage += 1
         except Exception as e:
