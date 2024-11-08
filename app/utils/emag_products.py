@@ -248,10 +248,12 @@ async def insert_products(products, mp_name: str, user_id):
             conn.commit()
         
         cursor.close()
-        conn.close()
         logging.info("Internal_Products inserted into Products successfully")
     except Exception as e:
         logging.info(f"Failed to insert Internal_Products into database: {e}")
+        raise
+    finally:
+        conn.close()
 
 async def insert_products_into_db(products, place, user_id):
     try:
@@ -387,10 +389,12 @@ async def insert_products_into_db(products, place, user_id):
             cursor.execute(insert_query, values)
             conn.commit()
         cursor.close()
-        conn.close()
         logging.info("Products inserted successfully")
     except Exception as e:
         logging.info(f"Failed to insert products into database: {e}")
+        raise
+    finally:
+        conn.close()
 
 async def refresh_emag_products(marketplace: Marketplace):
     # create_database()
