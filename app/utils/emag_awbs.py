@@ -38,9 +38,21 @@ def save(MARKETPLACE_API_URL, awb_ENDPOINT, save_ENDPOINT,  API_KEY, data, PUBLI
             "Authorization": f"Basic {api_key}",
             "Content-Type": "application/json"
         }
-
-    response = requests.post(url, data=json.dumps(data, default=convert_decimal_to_float), headers=headers)
-    return response
+    MAX_RETRIES = 5
+    retry_delay = 5
+    for attempt in range(MAX_RETRIES):
+        try:
+            response = requests.post(url, data=json.dumps(data, default=convert_decimal_to_float), headers=headers, timeout=20)
+            if response.status_code == 200:
+                return response.json()
+            else:
+                logging.info(f"Failed to awb generate: {response.status_code}")
+                return response.json()
+        except requests.Timeout:
+            logging.warning(f"Request timed out. Attempt {attempt + 1} of {MAX_RETRIES}. Retrying...")
+            time.sleep(retry_delay)
+    logging.error("All attempts failed. Could not retrieve products.")
+    return None
 
 async def save_awb(marketplace: Marketplace, data, db: AsyncSession):
     if marketplace.credentials["type"] == "user_pass":
