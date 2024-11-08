@@ -15,6 +15,7 @@ from app.models.invoice import Invoice
 from app.models.reverse_invoice import Reverse_Invoice
 from app.models.returns import Returns
 from app.models.scan_awb import Scan_awb
+from app.models.replacement import Replacement
 from app.models.team_member import Team_member
 from app.models.awb import AWB
 from app.schemas.scan_awb import Scan_awbCreate, Scan_awbRead, Scan_awbUpdate
@@ -119,10 +120,13 @@ async def get_scan_awbs(
     OrderAlias = aliased(Order)
     Reverse_InvoiceAlias = aliased(Reverse_Invoice)
     ReturnsAlias = aliased(Returns)
-    query = select(Scan_awb, ReturnsAlias, AWBAlias, OrderAlias, InvoiceAlias, Reverse_InvoiceAlias).where(Scan_awb.user_id == user_id)
+    ReplacementAlias = aliased(Replacement)
+    
+    query = select(Scan_awb, ReturnsAlias, AWBAlias, OrderAlias, ReplacementAlias, InvoiceAlias, Reverse_InvoiceAlias).where(Scan_awb.user_id == user_id)
     query = query.outerjoin(ReturnsAlias, and_(Scan_awb.awb_number == ReturnsAlias.awb))
     query = query.outerjoin(AWBAlias, AWBAlias.awb_number == Scan_awb.awb_number)
     query = query.outerjoin(OrderAlias, and_(OrderAlias.id == AWBAlias.order_id, OrderAlias.user_id == AWBAlias.user_id, AWBAlias.number > 0))
+    query = query.outerjoin(ReplacementAlias, and_(ReplacementAlias.order_id == AWBAlias.order_id, ReplacementAlias.user_id == AWBAlias.user_id, AWBAlias.number < 0))
     query = query.outerjoin(InvoiceAlias, and_(InvoiceAlias.order_id == OrderAlias.id, InvoiceAlias.user_id == OrderAlias.user_id))
     query = query.outerjoin(Reverse_InvoiceAlias, and_(Reverse_InvoiceAlias.order_id == OrderAlias.id, Reverse_InvoiceAlias.user_id == OrderAlias.user_id))
     query = query.order_by(Scan_awb.scan_date.desc())
@@ -134,7 +138,7 @@ async def get_scan_awbs(
         raise HTTPException(status_code=404, detail="scan_awb not found")
     
     scan_awb_data = []
-    for db_scan_awb, return_info, awb, order, invoice, reverse_invoice in db_scan_awbs:
+    for db_scan_awb, return_info, awb, order, replacement, invoice, reverse_invoice in db_scan_awbs:
         if return_info:
             ean = []
             product_id_list = return_info.products
@@ -162,6 +166,7 @@ async def get_scan_awbs(
             "scan_awb": db_scan_awb,
             "awb": awb,
             "order": order,
+            "replacement": replacement,
             "invoice": invoice,
             "reverse_invoice": reverse_invoice,
             "return": return_info,
