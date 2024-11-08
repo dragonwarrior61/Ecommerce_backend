@@ -51,7 +51,7 @@ def save(MARKETPLACE_API_URL, awb_ENDPOINT, save_ENDPOINT,  API_KEY, data, PUBLI
         except requests.Timeout:
             logging.warning(f"Request timed out. Attempt {attempt + 1} of {MAX_RETRIES}. Retrying...")
             time.sleep(retry_delay)
-    logging.error("All attempts failed. Could not retrieve products.")
+    logging.error("All attempts failed. Could not generate this awb.")
     return None
 
 async def save_awb(marketplace: Marketplace, data, db: AsyncSession):
