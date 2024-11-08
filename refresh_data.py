@@ -202,22 +202,22 @@ async def refresh_orders_data(db:AsyncSession = Depends(get_db)):
                     logging.info("Refresh orders from marketplace")
                     await refresh_emag_orders(marketplace)
                     
-@app.on_event("startup")
-@repeat_every(seconds=28800)
-async def refresh_months_order(db:AsyncSession = Depends(get_db)):
-    async for db in get_db():
-        async with db as session:
-            logging.info("Starting orders refresh")
-            result = await session.execute(select(Marketplace).order_by(Marketplace.id.asc()))
-            marketplaces = result.scalars().all()
-            logging.info(f"Success getting {len(marketplaces)} marketplaces")
-            for marketplace in marketplaces:
-                if marketplace.marketplaceDomain == "altex.ro":
-                    logging.info("Refresh orders from marketplace")
-                    await refresh_altex_orders(marketplace)
-                else:
-                    logging.info("Refresh orders from marketplace")
-                    await refresh_months_emag_orders(marketplace)
+# @app.on_event("startup")
+# @repeat_every(seconds=28800)
+# async def refresh_months_order(db:AsyncSession = Depends(get_db)):
+#     async for db in get_db():
+#         async with db as session:
+#             logging.info("Starting orders refresh")
+#             result = await session.execute(select(Marketplace).order_by(Marketplace.id.asc()))
+#             marketplaces = result.scalars().all()
+#             logging.info(f"Success getting {len(marketplaces)} marketplaces")
+#             for marketplace in marketplaces:
+#                 if marketplace.marketplaceDomain == "altex.ro":
+#                     logging.info("Refresh orders from marketplace")
+#                     await refresh_altex_orders(marketplace)
+#                 else:
+#                     logging.info("Refresh orders from marketplace")
+#                     await refresh_months_emag_orders(marketplace)
 
 @app.on_event("startup")
 @repeat_every(seconds=900)
