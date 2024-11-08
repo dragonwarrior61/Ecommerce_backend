@@ -147,6 +147,7 @@ async def create_awbs(awb: AWBCreate, marketplace: str, user: User = Depends(get
         if result.status_code() != 200:
             return result.json()
         result = result.json()
+        logging.info(f"AWB generation result is {result}")
         if result['isError'] == True:
             return result
         results = result['results']
