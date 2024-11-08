@@ -44,10 +44,10 @@ def save(MARKETPLACE_API_URL, awb_ENDPOINT, save_ENDPOINT,  API_KEY, data, PUBLI
         try:
             response = requests.post(url, data=json.dumps(data, default=convert_decimal_to_float), headers=headers, timeout=20)
             if response.status_code == 200:
-                return response.json()
+                return response
             else:
                 logging.info(f"Failed to awb generate: {response.status_code}")
-                return response.json()
+                return response
         except requests.Timeout:
             logging.warning(f"Request timed out. Attempt {attempt + 1} of {MAX_RETRIES}. Retrying...")
             time.sleep(retry_delay)
