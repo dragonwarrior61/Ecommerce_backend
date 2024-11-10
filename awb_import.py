@@ -15,34 +15,35 @@ async def update_awbs(db: AsyncSession = Depends(get_db)):
     async for db in get_db():
         async with db as session:
             exceal_file = "app/routers/awb.xlsx"
-
             df = pd.read_excel(exceal_file)
 
             awb_order = df[['AWB', 'ORDERID', 'WarehouseID', 'Data creare AWB']]
             awb_order_list = awb_order.values.tolist()
             
-            order_id_count = {}
+            # Step 1: Track order_ids and associated warehouse_ids
+            order_warehouse_map = {}
             for awb in awb_order_list:
                 order_id = awb[1]
-                if pd.isna(order_id):
-                    continue  # Skip if order_id is NaN
+                warehouse_id = awb[2]
+                if pd.isna(order_id) or pd.isna(warehouse_id):
+                    continue  # Skip if order_id or warehouse_id is NaN
+                
                 order_id = int(order_id)
-                if order_id in order_id_count:
-                    order_id_count[order_id] += 1
-                else:
-                    order_id_count[order_id] = 1
+                warehouse_id = int(warehouse_id)
+                
+                if order_id not in order_warehouse_map:
+                    order_warehouse_map[order_id] = set()
+                
+                # Add the warehouse_id to the set for this order_id
+                order_warehouse_map[order_id].add(warehouse_id)
             
-            duplicate_order = []
-            for awb in awb_order_list:
-                order_id = awb[1]
-                if pd.isna(order_id):
-                    continue  # Skip if order_id is NaN
-                order_id = int(order_id)
-                if order_id_count[order_id] > 1:
-                    duplicate_order.append(order_id)
+            # Step 2: Find order_ids with multiple distinct warehouse_ids
+            order_ids_with_multiple_warehouses = []
+            for order_id, warehouses in order_warehouse_map.items():
+                if len(warehouses) > 1:  # More than 1 distinct warehouse_id
+                    order_ids_with_multiple_warehouses.append(order_id)
             
-            
-            print(duplicate_order)
+            print(order_ids_with_multiple_warehouses)
             # for awb in awb_order_list:
             #     awb_number = awb[0]
             #     if awb_number is None:
