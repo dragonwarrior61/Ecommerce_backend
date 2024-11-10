@@ -95,6 +95,7 @@ async def update_awbs(db: AsyncSession = Depends(get_db)):
 
             awb_order = df[['AWB', 'ORDERID', 'WarehouseID', 'Data creare AWB']]
             awb_order_list = awb_order.values.tolist()
+            new_awb = []
             
             for awb in awb_order_list:
                 awb_number = awb[0]
@@ -120,8 +121,7 @@ async def update_awbs(db: AsyncSession = Depends(get_db)):
                 # Query the AWB record in the database
                 result = await session.execute(select(AWB).where(AWB.order_id == order_id, AWB.number == warehouse_id))
                 db_awb = result.scalars().first()
-                
-                new_awb = []
+    
                 if db_awb is None:
                     new_awb.append(
                         {

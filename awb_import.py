@@ -21,41 +21,63 @@ async def update_awbs(db: AsyncSession = Depends(get_db)):
             awb_order = df[['AWB', 'ORDERID', 'WarehouseID', 'Data creare AWB']]
             awb_order_list = awb_order.values.tolist()
             
+            order_id_count = {}
             for awb in awb_order_list:
-                awb_number = awb[0]
-                if awb_number is None:
-                    continue
-                
-                # Check for NaN values and convert to integer only if valid
                 order_id = awb[1]
                 if pd.isna(order_id):
                     continue  # Skip if order_id is NaN
                 order_id = int(order_id)
+                if order_id in order_id_count:
+                    order_id_count[order_id] += 1
+                else:
+                    order_id_count[order_id] = 1
+            
+            duplicate_order = []
+            for awb in awb_order_list:
+                order_id = awb[1]
+                if pd.isna(order_id):
+                    continue  # Skip if order_id is NaN
+                order_id = int(order_id)
+                if order_id_count[order_id] > 1:
+                    duplicate_order.append(order_id)
+            
+            
+            print(duplicate_order)
+            # for awb in awb_order_list:
+            #     awb_number = awb[0]
+            #     if awb_number is None:
+            #         continue
                 
-                warehouse_id = awb[2]
-                if pd.isna(warehouse_id):
-                    continue  # Skip if warehouse_id is NaN
-                warehouse_id = int(warehouse_id)
+            #     # Check for NaN values and convert to integer only if valid
+            #     order_id = awb[1]
+            #     if pd.isna(order_id):
+            #         continue  # Skip if order_id is NaN
+            #     order_id = int(order_id)
                 
-                awb_date = awb[3]
-                if pd.isna(awb_date):
-                    continue
-                awb_date = str(awb_date)
+            #     warehouse_id = awb[2]
+            #     if pd.isna(warehouse_id):
+            #         continue  # Skip if warehouse_id is NaN
+            #     warehouse_id = int(warehouse_id)
                 
-                # Query the AWB record in the database
-                result = await session.execute(select(AWB).where(AWB.order_id == order_id, AWB.number == warehouse_id))
-                db_awb = result.scalars().first()
+            #     awb_date = awb[3]
+            #     if pd.isna(awb_date):
+            #         continue
+            #     awb_date = str(awb_date)
                 
-                new_awb = []
-                if db_awb is None:
-                    new_awb.append(
-                        {
-                            'orderId': order_id,
-                            'date': awb_date,
-                            'awb': awb_number
-                        }
-                    )
-                    continue
+            #     # Query the AWB record in the database
+            #     result = await session.execute(select(AWB).where(AWB.order_id == order_id, AWB.number == warehouse_id))
+            #     db_awb = result.scalars().first()
+                
+            #     new_awb = []
+            #     if db_awb is None:
+            #         new_awb.append(
+            #             {
+            #                 'orderId': order_id,
+            #                 'date': awb_date,
+            #                 'awb': awb_number
+            #             }
+            #         )
+            #         continue
                 
                 # Update the AWB record with the new number and barcode
                 
