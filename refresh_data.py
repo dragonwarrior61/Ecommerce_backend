@@ -93,8 +93,9 @@ async def update_awbs(db: AsyncSession = Depends(get_db)):
 
             df = pd.read_excel(exceal_file)
 
-            awb_order = df[['AWB', 'ORDERID', 'WarehouseID']]
+            awb_order = df[['AWB', 'ORDERID', 'WarehouseID', 'Data creare AWB']]
             awb_order_list = awb_order.values.tolist()
+            
             for awb in awb_order_list:
                 awb_number = awb[0]
                 if awb_number is None:
@@ -111,21 +112,25 @@ async def update_awbs(db: AsyncSession = Depends(get_db)):
                     continue  # Skip if warehouse_id is NaN
                 warehouse_id = int(warehouse_id)
                 
-                print(f"order_id: {order_id}, awb_number: {awb_number}, warehouse_id: {warehouse_id}")
+                awb_date = awb[3]
+                if pd.isna(awb_date):
+                    continue
+                awb_date = str(awb_date)
                 
                 # Query the AWB record in the database
                 result = await session.execute(select(AWB).where(AWB.order_id == order_id, AWB.number == warehouse_id))
                 db_awb = result.scalars().first()
                 
+                new_awb = []
                 if db_awb is None:
-                    continue
-                
-                # Update the AWB record with the new number and barcode
-                db_awb.awb_number = awb_number
-                db_awb.awb_barcode = awb_number + '001'
-
-            # Commit the changes to the database after processing all rows
-            await session.commit()
+                    new_awb.append(
+                        {
+                            'orderId': order_id,
+                            'date': awb_date,
+                            'awb': awb_number
+                        }
+                    )
+            logging.info(f"new_awb: {new_awb}")
 
 # @app.on_event("startup")
 # @repeat_every(seconds=14400)
