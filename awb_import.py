@@ -11,6 +11,7 @@ from fastapi import Depends
 
 
 # Use an async function to handle the database interaction
+@app.on_event("startup")
 async def update_awbs(db: AsyncSession = Depends(get_db)):
     async for db in get_db():
         async with db as session:
@@ -44,6 +45,7 @@ async def update_awbs(db: AsyncSession = Depends(get_db)):
             #         order_ids_with_multiple_warehouses.append(order_id)
             
             # print(order_ids_with_multiple_warehouses)
+            order_id_list = []
             for awb in awb_order_list:
                 awb_number = awb[0]
                 if awb_number is None:
@@ -69,22 +71,14 @@ async def update_awbs(db: AsyncSession = Depends(get_db)):
                 result = await session.execute(select(AWB).where(AWB.order_id == order_id, AWB.number == warehouse_id))
                 db_awb = result.scalars().first()
                 
+                if db_awb is None:
+                    continue
+                order_id_list.append(order_id)
                 db_awb.awb_number = awb_number
                 db_awb.awb_barcode = awb_number + '001'
-                
-                
-                # new_awb = []
-                # if db_awb is None:
-                #     new_awb.append(
-                #         {
-                #             'orderId': order_id,
-                #             'date': awb_date,
-                #             'awb': awb_number
-                #         }
-                #     )
-                #     continue
-                
-                # Update the AWB record with the new number and barcode
+            await session.commit()
+            logging.info(f"order_id_list is {order_id_list}")
+            logging.info(f"totally order_id count is {len(order_id_list)}")
                 
 
 # Running the async function in an event loop
