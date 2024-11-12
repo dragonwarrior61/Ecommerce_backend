@@ -152,6 +152,7 @@ async def update_awbs(db: AsyncSession = Depends(get_db)):
                 db_awb.awb_barcode = awb_number + '001'
             await session.commit()
             logging.info(f"order_id_list is {order_id_list}")
+            logging.info(f"totally order_id count is {len(order_id_list)}")
 
 # @app.on_event("startup")
 # @repeat_every(seconds=14400)
