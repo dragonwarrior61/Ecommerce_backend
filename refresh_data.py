@@ -119,6 +119,7 @@ async def update_awbs(db: AsyncSession = Depends(get_db)):
             #         order_ids_with_multiple_warehouses.append(order_id)
             
             # print(order_ids_with_multiple_warehouses)
+            order_id_list = []
             for awb in awb_order_list:
                 awb_number = awb[0]
                 if awb_number is None:
@@ -144,9 +145,13 @@ async def update_awbs(db: AsyncSession = Depends(get_db)):
                 result = await session.execute(select(AWB).where(AWB.order_id == order_id, AWB.number == warehouse_id))
                 db_awb = result.scalars().first()
                 
+                if db_awb is None:
+                    continue
+                order_id_list.append(order_id)
                 db_awb.awb_number = awb_number
                 db_awb.awb_barcode = awb_number + '001'
             await session.commit()
+            logging.info(f"order_id_list is {order_id_list}")
 
 # @app.on_event("startup")
 # @repeat_every(seconds=14400)
