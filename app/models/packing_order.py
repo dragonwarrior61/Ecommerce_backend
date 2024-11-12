@@ -9,9 +9,9 @@ class Packing_order(Base):
     order_id = Column(Integer, nullable=True, index=True)
     product_ean = Column(ARRAY(Text), nullable=True)
     quantity = Column(ARRAY(Integer), nullable=True)
+    order_quantity = Column(ARRAY(Integer), nullable=True)
     staff_id = Column(Integer, nullable=True)
     pack_status = Column(Integer, nullable=True)
-    pack_date = Column(DateTime, nullable=True)
+    starting_time = Column(DateTime, nullable=True)
+    ending_time = Column(DateTime, nullable=True)
     user_id = Column(Integer, index=True, nullable=True)
-
-    
