@@ -33,6 +33,7 @@ async def create_packing_order(packing_order: Packing_orderCreate, user: User = 
         user_id = user.id
         
     db_packing_order = Packing_order(**packing_order.dict())
+    db_packing_order.staff_id = user.id
     db_packing_order.user_id = user_id
     
     settings.update_flag = 1
@@ -159,7 +160,43 @@ async def get_not_packed_orders(
             "ean": ean,
             "awb": awb_dict[db_order.id]
         })
+
+@router.get("/count_not_packing")
+async def count_not_packing(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    warehouse_id = 0
+    if user.role == -1:
+        raise HTTPException(status_code=401, detail="Authentication error")
+    if user.role != 4:
+        result = await db.execute(select(Team_member).where(Team_member.user == user.id))
+        db_team = result.scalars().first()
+        user_id = db_team.admin
+        
+        result = await db.execute(select(User).where(User.id == user_id))
+        db_user = result.scalars().first()
+        address = db_user.address
+        
+        result = await db.execute(select(Warehouse).where(Warehouse.street == address))
+        db_warehouse = result.scalars().first()
+        warehouse_id = db_warehouse.id
+    else:
+        user_id = user.id
+        
+    Internal_productAlias = aliased(Internal_Product)
+    ProductAlias = aliased(Product)
     
+    query = select(Order).where(Order.packing_status != 2, Order.user_id == user_id)
+    
+    if warehouse_id > 0:
+        query = query.outerjoin(ProductAlias, and_(ProductAlias.id == any_(Order.product_id), ProductAlias.product_marketplace == Order.order_market_place, ProductAlias.user_id == Order.user_id))
+        query = query.outerjoin(Internal_productAlias, Internal_productAlias.ean == ProductAlias.ean)
+        query = query.where(Internal_productAlias.warehouse_id == warehouse_id)
+        query = query.group_by(Order.id, Order.user_id)
+        
+    result = await db.execute(query)
+    db_orders = result.scalars().all()
+    
+    return len(db_orders)
+
 @router.put("/{packing_order_id}", response_model=Packing_orderRead)
 async def update_packing_order(packing_order_id: int, packing_order: Packing_orderUpdate, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     if user.role == -1:
