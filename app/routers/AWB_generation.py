@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import aliased
-from sqlalchemy import func, or_, cast, Integer, BigInteger, and_, is_
+from sqlalchemy import func, or_, cast, Integer, BigInteger, and_
 from typing import List
 from app.database import get_db
 from app.models.awb import AWB
