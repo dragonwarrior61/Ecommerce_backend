@@ -160,6 +160,8 @@ async def get_not_packed_orders(
             "ean": ean,
             "awb": awb_dict[db_order.id]
         })
+        
+    return orders_data
 
 @router.get("/count_not_packing")
 async def count_not_packing(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
