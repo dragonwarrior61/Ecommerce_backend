@@ -191,7 +191,7 @@ async def count_not_packing(user: User = Depends(get_current_user), db: AsyncSes
         
     Internal_productAlias = aliased(Internal_Product)
     ProductAlias = aliased(Product)
-    AWBAlias = aliased(AWBAlias)
+    AWBAlias = aliased(AWB)
     
     query = select(Order).where(Order.packing_status != 2, Order.user_id == user_id)
     query = query.outerjoin(AWBAlias, and_(AWBAlias.order_id == Order.id, AWBAlias.number > 0, AWBAlias.user_id == Order.user_id))
