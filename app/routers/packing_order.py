@@ -112,10 +112,12 @@ async def get_not_packed_orders(
     
     Internal_productAlias = aliased(Internal_Product)
     ProductAlias = aliased(Product)
-    
+    AWBAlias = aliased(AWB)
     offset = (page - 1) * items_per_page
     
     query = select(Order).where(Order.packing_status != 2, Order.user_id == user_id)
+    query = query.outerjoin(AWBAlias, and_(AWBAlias.order_id == Order.id, AWBAlias.number > 0, AWBAlias.user_id == Order.user_id))
+    query = query.where(AWBAlias.awb_status == any_([1, 18, 23, 73, 74]))
     
     if warehouse_id > 0:
         query = query.outerjoin(ProductAlias, and_(ProductAlias.id == any_(Order.product_id), ProductAlias.product_marketplace == Order.order_market_place, ProductAlias.user_id == Order.user_id))
@@ -189,8 +191,11 @@ async def count_not_packing(user: User = Depends(get_current_user), db: AsyncSes
         
     Internal_productAlias = aliased(Internal_Product)
     ProductAlias = aliased(Product)
+    AWBAlias = aliased(AWBAlias)
     
     query = select(Order).where(Order.packing_status != 2, Order.user_id == user_id)
+    query = query.outerjoin(AWBAlias, and_(AWBAlias.order_id == Order.id, AWBAlias.number > 0, AWBAlias.user_id == Order.user_id))
+    query = query.where(AWBAlias.awb_status == any_([1, 18, 23, 73, 74]))
     
     if warehouse_id > 0:
         query = query.outerjoin(ProductAlias, and_(ProductAlias.id == any_(Order.product_id), ProductAlias.product_marketplace == Order.order_market_place, ProductAlias.user_id == Order.user_id))
