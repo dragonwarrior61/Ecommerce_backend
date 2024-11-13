@@ -132,7 +132,7 @@ async def get_not_packed_orders(
         raise HTTPException(status_code=404, detail="There are not packed orders")
     order_ids = [order.id for order in db_orders]
     
-    awb_query = select(AWB).where(cast(AWB.order_id, BigInteger) == any_(order_ids, AWB.number > 0, AWB.user_id == user_id))
+    awb_query = select(AWB).where(cast(AWB.order_id, BigInteger) == any_(order_ids), AWB.number > 0, AWB.user_id == user_id)
     awb_result = await db.execute(awb_query)
     awbs = awb_result.scalars().all()
     
@@ -154,11 +154,15 @@ async def get_not_packed_orders(
                 result = await db.execute(select(Product).where(Product.id == product_id, Product.user_id == user_id))
                 db_product = result.scalars().first()
             ean.append(db_product.ean)
-            
+        
+        if awb_dict[db_order.id]:
+            awb = awb_dict[db_order.id]
+        else:
+            awb = []
         orders_data.append({
             **{column.name: getattr(db_order, column.name) for column in Order.__table__.columns},
             "ean": ean,
-            "awb": awb_dict[db_order.id]
+            "awb": awb
         })
         
     return orders_data
