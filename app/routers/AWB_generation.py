@@ -257,6 +257,7 @@ async def count_awb_not_shipped(
     count = result.scalar()
 
     return count
+
 @router.get("/order_id")
 async def get_awbs_order_id(
     order_id: int,
@@ -307,6 +308,7 @@ async def get_awbs(
     status_str: str = Query('', description="awb_status"),
     warehouse_id: int = Query(0, description="warehouse_id"),
     flag: bool = Query(False, description="Generated today or not"),
+    no_awb_number: bool = Query(False, description="No AWB number"),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -322,9 +324,10 @@ async def get_awbs(
         
     warehousealiased = aliased(Warehouse)
     orderaliased = aliased(Order)
-    productaliased = aliased(Product)
     offset = (page - 1) * items_per_page
     query = select(AWB, warehousealiased, orderaliased)
+    if no_awb_number:
+        query = query.where(AWB.awb_number is None)
     if status_str:
         status_list = [int(status.strip()) for status in status_str.split(",")]
         query = query.where(AWB.awb_status == any_(status_list))
@@ -339,13 +342,6 @@ async def get_awbs(
         orderaliased.id == cast(AWB.order_id, BigInteger)
     ).order_by(orderaliased.maximum_date_for_shipment.desc())
 
-    # query = query.outerjoin(
-    #     productaliased,
-    #     and_(
-    #         productaliased.id == any_(orderaliased.product_id),
-    #         productaliased.product_marketplace == orderaliased.order_market_place
-    #     )
-    # )
     if flag == False:
         yesterday = datetime.datetime.today() - datetime.timedelta(days=1)
         query = query.where(AWB.awb_date <= datetime.datetime(yesterday.year, yesterday.month, yesterday.day, 23, 59, 59))
