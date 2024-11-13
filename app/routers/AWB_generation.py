@@ -378,7 +378,16 @@ async def get_awbs(
     return awb_data
 
 @router.put("/", response_model=AWBRead)
-async def update_awbs(order_id: int, number: int, awb_number: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def update_awbs(
+    order_id: int,
+    number: int,
+    awb_number: str,
+    reservation_id: int,
+    courier_id: int,
+    courier_name: str,
+    user: User = Depends(get_current_user), 
+    db: AsyncSession = Depends(get_db)
+):
     if user.role == -1:
         raise HTTPException(status_code=401, detail="Authentication error")
     
@@ -397,6 +406,10 @@ async def update_awbs(order_id: int, number: int, awb_number: str, user: User = 
         raise HTTPException(status_code=401, detail="Authentication error")
     
     db_awb.awb_number = awb_number
+    db_awb.awb_barcode = awb_number + '001'
+    db_awb.reservation_id = reservation_id
+    db_awb.courier_id = courier_id
+    db_awb.courier_name = courier_name
     settings.update_flag = 1
     try:
         await db.commit()
