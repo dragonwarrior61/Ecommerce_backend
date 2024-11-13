@@ -201,6 +201,7 @@ async def count_awb(
     status_str: str = Query('', description="awb_status"),
     warehouse_id: int = Query(0, description='warehouse_id'),
     flag: bool = Query(False, description="Generated today or not"),
+    no_awb_number: bool = Query(False, description="No awb number"),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -216,6 +217,9 @@ async def count_awb(
         
     warehouseAlias = aliased(Warehouse)
     query = select(AWB)
+    
+    if no_awb_number:
+        query = query.where(AWB.awb_number.is_(None))
     if status_str:
         status_list = [int(status.strip()) for status in status_str.split(",")]
         query = query.where(AWB.awb_status == any_(status_list))
