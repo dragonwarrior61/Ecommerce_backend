@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import aliased
-from sqlalchemy import func, or_, cast, Integer, BigInteger, and_
+from sqlalchemy import func, or_, cast, Integer, BigInteger, and_, is_
 from typing import List
 from app.database import get_db
 from app.models.awb import AWB
@@ -326,8 +326,9 @@ async def get_awbs(
     orderaliased = aliased(Order)
     offset = (page - 1) * items_per_page
     query = select(AWB, warehousealiased, orderaliased)
+    
     if no_awb_number:
-        query = query.where(AWB.awb_number is None)
+        query = query.where(AWB.awb_number.is_(None))
     if status_str:
         status_list = [int(status.strip()) for status in status_str.split(",")]
         query = query.where(AWB.awb_status == any_(status_list))
