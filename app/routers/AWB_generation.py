@@ -377,8 +377,8 @@ async def get_awbs(
         awb_data.append(awb_info)
     return awb_data
 
-@router.put("/{awb_number}", response_model=AWBRead)
-async def update_awbs(awb_number: str, awb: AWBUpdate, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+@router.put("/", response_model=AWBRead)
+async def update_awbs(order_id: int, number: int, awb_number: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     if user.role == -1:
         raise HTTPException(status_code=401, detail="Authentication error")
     
@@ -389,14 +389,14 @@ async def update_awbs(awb_number: str, awb: AWBUpdate, user: User = Depends(get_
     else:
         user_id = user.id
         
-    result = await db.execute(select(AWB).filter(AWB.awb_number == awb_number, AWB.user_id == user_id))
+    result = await db.execute(select(AWB).filter(AWB.order_id == order_id, AWB.number == number))
     db_awb = result.scalars().first()
     if db_awb is None:
         raise HTTPException(status_code=404, detail="awbs not found")
-    update_data = awb.dict(exclude_unset=True)  # Only update fields that are set
-    for key, value in update_data.items():
-        setattr(awb, key, value) if value is not None else None
-        
+    if db_awb.user_id != user_id:
+        raise HTTPException(status_code=401, detail="Authentication error")
+    
+    db_awb.awb_number = awb_number
     settings.update_flag = 1
     try:
         await db.commit()
@@ -407,29 +407,29 @@ async def update_awbs(awb_number: str, awb: AWBUpdate, user: User = Depends(get_
         settings.update_flag = 0
     return db_awb
 
-@router.delete("/{awb_number}", response_model=AWBRead)
-async def delete_awbs(awb_number: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    if user.role == -1:
-        raise HTTPException(status_code=401, detail="Authentication error")
+# @router.delete("/{awb_number}", response_model=AWBRead)
+# async def delete_awbs(awb_number: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+#     if user.role == -1:
+#         raise HTTPException(status_code=401, detail="Authentication error")
     
-    if user.role != 4:
-        result = await db.execute(select(Team_member).where(Team_member.user == user.id))
-        db_team = result.scalars().first()
-        user_id = db_team.admin
-    else:
-        user_id = user.id
+#     if user.role != 4:
+#         result = await db.execute(select(Team_member).where(Team_member.user == user.id))
+#         db_team = result.scalars().first()
+#         user_id = db_team.admin
+#     else:
+#         user_id = user.id
         
-    result = await db.execute(select(AWB).filter(AWB.awb_number == awb_number, AWB.user_id == user_id))
-    awb = result.scalars().first()
-    if awb is None:
-        raise HTTPException(status_code=404, detail="awbs not found")
+#     result = await db.execute(select(AWB).filter(AWB.awb_number == awb_number, AWB.user_id == user_id))
+#     awb = result.scalars().first()
+#     if awb is None:
+#         raise HTTPException(status_code=404, detail="awbs not found")
     
-    settings.update_flag = 1
-    try:
-        await db.delete(awb)
-        await db.commit()
-    except Exception as e:
-        db.rollback()
-    finally:
-        settings.update_flag = 0
-    return awb
+#     settings.update_flag = 1
+#     try:
+#         await db.delete(awb)
+#         await db.commit()
+#     except Exception as e:
+#         db.rollback()
+#     finally:
+#         settings.update_flag = 0
+#     return awb
