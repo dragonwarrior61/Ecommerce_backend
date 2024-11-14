@@ -366,6 +366,17 @@ async def get_awbs(
         awb_info = {column.name: getattr(db_awb, column.name) for column in AWB.__table__.columns}
         warehouse_info = {column.name: getattr(warehouse, column.name) if warehouse else None for column in Warehouse.__table__.columns}
         
+        if order:
+            ean = []
+            product_id_list = order.product_id
+            for product_id in product_id_list:
+                result = await db.execute(select(Product).where(Product.id == product_id, Product.product_marketplace == order.order_market_place, Product.user_id == order.user_id))
+                db_product = result.scalars().first()
+                if db_product is None:
+                    result = await db.execute(select(Product).where(Product.id == product_id, Product.user_id == order.user_id))
+                    db_product = result.scalars().first()
+                ean.append(db_product.ean)
+            order.ean = ean
         awb_info.update(warehouse_info)
         awb_info["order"] = order
         if db_awb.number < 0:
