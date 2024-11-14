@@ -89,24 +89,16 @@ async def get_packing_orders(
 async def get_not_packed_orders(
     items_per_page: int = Query(50, ge=1, le=100, description="Number of items per page"),
     page: int = Query(1, ge=1, description="page_number"),
+    warehouse_id: int = Query(0, description="Warehouse ID"),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    warehouse_id = 0
     if user.role == -1:
         raise HTTPException(status_code=401, detail="Authentication error")
     if user.role != 4:
         result = await db.execute(select(Team_member).where(Team_member.user == user.id))
         db_team = result.scalars().first()
         user_id = db_team.admin
-        
-        result = await db.execute(select(User).where(User.id == user_id))
-        db_user = result.scalars().first()
-        address = db_user.address
-        
-        result = await db.execute(select(Warehouse).where(Warehouse.street == address))
-        db_warehouse = result.scalars().first()
-        warehouse_id = db_warehouse.id
     else:
         user_id = user.id
     
@@ -170,22 +162,17 @@ async def get_not_packed_orders(
     return orders_data
 
 @router.get("/count_not_packing")
-async def count_not_packing(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    warehouse_id = 0
+async def count_not_packing(
+    warehouse_id: int = Query(0, description="Warehouse ID"), 
+    user: User = Depends(get_current_user), 
+    db: AsyncSession = Depends(get_db)
+):
     if user.role == -1:
         raise HTTPException(status_code=401, detail="Authentication error")
     if user.role != 4:
         result = await db.execute(select(Team_member).where(Team_member.user == user.id))
         db_team = result.scalars().first()
         user_id = db_team.admin
-        
-        result = await db.execute(select(User).where(User.id == user_id))
-        db_user = result.scalars().first()
-        address = db_user.address
-        
-        result = await db.execute(select(Warehouse).where(Warehouse.street == address))
-        db_warehouse = result.scalars().first()
-        warehouse_id = db_warehouse.id
     else:
         user_id = user.id
         
