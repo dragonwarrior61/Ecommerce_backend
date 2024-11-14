@@ -404,6 +404,8 @@ async def update_awbs(
         raise HTTPException(status_code=404, detail="awbs not found")
     if db_awb.user_id != user_id:
         raise HTTPException(status_code=401, detail="Authentication error")
+    if db_awb.awb_number:
+        raise HTTPException(status_code=429, detail="This awb is created successfully. You can't edit this awb")
     
     db_awb.awb_number = awb_number
     db_awb.awb_barcode = awb_number + '001'
