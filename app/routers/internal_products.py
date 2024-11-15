@@ -347,18 +347,7 @@ async def get_shipment_info(ean: str, db: AsyncSession):
 
     shipment_data = []
     for shipment in shipments:
-        index = shipment.ean.index(ean)
-        total_quantity = sum(shipment.quantity)
-        quantity = shipment.quantity[index]
-        shipment_data.append({
-            "shipment_id": shipment.id,
-            "shipment_title": shipment.title,
-            "shipment_date": shipment.create_date,
-            "shipment_quantity": total_quantity,
-            "supplier_name": shipment.wechat_group[index],
-            "shipment_status": shipment.status,
-            "shipment_product_quantity": quantity
-        })
+        shipment_data.append(shipment)
 
     return shipment_data
 
@@ -380,33 +369,6 @@ async def get_products(
         user_id = db_team.admin
     else:
         user_id = user.id
-    
-    # result = await db.execute(select(Internal_Product).where(Internal_Product.user_id == user_id))
-    # db_internal_products = result.scalars().all()
-    # for internal_product in db_internal_products:
-    #     internal_product.orders_stock = 0
-    
-    # result = await db.execute(select(Order).where(Order.status == any_([1,2,3]), Order.user_id == user_id))
-    # db_new_orders = result.scalars().all()
-    
-    # for order in db_new_orders:
-    #     product_id_list = order.product_id
-    #     quantity_list = order.quantity
-    #     for i in range(len(product_id_list)):
-    #         product_id = product_id_list[i]
-    #         quantity = quantity_list[i]
-    #         result = await db.execute(select(Product).where(Product.id == product_id, Product.user_id == user_id, Product.product_marketplace == order.order_market_place))
-    #         db_product = result.scalars().first()
-    #         if db_product is None:
-    #             result = await db.execute(select(Product).where(Product.id == product_id, Product.user_id == user_id))
-    #             db_product = result.scalars().first()
-    #         ean = db_product.ean
-
-    #         result = await db.execute(select(Internal_Product).where(Internal_Product.ean == ean))
-    #         db_internal_product = result.scalars().first()
-    #         db_internal_product.orders_stock = db_internal_product.orders_stock + quantity
-    
-    # await db.commit() 
     
     cnt = {}
     
