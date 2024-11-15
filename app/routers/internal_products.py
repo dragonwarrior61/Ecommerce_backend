@@ -12,6 +12,7 @@ from app.routers.auth import get_current_user
 from app.models.product import Product
 from app.models.damaged_good import Damaged_good
 from app.models.returns import Returns
+from app.models.awb import AWB
 from app.models.shipment import Shipment
 from app.models.internal_product import Internal_Product
 from app.schemas.internal_product import Internal_ProductCreate, Internal_ProductRead, Internal_ProductUpdate
@@ -39,33 +40,31 @@ async def get_orders_info(ean: str, db: AsyncSession):
     query = select(Product).where(Product.ean == ean)
     result = await db.execute(query)
     products = result.scalars().all()
+    product_id_list = []
+    for product in products:
+        product_id_list.append(product.id)
+        
+    product_id_list = list(set(product_id_list))
+    
+    result = await db.execute(select(Internal_Product).where(Internal_Product.ean == ean))
+    internal_product = result.scalars().first()
+    warehouse_id = internal_product.warehouse_id
+    user_id = internal_product.user_id
+    
     order_data = []
 
-    for product in products:
-        product_id = product.id
+    for product_id in product_id_list:
+        AWBAlias = aliased(AWB)
+        query = select(Order, AWBAlias).where(product_id == any_(Order.product_id, Order.user_id == user_id))
+        query = query.outerjoin(AWBAlias, and_(AWBAlias.order_id == Order.id, AWBAlias.number == warehouse_id, AWBAlias.user_id == user_id))
+        
+        order_awb = result.fetchall()
 
-        result = await db.execute(select(Order).where(product_id == any_(Order.product_id)))
-        orders = result.scalars().all()
-
-        for order in orders:
-            order_id = order.id
-            product_list = order.product_id
-            index = product_list.index(product_id)
-            unit = order.quantity[index]
-            order_date = order.date
-            marketplace = order.order_market_place
-            customer_id = order.customer_id
-            customer_name = order.name
-            order_data.append(
-                {
-                    "order_id": order_id,
-                    "order_date": order_date,
-                    "customer_name": customer_name,
-                    "quantity_orders": unit,
-                    "order_status": order.status,
-                    "marketplace": marketplace
-                }
-            )
+        for order, awb in order_awb:
+            order_data.append({
+                "order": order,
+                "awb": awb
+            })
     return order_data
     
 async def get_refunded_info(ean: str, db: AsyncSession):
