@@ -57,7 +57,8 @@ async def get_orders_info(ean: str, db: AsyncSession):
         AWBAlias = aliased(AWB)
         query = select(Order, AWBAlias).where(product_id == any_(Order.product_id), Order.user_id == user_id)
         query = query.outerjoin(AWBAlias, and_(AWBAlias.order_id == Order.id, AWBAlias.number == warehouse_id, AWBAlias.user_id == user_id))
-        
+
+        result = await db.execute(query)
         order_awb = result.fetchall()
 
         for order, awb in order_awb:
