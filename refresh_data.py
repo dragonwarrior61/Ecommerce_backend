@@ -98,11 +98,12 @@ async def update_awb(db: AsyncSession = Depends(get_db)):
             for awb in awbs:
                 awb_creation_time = awb.awb_creation_date
                 order_id = awb.order_id
-                result = await session.execute(select(AWB).where(AWB.order_id == order_id))
+                user_id = awb.user_id
+                result = await session.execute(select(AWB).where(AWB.order_id == order_id, AWB.user_id == user_id))
                 awb_order_id = result.scalars().all()
                 if len(awb_order_id) > 1:
                     continue
-                result = await session.execute(select(Order).where(Order.id == order_id))
+                result = await session.execute(select(Order).where(Order.id == order_id, Order.user_id == user_id))
                 order = result.scalars().first()
                 if order.status == 4:
                     continue
