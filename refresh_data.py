@@ -110,7 +110,7 @@ async def update_awb(db: AsyncSession = Depends(get_db)):
                 now_time = datetime.now()
                 if order.update_time + timedelta(minutes = 15) > now_time and awb_creation_time < order.update_time - timedelta(hours = 1):
                     cnt = cnt + 1
-                    await session.delete(awb)
+                    session.delete(awb)
             await session.commit()
             logging.info(f"Delete {cnt} empty awbs successfully")
             
