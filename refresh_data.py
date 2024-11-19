@@ -110,7 +110,7 @@ async def update_awb(db: AsyncSession = Depends(get_db)):
                     if order.status == 4:
                         continue
                     now_time = datetime.now()
-                    if order.update_time + timedelta(minutes = 30) > now_time and awb_creation_time < order.update_time - timedelta(hours = 1):
+                    if order.update_time + timedelta(minutes = 60) > now_time and awb_creation_time < order.update_time - timedelta(hours = 1):
                         cnt += 1
                         session.delete(awb)  # Mark the AWB for deletion
 
