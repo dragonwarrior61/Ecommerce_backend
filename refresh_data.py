@@ -39,6 +39,7 @@ import logging
 from sqlalchemy import update
 from datetime import datetime, timedelta
 import openpyxl
+from sqlalchemy.exc import SQLAlchemyError
 from openpyxl import Workbook
 from app.config import settings
 
@@ -91,28 +92,40 @@ async def update_awb(db: AsyncSession = Depends(get_db)):
     async for db in get_db():
         async with db as session:
             
-            logging.info("Starting delete empty awb")
-            result = await session.execute(select(AWB).where(AWB.awb_number.is_(None)))
-            awbs = result.scalars().all()
-            cnt = 0
-            for awb in awbs:
-                awb_creation_time = awb.awb_creation_date
-                order_id = awb.order_id
-                user_id = awb.user_id
-                result = await session.execute(select(AWB).where(AWB.order_id == order_id, AWB.user_id == user_id))
-                awb_order_id = result.scalars().all()
-                if len(awb_order_id) > 1:
-                    continue
-                result = await session.execute(select(Order).where(Order.id == order_id, Order.user_id == user_id))
-                order = result.scalars().first()
-                if order.status == 4:
-                    continue
-                now_time = datetime.now()
-                if order.update_time + timedelta(minutes = 30) > now_time and awb_creation_time < order.update_time - timedelta(hours = 1):
-                    cnt = cnt + 1
-                    session.delete(awb)
-            await session.commit()
-            logging.info(f"Delete {cnt} empty awbs successfully")
+            try:
+                logging.info("Starting delete empty awb")
+                result = await session.execute(select(AWB).where(AWB.awb_number.is_(None)))
+                awbs = result.scalars().all()
+                cnt = 0
+                for awb in awbs:
+                    awb_creation_time = awb.awb_creation_date
+                    order_id = awb.order_id
+                    user_id = awb.user_id
+                    result = await session.execute(select(AWB).where(AWB.order_id == order_id, AWB.user_id == user_id))
+                    awb_order_id = result.scalars().all()
+                    if len(awb_order_id) > 1:
+                        continue
+                    result = await session.execute(select(Order).where(Order.id == order_id, Order.user_id == user_id))
+                    order = result.scalars().first()
+                    if order.status == 4:
+                        continue
+                    now_time = datetime.now()
+                    if order.update_time + timedelta(minutes = 30) > now_time and awb_creation_time < order.update_time - timedelta(hours = 1):
+                        cnt += 1
+                        session.delete(awb)  # Mark the AWB for deletion
+
+                # Commit changes after processing all AWBs
+                await session.commit()
+                logging.info(f"Delete {cnt} empty AWBs successfully")
+
+            except SQLAlchemyError as e:
+                # If there is an error, we log it and ensure a rollback
+                logging.error(f"Error occurred: {e}")
+                await session.rollback()  # Explicitly roll back in case of an error
+            except Exception as e:
+                # Catch any other exceptions that might occur
+                logging.error(f"Unexpected error: {e}")
+                await session.rollback()
             
             # logging.info("Starting update api_key in sameday")
             # result = await session.execute(select(Billing_software).where(Billing_software.site_domain == "sameday.ro"))
