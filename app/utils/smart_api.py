@@ -5,6 +5,9 @@ from fastapi import Depends
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.internal_product import Internal_Product
+from app.models.product import Product
+from app.models.orders import Order
+from app.models.invoice import Invoice
 from app.models.billing_software import Billing_software
 from app.models.marketplace import Marketplace
 from sqlalchemy import select
@@ -56,6 +59,165 @@ async def update_stock(db: AsyncSession):
             result = await db.execute(select(Internal_Product).where(Internal_Product.product_code == product_code))
             db_product = result.scalars.first()
             db_product.stock = product.get('quantity')
+
+async def refresh_invoice(marketplace: Marketplace, db: AsyncSession):
+    user_id = marketplace.user_id
+    if marketplace.country == "hu":
+        currency = "HUF"
+        vat = 1.27
+    elif marketplace.country == "bg":
+        currency = "BGN"
+        vat = 1.2
+    else:
+        currency = "RON"
+        vat = 1.19
+
+    result = await db.execute(select(Order).where(Order.status == any_([1, 2, 3]), Order.attachments == '[]', Order.user_id == user_id))
+    new_orders = result.scalars().all()
+    for order in new_orders:
+        order_id = order.id
+        result = await db.execute(select(Invoice).where(Invoice.user_id == user_id, Invoice.order_id == order_id))
+        db_invoice = result.scalars().first()
+        if db_invoice is not None:
+            continue
+        result = await db.execute(select(Billing_software).where(Billing_software.user_id == user_id, Billing_software.site_domain == "smartbill.ro"))
+        smartbill = result.scalars().first()
+        
+        if smartbill is None:
+            return
+        
+        issueDate = datetime.now()
+        products = []
+        
+        product_list = order.product_id
+        quantity = order.quantity
+        sale_price = order.sale_price
+        
+        for i in range(len(product_list)):
+            product_id = product_list[i]
+            result = await db.execute(select(Product).where(Product.id == product_id, Product.user_id == user_id, Product.product_marketplace == marketplace.marketplaceDomain))
+            db_product = result.scalars().first()
+            
+            if db_product is None:
+                result = await db.execute(select(Product).where(Product.id == product_id, Product.user_id == user_id))
+                db_product = result.scalars().first()
+
+            name = db_product.product_name
+            ean = db_product.ean
+            
+            result = await db.execute(select(Internal_Product).where(Internal_Product.ean == ean))
+            db_internal_product = result.scalars().first()
+            product_code = db_internal_product.product_code
+            
+            products.append({
+                "code": product_code,
+                "name": name,
+                "measuringUnitName": "buc",
+                "currency": currency,
+                "quantity": quantity[i],
+                "price": sale_price[i],
+                "isTaxIncluded": False,
+                "taxPercentage": vat,
+                "saveToDb": False,
+                "isDiscount": False,
+                "isService": False,
+                "warehouseName": "Produse Emag"
+            })
+        
+        for product in products:
+            product['price'] = round(float(product['price']), 2)
+            product['price'] *= vat
+            product['isTaxIncluded'] = True
+            if vat == 1.27:
+                product['price'] = round((product['price'] * 2) / 2, 2)
+            else:
+                product['price'] = round(product['price'], 2)
+                
+        shipping_tax_voucher = json.loads(order.shipping_tax_voucher_split)
+        vouchers = json.loads(order.vouchers)
+        
+        is_shipping_tax = True
+        details = json.loads(order.details)
+        
+        if order.delivery_mode == 'pickup' and details.get('locker_id') not in [None, '']:
+            is_shipping_tax = False
+            
+        for index, voucher in enumerate(vouchers):
+            deduct_value = 0
+            if shipping_tax_voucher and index < len(shipping_tax_voucher):
+                deduct_value = float(shipping_tax_voucher[index]['value'])
+            
+            discount_value = float(voucher['sale_price']) if is_shipping_tax else float(voucher['sale_price']) - deduct_value
+            discount_value = round(discount_value, 2)
+            discount_value *= vat
+            if vat == 1.27:
+                discount_value = round((discount_value * 2) / 2, 2)
+            else:
+                discount_value = round(discount_value, 2)
+                
+            products.append({
+                'name': voucher['voucher_name'],
+                'code': str(voucher['voucher_id']),
+                'measuringUnitName': 'buc',
+                'currency': currency,
+                'isTaxIncluded': True,
+                'quantity': 1,
+                'isDiscount': True,
+                'taxPercentage': float(voucher['vat']) * 100,
+                'price': order.shipping_tax,
+                'saveToDb': False,
+                'isService': False,
+                'taxName': "" if float(voucher['vat']) else "SDD",
+                'discountType': 1,
+                'discountValue': discount_value,
+            })
+            
+        if is_shipping_tax:
+            products.append({
+                'name': 'Taxe de livrare',
+                'code': 'shipping_tax',
+                'isDiscount': False,
+                'measuringUnitName': 'buc',
+                'currency': currency,
+                'isTaxIncluded': True,
+                'taxPercentage': round((vat - 1) * 100, 0),
+                'quantity': 1,
+                'saveToDb': False,
+                'price': order.shipping_tax,
+                'isService': False,
+            })
+        client = {
+            "name": order.name,
+            "vatCode": order.code if order.is_vat_payer else '',
+            "isTaxPayer": order.is_vat_payer == 1,
+            "address": order.billing_street,
+            "city": order.billing_city,
+            "country": order.billing_country,
+            "county": order.billing_suburb,
+            "bank": order.bank,
+            "iban": order.iban,
+            "saveToDb": True,
+            "regCom": order.registration_number
+        }
+        data = {
+        "companyVatCode": smartbill.registration_number,
+        "seriesName": "EMGINL",
+        "client": json.loads(client),
+        "useStock": False,
+        "isDraft": False,
+        "mentions": f"Comanda Emag nr. {order.id}",
+        "observations": f"{order.id}_{order.order_market_place.split('.')[1].upper()}",
+        "language": order.billing_country,
+        "precision": 2,
+        "useEstimateDetails": False,
+        "estimate": {
+            "seriesName": "",
+            "number": ""
+        },
+        "currency": currency,
+        "issueDate": issueDate.strftime('%Y-%m-%d'),
+        "products": json.loads(db_invoice.products)
+    }
 
 def generate_invoice(data, smartbill: Billing_software):
     USERNAME = smartbill.username

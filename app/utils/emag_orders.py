@@ -5,9 +5,12 @@ import json
 import os
 from app.config import settings
 from psycopg2 import sql
+from sqlalchemy import select
 from urllib.parse import urlparse
 from app.models.marketplace import Marketplace
+from app.models.billing_software import Billing_software
 from app.models.orders import Order
+from app.models.invoice import Invoice
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Dict, Any
 import time
@@ -499,7 +502,7 @@ async def insert_orders(orders, marketplace: Marketplace):
     except Exception as e:
         logging.info(f"Failed to insert orders into database: {e}")
 
-async def refresh_emag_orders(marketplace: Marketplace):
+async def refresh_emag_orders(marketplace: Marketplace, session: AsyncSession):
     # create_database()
 
     logging.info(f">>>>>>> Refreshing Marketplace : {marketplace.title} user is {marketplace.user_id} <<<<<<<<")
