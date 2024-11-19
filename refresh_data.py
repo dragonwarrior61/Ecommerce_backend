@@ -98,7 +98,7 @@ async def update_awb(db: AsyncSession = Depends(get_db)):
                 awbs = result.scalars().all()
                 cnt = 0
                 for awb in awbs:
-                    awb_creation_time = awb.awb_creation_date
+                    awb_creation_time = awb.awb_date
                     order_id = awb.order_id
                     user_id = awb.user_id
                     result = await session.execute(select(AWB).where(AWB.order_id == order_id, AWB.user_id == user_id))
@@ -114,16 +114,13 @@ async def update_awb(db: AsyncSession = Depends(get_db)):
                         cnt += 1
                         session.delete(awb)  # Mark the AWB for deletion
 
-                # Commit changes after processing all AWBs
                 await session.commit()
                 logging.info(f"Delete {cnt} empty AWBs successfully")
 
             except SQLAlchemyError as e:
-                # If there is an error, we log it and ensure a rollback
                 logging.error(f"Error occurred: {e}")
-                await session.rollback()  # Explicitly roll back in case of an error
+                await session.rollback()  
             except Exception as e:
-                # Catch any other exceptions that might occur
                 logging.error(f"Unexpected error: {e}")
                 await session.rollback()
             
