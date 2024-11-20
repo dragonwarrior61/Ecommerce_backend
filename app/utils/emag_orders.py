@@ -502,7 +502,7 @@ async def insert_orders(orders, marketplace: Marketplace):
     except Exception as e:
         logging.info(f"Failed to insert orders into database: {e}")
 
-async def refresh_emag_orders(marketplace: Marketplace, session: AsyncSession):
+async def refresh_emag_orders(marketplace: Marketplace):
     # create_database()
 
     logging.info(f">>>>>>> Refreshing Marketplace : {marketplace.title} user is {marketplace.user_id} <<<<<<<<")

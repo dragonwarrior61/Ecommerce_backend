@@ -62,16 +62,19 @@ async def update_stock(db: AsyncSession):
 
 async def refresh_invoice(marketplace: Marketplace, db: AsyncSession):
     user_id = marketplace.user_id
+    
+    result = await db.execute(select(Billing_software).where(Billing_software.user_id == user_id, Billing_software.site_domain == "smartbill.ro"))
+    smartbill = result.scalars().first()
+    if smartbill is None:
+        return
     if marketplace.country == "hu":
         currency = "HUF"
-        vat = 1.27
     elif marketplace.country == "bg":
         currency = "BGN"
-        vat = 1.2
     else:
         currency = "RON"
-        vat = 1.19
 
+    vat = marketplace.vat
     result = await db.execute(select(Order).where(Order.status == any_([1, 2, 3]), Order.attachments == '[]', Order.user_id == user_id))
     new_orders = result.scalars().all()
     for order in new_orders:
@@ -80,11 +83,6 @@ async def refresh_invoice(marketplace: Marketplace, db: AsyncSession):
         db_invoice = result.scalars().first()
         if db_invoice is not None:
             continue
-        result = await db.execute(select(Billing_software).where(Billing_software.user_id == user_id, Billing_software.site_domain == "smartbill.ro"))
-        smartbill = result.scalars().first()
-        
-        if smartbill is None:
-            return
         
         issueDate = datetime.now()
         products = []
@@ -128,7 +126,7 @@ async def refresh_invoice(marketplace: Marketplace, db: AsyncSession):
             product['price'] = round(float(product['price']), 2)
             product['price'] *= vat
             product['isTaxIncluded'] = True
-            if vat == 1.27:
+            if currency == "HUF":
                 product['price'] = round((product['price'] * 2) / 2, 2)
             else:
                 product['price'] = round(product['price'], 2)
@@ -150,7 +148,7 @@ async def refresh_invoice(marketplace: Marketplace, db: AsyncSession):
             discount_value = float(voucher['sale_price']) if is_shipping_tax else float(voucher['sale_price']) - deduct_value
             discount_value = round(discount_value, 2)
             discount_value *= vat
-            if vat == 1.27:
+            if currency == "HUF":
                 discount_value = round((discount_value * 2) / 2, 2)
             else:
                 discount_value = round(discount_value, 2)
@@ -161,12 +159,8 @@ async def refresh_invoice(marketplace: Marketplace, db: AsyncSession):
                 'measuringUnitName': 'buc',
                 'currency': currency,
                 'isTaxIncluded': True,
-                'quantity': 1,
                 'isDiscount': True,
                 'taxPercentage': float(voucher['vat']) * 100,
-                'price': order.shipping_tax,
-                'saveToDb': False,
-                'isService': False,
                 'taxName': "" if float(voucher['vat']) else "SDD",
                 'discountType': 1,
                 'discountValue': discount_value,
@@ -184,7 +178,7 @@ async def refresh_invoice(marketplace: Marketplace, db: AsyncSession):
                 'quantity': 1,
                 'saveToDb': False,
                 'price': order.shipping_tax,
-                'isService': False,
+                'isService': True,
             })
         client = {
             "name": order.name,
@@ -200,24 +194,25 @@ async def refresh_invoice(marketplace: Marketplace, db: AsyncSession):
             "regCom": order.registration_number
         }
         data = {
-        "companyVatCode": smartbill.registration_number,
-        "seriesName": "EMGINL",
-        "client": json.loads(client),
-        "useStock": False,
-        "isDraft": False,
-        "mentions": f"Comanda Emag nr. {order.id}",
-        "observations": f"{order.id}_{order.order_market_place.split('.')[1].upper()}",
-        "language": order.billing_country,
-        "precision": 2,
-        "useEstimateDetails": False,
-        "estimate": {
-            "seriesName": "",
-            "number": ""
-        },
-        "currency": currency,
-        "issueDate": issueDate.strftime('%Y-%m-%d'),
-        "products": json.loads(db_invoice.products)
-    }
+            "companyVatCode": smartbill.registration_number,
+            "seriesName": "EMGINL",
+            "client": json.loads(client),
+            "useStock": False,
+            "isDraft": False,
+            "mentions": f"Comanda Emag nr. {order.id}",
+            "observations": f"{order.id}_{order.order_market_place.split('.')[1].upper()}",
+            "language": order.billing_country,
+            "precision": 2,
+            "useEstimateDetails": False,
+            "estimate": {
+                "seriesName": "",
+                "number": ""
+            },
+            "currency": currency,
+            "issueDate": issueDate.strftime('%Y-%m-%d'),
+            "products": json.loads(products)
+        }
+        result = generate_invoice(data, smartbill)
 
 def generate_invoice(data, smartbill: Billing_software):
     USERNAME = smartbill.username
