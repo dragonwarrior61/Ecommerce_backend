@@ -30,11 +30,10 @@ async def create_scan_awb(scan_awb: Scan_awbCreate, db: AsyncSession = Depends(g
     db_scan_awb = Scan_awb(**scan_awb.dict())
     awb_number = db_scan_awb.awb_number
     
-    result = await db.execute(select(Scan_awb).where(Scan_awb.awb_number == awb_number))
+    result = await db.execute(select(Scan_awb).where(or_(Scan_awb.awb_number == awb_number, Scan_awb.awb_number == awb_number[:-3])))
     scan_awb = result.scalars().first()
     if scan_awb:
         return scan_awb
-    
     
     result = await db.execute(select(Returns).where(or_(Returns.awb == awb_number, Returns.awb == awb_number[:-3])))
     db_return = result.scalars().first()
