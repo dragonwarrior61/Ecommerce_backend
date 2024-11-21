@@ -346,6 +346,7 @@ async def get_improve_user_id(db: AsyncSession = Depends(get_db)):
         "1ONBRS306986187",
         "1ONBLR313965190",
     ]
+    cnt = 0
     for awb_number in awb_number_list:
         result = await db.execute(select(Scan_awb).where(Scan_awb.awb_number == awb_number))
         db_scan_awb = result.scalars().first()
@@ -354,7 +355,9 @@ async def get_improve_user_id(db: AsyncSession = Depends(get_db)):
         if db_return:
             user_id = db_return.user_id
             db_scan_awb.user_id = user_id
+            cnt += 1
     await db.commit()
+    return cnt
             
 @router.get("/awb_number")
 async def get_scan_awb_number(awb_number: str, db: AsyncSession = Depends(get_db)):
