@@ -350,7 +350,7 @@ async def get_improve_user_id(db: AsyncSession = Depends(get_db)):
     for awb_number in awb_number_list:
         result = await db.execute(select(Scan_awb).where(Scan_awb.awb_number == awb_number))
         db_scan_awb = result.scalars().first()
-        result = await db.execute(select(Returns).where(or_(Returns.awb == awb_number, Returns.awb == awb_numer[:-3])))
+        result = await db.execute(select(Returns).where(or_(Returns.awb == awb_number, Returns.awb == awb_number[:-3])))
         db_return = result.scalars().first()
         if db_return:
             user_id = db_return.user_id
