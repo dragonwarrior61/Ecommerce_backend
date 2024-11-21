@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 import ssl
 import logging
 
-logging.getLogger("sqlalchmy").setLevel(logging.CRITICAL)
+logging.getLogger("sqlalchemy").setLevel(logging.ERROR)
 
 # member
 from fastapi import FastAPI, HTTPException

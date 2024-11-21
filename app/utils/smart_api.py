@@ -8,9 +8,11 @@ from app.models.internal_product import Internal_Product
 from app.models.product import Product
 from app.models.orders import Order
 from app.models.invoice import Invoice
+from app.schemas.invoice import InvoicesCreate
+from app.utils.emag_invoice import post_pdf, post_factura_pdf
 from app.models.billing_software import Billing_software
 from app.models.marketplace import Marketplace
-from sqlalchemy import select
+from sqlalchemy import select, any_
 import requests
 from io import BytesIO
 from requests.auth import HTTPBasicAuth
@@ -74,7 +76,7 @@ async def refresh_invoice(marketplace: Marketplace, db: AsyncSession):
     else:
         currency = "RON"
 
-    vat = marketplace.vat
+    vat = marketplace.vat / 100 + 1
     result = await db.execute(select(Order).where(Order.status == any_([1, 2, 3]), Order.attachments == '[]', Order.user_id == user_id))
     new_orders = result.scalars().all()
     for order in new_orders:
@@ -181,7 +183,7 @@ async def refresh_invoice(marketplace: Marketplace, db: AsyncSession):
                 'isService': True,
             })
         client = {
-            "name": order.name,
+            "name": order.company if order.company else order.name,
             "vatCode": order.code if order.is_vat_payer else '',
             "isTaxPayer": order.is_vat_payer == 1,
             "address": order.billing_street,
@@ -195,9 +197,9 @@ async def refresh_invoice(marketplace: Marketplace, db: AsyncSession):
         }
         data = {
             "companyVatCode": smartbill.registration_number,
-            "seriesName": "EMGINL",
-            "client": json.loads(client),
-            "useStock": False,
+            "seriesName": "EMG" + marketplace.country.upper(),
+            "client": client,
+            "useStock": True,
             "isDraft": False,
             "mentions": f"Comanda Emag nr. {order.id}",
             "observations": f"{order.id}_{order.order_market_place.split('.')[1].upper()}",
@@ -210,9 +212,58 @@ async def refresh_invoice(marketplace: Marketplace, db: AsyncSession):
             },
             "currency": currency,
             "issueDate": issueDate.strftime('%Y-%m-%d'),
-            "products": json.loads(products)
+            "products": products
         }
+        
         result = generate_invoice(data, smartbill)
+        if result.get('errorText') != '':
+            logging.info(result)
+        
+        invoice = InvoicesCreate()
+        invoice.order_id = order.id
+        invoice.companyVatCode = smartbill.registration_number
+        invoice.seriesName = "EMG" + marketplace.country.upper()
+        invoice.client = client
+        invoice.usestock = True
+        invoice.isdraft = False
+        invoice.issueDate = issueDate.strftime('%Y-%m-%d')
+        invoice.mentions = f"Comanda Emag nr. {order.id}"
+        invoice.observations = f"{order.id}_{order.order_market_place.split('.')[1].upper()}"
+        invoice.language = order.billing_country
+        invoice.precision = 2
+        invoice.useEstimateDetails = False
+        invoice.estimate = str({
+            "seriesName": "",
+            "number": ""
+        })
+        invoice.currency = currency
+        invoice.products = str(products)
+        number = result.get('number') if result.get('number') else ''
+        series = result.get('series') if result.get('series') else ''
+        invoice.number = number
+        invoice.series = series
+        invoice.url = result.get('url') if result.get('url') else ''
+        invoice.post = 0
+        invoice.user_id = user_id
+        db.add(invoice)
+        
+        name = f"factura_{series}{number}.pdf"
+        download_pdf_server(series, number, name, smartbill)
+        
+        post_factura_pdf(order.id, name, marketplace)
+        
+    await db.commit()
+    
+async def refresh_storno_invoice(marketplace: Marketplace, db: AsyncSession):
+    user_id = marketplace.user_id
+    
+    result = await db.execute(select(Billing_software).where(Billing_software.user_id == user_id, Billing_software.site_domain == "smartbill.ro"))
+    smartbill = result.scalars().first()
+    if smartbill is None:
+        return
+    
+    result = await db.execute(select(Order).where(Order.status))
+
 
 def generate_invoice(data, smartbill: Billing_software):
     USERNAME = smartbill.username
