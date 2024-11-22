@@ -276,6 +276,7 @@ async def refresh_invoice(marketplace: Marketplace, db: AsyncSession):
         order_id_list.append(order.id)
         # post_factura_pdf(order.id, name, marketplace)
     try:
+        logging.info("start commit")
         await db.commit()    
         logging.info(f"order_id_list is {order_id_list}")
         logging.info(f"successfully generate invoice of {len(order_id_list)}")
