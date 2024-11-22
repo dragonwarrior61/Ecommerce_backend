@@ -21,8 +21,7 @@ from requests.auth import HTTPBasicAuth
 import base64
 import json
 import logging
-from datetime import datetime
-import asyncio
+from datetime import datetime, timedelta
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -84,6 +83,7 @@ async def refresh_invoice(marketplace: Marketplace, db: AsyncSession):
     new_orders = result.scalars().all()
     
     order_id_list = []
+    starting_time = datetime.now()
     
     for order in new_orders:
         order_id = order.id
@@ -232,6 +232,11 @@ async def refresh_invoice(marketplace: Marketplace, db: AsyncSession):
             "products": products
         }
         
+        current_time = datetime.now()
+        while starting_time + timedelta(seconds=3) > current_time:
+            continue
+        starting_time = current_time
+        
         result = generate_invoice(data, smartbill)
         if result.get('errorText') != '':
             logging.info(f"generate invoice result is {result}")
@@ -271,7 +276,6 @@ async def refresh_invoice(marketplace: Marketplace, db: AsyncSession):
         logging.info(f"download pdf result is {download_result}")
         order_id_list.append(order.id)
         # post_factura_pdf(order.id, name, marketplace)
-        await asyncio.sleep(3)
     try:
         await db.commit()    
     except Exception as e:
