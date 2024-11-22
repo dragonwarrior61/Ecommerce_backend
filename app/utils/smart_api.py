@@ -242,7 +242,7 @@ async def refresh_invoice(marketplace: Marketplace, db: AsyncSession):
         invoice.client = str(client)
         invoice.usestock = True
         invoice.isdraft = False
-        invoice.issueDate = issueDate.strftime('%Y-%m-%d')
+        invoice.issueDate = issueDate
         invoice.mentions = f"Comanda Emag nr. {order.id}"
         invoice.observations = f"{order.id}_{order.order_market_place.split('.')[1].upper()}"
         invoice.language = order.billing_country
