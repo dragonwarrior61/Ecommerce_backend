@@ -81,6 +81,8 @@ async def refresh_invoice(marketplace: Marketplace, db: AsyncSession):
     vat = marketplace.vat / 100 + 1
     result = await db.execute(select(Order).where(Order.status == any_([1, 2, 3]), Order.attachments == '[]', Order.user_id == user_id))
     new_orders = result.scalars().all()
+    
+    order_id_list = []
     for order in new_orders:
         order_id = order.id
         result = await db.execute(select(Invoice).where(Invoice.user_id == user_id, Invoice.order_id == order_id))
@@ -258,14 +260,19 @@ async def refresh_invoice(marketplace: Marketplace, db: AsyncSession):
         invoice.url = result.get('url') if result.get('url') else ''
         invoice.post = 0
         invoice.user_id = user_id
-        db.add(invoice)
-        
+        try:
+            db.add(invoice)
+            await db.commit()
+        except Exception as e:
+            await db.rollback()
+            logging.error(f"Error saving invoice: {e}")
         name = f"factura_{series}{number}.pdf"
         download_result = download_pdf_server(series, number, name, smartbill)
         logging.info(download_result)
+        order_id_list.append(order.id)
         # post_factura_pdf(order.id, name, marketplace)
         
-    await db.commit()
+    logging.info(f"order_id_list is {order_id_list}")
     
 # async def refresh_storno_invoice(marketplace: Marketplace, db: AsyncSession):
 #     user_id = marketplace.user_id
