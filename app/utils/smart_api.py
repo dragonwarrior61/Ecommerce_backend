@@ -308,9 +308,7 @@ def generate_invoice(data, smartbill: Billing_software):
         "content-type": "application/json"
     }
     data = json.dumps(data)
-    logging.info(data)
     response = requests.post(url, headers=headers, data=data)
-    logging.info(response.json())
     return response.json()
 
 def download_pdf(cif: str, seriesname: str, number: str, smartbill: Billing_software):
