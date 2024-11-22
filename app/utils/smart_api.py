@@ -261,8 +261,8 @@ async def refresh_invoice(marketplace: Marketplace, db: AsyncSession):
         db.add(invoice)
         
         name = f"factura_{series}{number}.pdf"
-        download_pdf_server(series, number, name, smartbill)
-        
+        download_result = download_pdf_server(series, number, name, smartbill)
+        logging.info(download_result)
         # post_factura_pdf(order.id, name, marketplace)
         
     await db.commit()
