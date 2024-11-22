@@ -376,7 +376,8 @@ async def read_orders(
             AWBAlias,
             and_(
                 AWBAlias.order_id == Order.id,
-                AWBAlias.number > 0
+                AWBAlias.number > 0,
+                AWBAlias.user_id == Order.user_id
             )
         ).where(or_(Order.status == 5, AWBAlias.awb_status == any_([16, 35, 93])))
         

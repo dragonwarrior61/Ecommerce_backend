@@ -559,7 +559,6 @@ async def PL_day_data(date, product_ids_list, user: User, db: AsyncSession):
     return await get_PL(day_string, product_ids_list, st_datetime, en_datetime, user, db)
 
 @router.get('/trends')
-
 async def get_trends_info(
     product_ids: str = Query(None),
     type: int = Query(...),

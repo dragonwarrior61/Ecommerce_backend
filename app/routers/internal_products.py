@@ -57,7 +57,7 @@ async def get_orders_info(ean: str, db: AsyncSession):
         AWBAlias = aliased(AWB)
         query = select(Order, AWBAlias).where(product_id == any_(Order.product_id), Order.user_id == user_id)
         query = query.outerjoin(AWBAlias, and_(AWBAlias.order_id == Order.id, AWBAlias.number == warehouse_id, AWBAlias.user_id == user_id))
-
+        query = query.order_by(Order.date.desc())
         result = await db.execute(query)
         order_awb = result.fetchall()
 
@@ -113,6 +113,7 @@ async def get_refunded_info(ean: str, db: AsyncSession):
 
 async def get_imports(ean: str, db:AsyncSession):
     query = select(Shipment).where(ean == any_(Shipment.ean))
+    query = query.order_by(Shipment.create_date.desc())
     result = await db.execute(query)
 
     shipments = result.scalars().all()
@@ -342,14 +343,11 @@ async def get_date_info(ean: str, st_datetime, en_datetime, db: AsyncSession):
     }
 
 async def get_shipment_info(ean: str, db: AsyncSession):
-    result = await db.execute(select(Shipment).where(ean == any_(Shipment.ean)))
+    query = select(Shipment).where(ean == any_(Shipment.ean))
+    query = query.order_by(Shipment.create_date.desc())
+    result = await db.execute(query)
     shipments = result.scalars().all()
-
-    shipment_data = []
-    for shipment in shipments:
-        shipment_data.append(shipment)
-
-    return shipment_data
+    return shipments
 
 @router.get("/")
 async def get_products(

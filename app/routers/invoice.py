@@ -133,7 +133,6 @@ async def post_invoice(order_id: int, marketplace: str, name: str, user: User = 
     result = await db.execute(select(Invoice).where(Invoice.order_id == order_id, Invoice.user_id == user_id))
     db_invoice = result.scalars().first()
     
-    
     download_pdf_server(seriesname, number, name, db_smartbill)
     response = post_factura_pdf(order_id, name, db_marketplace)
     

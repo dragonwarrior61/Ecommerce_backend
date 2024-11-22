@@ -8,12 +8,13 @@ from app.models.internal_product import Internal_Product
 from app.models.product import Product
 from app.models.orders import Order
 from app.models.invoice import Invoice
+from app.models.reverse_invoice import Reverse_Invoice
 from app.models.awb import AWB
 from app.schemas.invoice import InvoicesCreate
 from app.utils.emag_invoice import post_pdf, post_factura_pdf
 from app.models.billing_software import Billing_software
 from app.models.marketplace import Marketplace
-from sqlalchemy import select, any_, and_
+from sqlalchemy import select, any_, and_, or_, not_
 from sqlalchemy.orm import aliased
 import requests
 from io import BytesIO
@@ -22,9 +23,9 @@ import base64
 import json
 import logging
 from datetime import datetime, timedelta
+import re
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
 
 def get_stock(smartbill: Billing_software):
     today = datetime.today()
@@ -298,28 +299,92 @@ async def refresh_invoice(marketplace: Marketplace, db: AsyncSession):
         await db.rollback()
         logging.error(f"Error saving invoice: {e}")
     
-# async def refresh_storno_invoice(marketplace: Marketplace, db: AsyncSession):
-#     user_id = marketplace.user_id
+async def refresh_storno_invoice(marketplace: Marketplace, db: AsyncSession):
+    user_id = marketplace.user_id
     
-#     result = await db.execute(select(Billing_software).where(Billing_software.user_id == user_id, Billing_software.site_domain == "smartbill.ro"))
-#     smartbill = result.scalars().first()
-#     if smartbill is None:
-#         return
+    result = await db.execute(select(Billing_software).where(Billing_software.user_id == user_id, Billing_software.site_domain == "smartbill.ro"))
+    smartbill = result.scalars().first()
+    if smartbill is None:
+        return
     
-#     result = await db.execute(select(Order).where(Order.status == 5))
-#     return_orders = result.scalars().all()
+    AWBAlias = aliased(AWB)
+    Reverse_InvoiceAlias = aliased(Reverse_Invoice)
     
-#     AWBAlias = aliased(AWB)
-#     query = select(Order).outerjoin(
-#         AWBAlias,
-#         and_(AWBAlias.order_id == Order.id, AWBAlias.number > 0, AWBAlias.user_id == Order.user_id)
-#     )
-#     query.where(AWBAlias.awb_status == any_([16, 35, 93]))
-#     result = await db.execute(query)
-#     not_picked_orders = result.scalars().all()
+    query = select(Order).outerjoin(
+        AWBAlias,
+        and_(AWBAlias.order_id == Order.id, AWBAlias.number > 0, AWBAlias.user_id == Order.user_id)
+    )
+    query.where(or_(Order.status == 5, AWBAlias.awb_status == any_([16, 35, 93])))
+    query = query.outerjoin(
+        Reverse_InvoiceAlias,
+        and_(Reverse_InvoiceAlias.order_id == Order.id, Reverse_InvoiceAlias.user_id == Order.user_id)
+    )
+    query = query.where(
+        not_(
+            or_(
+                Order.attachments.ilike("%storno%"),
+                Reverse_InvoiceAlias.id != None
+            )
+        )
+    )
+    result = await db.execute(query)
+    orders = result.scalars().all()
     
-#     for order in [return_orders, not_picked_orders]:
-        
+    starting_time = datetime.now()
+    
+    order_id_list = []
+    for order in orders:
+        try:
+            attachments = json.loads(order.attachments)
+            name = ''
+            for attachment in attachments:
+                if "factura" in str(attachment).lower():
+                    name = attachment.get("name")
+                    break
+            match = re.search(r"_(\D+)(\d+)\.pdf$", name)
+            if match:
+                seriesname = match.group(1)
+                number = match.group(2)
+            else:
+                continue
+            
+            while starting_time + timedelta(seconds=3) > datetime.now():
+                continue
+            starting_time = datetime.now()
+            result = reverse_invoice_smartbill(seriesname, number, smartbill)
+            if result.status_code != 200:
+                logging.info(f"Failed generating storno invoice of {name}")
+            result = result.json()
+            if result.get('errorText') != '':
+                logging.info(f"Error text of generaing storno inovice of {name} is {result.get('errorText')}")
+            
+            reverse_invoice = Reverse_Invoice()
+            reverse_invoice.replacement_id = 0
+            reverse_invoice.order_id = order.id
+            reverse_invoice.companyVatCode = smartbill.registration_number
+            reverse_invoice.seriesName = seriesname
+            reverse_invoice.factura_number = number
+            storno_number = result.get('number') if result.get('number') else ''
+            reverse_invoice.storno_number = storno_number
+            reverse_invoice.post = 0
+            reverse_invoice.user_id = order.user_id
+            
+            logging.info(f"Storno Invoice data being saved: {reverse_invoice.__dict__}")
+            db.add(reverse_invoice)
+            pdf_name = f"storno_{seriesname}{storno_number}.pdf"
+            download_result = download_pdf_server(seriesname, storno_number, pdf_name, smartbill)
+            logging.info(f"download pdf result is {download_result}")
+            order_id_list.append(order.id)
+        except Exception as e:
+            logging.error(f"Error in generating reverse invoice of {order.id}: {e}")
+    try:
+        logging.info("start commit storno invoice")
+        await db.commit()
+        logging.info(f"order_id_list of storno invoice is {order_id_list}")
+        logging.info(f"successfully generate storno invoice of {len(order_id_list)}")
+    except Exception as e:
+        await db.rollback()
+        logging.error(f"Error saving storno invoice: {e}")
 
 def generate_invoice(data, smartbill: Billing_software):
     USERNAME = smartbill.username
