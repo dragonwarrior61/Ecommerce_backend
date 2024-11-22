@@ -232,10 +232,9 @@ async def refresh_invoice(marketplace: Marketplace, db: AsyncSession):
             "products": products
         }
         
-        current_time = datetime.now()
-        while starting_time + timedelta(seconds=3) > current_time:
+        while starting_time + timedelta(seconds=3) > datetime.now():
             continue
-        starting_time = current_time
+        starting_time = datetime.now()
         
         result = generate_invoice(data, smartbill)
         if result.get('errorText') != '':
