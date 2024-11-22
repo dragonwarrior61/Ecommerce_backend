@@ -235,6 +235,7 @@ async def refresh_invoice(marketplace: Marketplace, db: AsyncSession):
             logging.info(result)
         
         invoice = Invoice()
+        invoice.replacement_id = 0
         invoice.order_id = order.id
         invoice.companyVatCode = smartbill.registration_number
         invoice.seriesName = "EMG" + marketplace.country.upper()
@@ -261,6 +262,7 @@ async def refresh_invoice(marketplace: Marketplace, db: AsyncSession):
         invoice.post = 0
         invoice.user_id = user_id
         try:
+            logging.info(f"invoice is {invoice.__dict__}")
             db.add(invoice)
             await db.commit()
         except Exception as e:
