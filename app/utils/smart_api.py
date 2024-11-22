@@ -122,7 +122,7 @@ async def refresh_invoice(marketplace: Marketplace, db: AsyncSession):
                 "quantity": quantity[i],
                 "price": sale_price[i],
                 "isTaxIncluded": False,
-                "taxPercentage": vat,
+                "taxPercentage": marketplace.vat,
                 "saveToDb": False,
                 "isDiscount": False,
                 "isService": False,
