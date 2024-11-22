@@ -239,7 +239,7 @@ async def refresh_invoice(marketplace: Marketplace, db: AsyncSession):
         invoice.order_id = order.id
         invoice.companyVatCode = smartbill.registration_number
         invoice.seriesName = "EMG" + marketplace.country.upper()
-        invoice.client = client
+        invoice.client = str(client)
         invoice.usestock = True
         invoice.isdraft = False
         invoice.issueDate = issueDate.strftime('%Y-%m-%d')
