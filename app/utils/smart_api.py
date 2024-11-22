@@ -261,19 +261,18 @@ async def refresh_invoice(marketplace: Marketplace, db: AsyncSession):
         invoice.url = result.get('url') if result.get('url') else ''
         invoice.post = 0
         invoice.user_id = user_id
-        try:
-            logging.info(f"invoice is {invoice.__dict__}")
-            db.add(invoice)
-            await db.commit()
-        except Exception as e:
-            await db.rollback()
-            logging.error(f"Error saving invoice: {e}")
+        db.add(invoice)
+            
         name = f"factura_{series}{number}.pdf"
         download_result = download_pdf_server(series, number, name, smartbill)
         logging.info(download_result)
         order_id_list.append(order.id)
         # post_factura_pdf(order.id, name, marketplace)
-        
+    try:
+        await db.commit()    
+    except Exception as e:
+        await db.rollback()
+        logging.error(f"Error saving invoice: {e}")
     logging.info(f"order_id_list is {order_id_list}")
     logging.info(f"successfully generate invoice of {len(order_id_list)}")
     
