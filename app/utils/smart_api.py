@@ -273,6 +273,7 @@ async def refresh_invoice(marketplace: Marketplace, db: AsyncSession):
         # post_factura_pdf(order.id, name, marketplace)
         
     logging.info(f"order_id_list is {order_id_list}")
+    logging.info(f"successfully generate invoice of {len(order_id_list)}")
     
 # async def refresh_storno_invoice(marketplace: Marketplace, db: AsyncSession):
 #     user_id = marketplace.user_id
