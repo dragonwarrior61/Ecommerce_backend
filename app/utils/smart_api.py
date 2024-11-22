@@ -263,27 +263,27 @@ async def refresh_invoice(marketplace: Marketplace, db: AsyncSession):
         
     await db.commit()
     
-async def refresh_storno_invoice(marketplace: Marketplace, db: AsyncSession):
-    user_id = marketplace.user_id
+# async def refresh_storno_invoice(marketplace: Marketplace, db: AsyncSession):
+#     user_id = marketplace.user_id
     
-    result = await db.execute(select(Billing_software).where(Billing_software.user_id == user_id, Billing_software.site_domain == "smartbill.ro"))
-    smartbill = result.scalars().first()
-    if smartbill is None:
-        return
+#     result = await db.execute(select(Billing_software).where(Billing_software.user_id == user_id, Billing_software.site_domain == "smartbill.ro"))
+#     smartbill = result.scalars().first()
+#     if smartbill is None:
+#         return
     
-    result = await db.execute(select(Order).where(Order.status == 5))
-    return_orders = result.scalars().all()
+#     result = await db.execute(select(Order).where(Order.status == 5))
+#     return_orders = result.scalars().all()
     
-    AWBAlias = aliased(AWB)
-    query = select(Order).outerjoin(
-        AWBAlias,
-        and_(AWBAlias.order_id == Order.id, AWBAlias.number > 0, AWBAlias.user_id == Order.user_id)
-    )
-    query.where(AWBAlias.awb_status == any_([16, 35, 93]))
-    result = await db.execute(query)
-    not_picked_orders = result.scalars().all()
+#     AWBAlias = aliased(AWB)
+#     query = select(Order).outerjoin(
+#         AWBAlias,
+#         and_(AWBAlias.order_id == Order.id, AWBAlias.number > 0, AWBAlias.user_id == Order.user_id)
+#     )
+#     query.where(AWBAlias.awb_status == any_([16, 35, 93]))
+#     result = await db.execute(query)
+#     not_picked_orders = result.scalars().all()
     
-    for order in [return_orders, not_picked_orders]:
+#     for order in [return_orders, not_picked_orders]:
         
 
 def generate_invoice(data, smartbill: Billing_software):
