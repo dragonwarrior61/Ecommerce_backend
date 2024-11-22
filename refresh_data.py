@@ -231,10 +231,10 @@ async def refresh_orders_data(db:AsyncSession = Depends(get_db)):
                     logging.info("Refresh orders from marketplace")
                     await refresh_altex_orders(marketplace)
                 else:
-                    logging.info("Refresh products from marketplace")
-                    await refresh_emag_products(marketplace)
-                    logging.info("Refresh orders from marketplace")
-                    await refresh_emag_orders(marketplace)
+                    # logging.info("Refresh products from marketplace")
+                    # await refresh_emag_products(marketplace)
+                    # logging.info("Refresh orders from marketplace")
+                    # await refresh_emag_orders(marketplace)
                     logging.info("Create Invoice and Reverse Invoice")
                     await refresh_invoice(marketplace, session)
                     
