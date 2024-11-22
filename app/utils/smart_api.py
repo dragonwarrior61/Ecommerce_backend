@@ -86,212 +86,217 @@ async def refresh_invoice(marketplace: Marketplace, db: AsyncSession):
     starting_time = datetime.now()
     
     for order in new_orders:
-        order_id = order.id
-        result = await db.execute(select(Invoice).where(Invoice.user_id == user_id, Invoice.order_id == order_id))
-        db_invoice = result.scalars().first()
-        if db_invoice is not None:
-            continue
-        
-        attachments = json.loads(order.attachments)
-        if "factura" in str(attachments).lower():
-            continue
-        issueDate = datetime.now()
-        products = []
-        
-        product_list = order.product_id
-        quantity = order.quantity
-        sale_price = order.sale_price
-        
-        for i in range(len(product_list)):
-            product_id = product_list[i]
-            result = await db.execute(select(Product).where(Product.id == product_id, Product.user_id == user_id, Product.product_marketplace == marketplace.marketplaceDomain))
-            db_product = result.scalars().first()
+        try:
+            order_id = order.id
+            result = await db.execute(select(Invoice).where(Invoice.user_id == user_id, Invoice.order_id == order_id))
+            db_invoice = result.scalars().first()
+            if db_invoice is not None:
+                continue
             
-            if db_product is None:
-                result = await db.execute(select(Product).where(Product.id == product_id, Product.user_id == user_id))
+            attachments = json.loads(order.attachments)
+            if "factura" in str(attachments).lower():
+                continue
+            issueDate = datetime.now()
+            products = []
+            
+            product_list = order.product_id
+            quantity = order.quantity
+            sale_price = order.sale_price
+            
+            for i in range(len(product_list)):
+                product_id = product_list[i]
+                result = await db.execute(select(Product).where(Product.id == product_id, Product.user_id == user_id, Product.product_marketplace == marketplace.marketplaceDomain))
                 db_product = result.scalars().first()
+                
+                if db_product is None:
+                    result = await db.execute(select(Product).where(Product.id == product_id, Product.user_id == user_id))
+                    db_product = result.scalars().first()
 
-            name = db_product.product_name
-            ean = db_product.ean
-            
-            result = await db.execute(select(Internal_Product).where(Internal_Product.ean == ean))
-            db_internal_product = result.scalars().first()
-            product_code = db_internal_product.product_code
-            
-            products.append({
-                "code": product_code,
-                "name": name,
-                "measuringUnitName": "buc",
-                "currency": currency,
-                "quantity": quantity[i],
-                "price": sale_price[i],
-                "isTaxIncluded": False,
-                "taxPercentage": marketplace.vat,
-                "saveToDb": False,
-                "isDiscount": False,
-                "isService": False,
-                "warehouseName": "Produse Emag"
-            })
-        
-        for product in products:
-            product['price'] = round(float(product['price']), 2)
-            product['price'] *= vat
-            product['isTaxIncluded'] = True
-            if currency == "HUF":
-                product['price'] = round((product['price'] * 2) / 2, 2)
-            else:
-                product['price'] = round(product['price'], 2)
+                name = db_product.product_name
+                ean = db_product.ean
                 
-        shipping_tax_voucher = json.loads(order.shipping_tax_voucher_split)
-        vouchers = json.loads(order.vouchers)
-        
-        is_shipping_tax = True
-        details = json.loads(order.details)
-        
-        if order.delivery_mode == 'pickup' and details.get('locker_id') not in [None, '']:
-            is_shipping_tax = False
-        
-        isEMGINvoice = False
-        
-        for attachment in attachments:
-            if attachment.get('type') == 13:
-                isEMGINvoice = True
-                break
-        
-        for index, voucher in enumerate(vouchers):
-            deduct_value = 0
-            if shipping_tax_voucher and index < len(shipping_tax_voucher):
-                deduct_value = float(shipping_tax_voucher[index]['value'])
+                result = await db.execute(select(Internal_Product).where(Internal_Product.ean == ean))
+                db_internal_product = result.scalars().first()
+                product_code = db_internal_product.product_code
+                
+                products.append({
+                    "code": product_code,
+                    "name": name,
+                    "measuringUnitName": "buc",
+                    "currency": currency,
+                    "quantity": quantity[i],
+                    "price": sale_price[i],
+                    "isTaxIncluded": False,
+                    "taxPercentage": marketplace.vat,
+                    "saveToDb": False,
+                    "isDiscount": False,
+                    "isService": False,
+                    "warehouseName": "Produse Emag"
+                })
             
-            discount_value = float(voucher['sale_price']) if is_shipping_tax else float(voucher['sale_price']) - deduct_value
-            discount_value = round(discount_value, 2)
-            discount_value *= vat
-            if currency == "HUF":
-                discount_value = round((discount_value * 2) / 2, 2)
-            else:
+            for product in products:
+                product['price'] = round(float(product['price']), 2)
+                product['price'] *= vat
+                product['isTaxIncluded'] = True
+                if currency == "HUF":
+                    product['price'] = round((product['price'] * 2) / 2, 2)
+                else:
+                    product['price'] = round(product['price'], 2)
+                    
+            shipping_tax_voucher = json.loads(order.shipping_tax_voucher_split)
+            vouchers = json.loads(order.vouchers)
+            
+            is_shipping_tax = True
+            details = json.loads(order.details)
+            
+            if order.delivery_mode == 'pickup' and details.get('locker_id') not in [None, '']:
+                is_shipping_tax = False
+            
+            isEMGINvoice = False
+            
+            for attachment in attachments:
+                if attachment.get('type') == 13:
+                    isEMGINvoice = True
+                    break
+            
+            for index, voucher in enumerate(vouchers):
+                deduct_value = 0
+                if shipping_tax_voucher and index < len(shipping_tax_voucher):
+                    deduct_value = float(shipping_tax_voucher[index]['value'])
+                
+                discount_value = float(voucher['sale_price']) if is_shipping_tax else float(voucher['sale_price']) - deduct_value
                 discount_value = round(discount_value, 2)
+                discount_value *= vat
+                if currency == "HUF":
+                    discount_value = round((discount_value * 2) / 2, 2)
+                else:
+                    discount_value = round(discount_value, 2)
+                    
+                products.append({
+                    'name': voucher['voucher_name'],
+                    'code': str(voucher['voucher_id']),
+                    'measuringUnitName': 'buc',
+                    'currency': currency,
+                    'isTaxIncluded': True,
+                    'isDiscount': True,
+                    'taxPercentage': float(voucher['vat']) * 100,
+                    'taxName': "" if float(voucher['vat']) else "SDD",
+                    'discountType': 1,
+                    'discountValue': discount_value,
+                })
                 
-            products.append({
-                'name': voucher['voucher_name'],
-                'code': str(voucher['voucher_id']),
-                'measuringUnitName': 'buc',
-                'currency': currency,
-                'isTaxIncluded': True,
-                'isDiscount': True,
-                'taxPercentage': float(voucher['vat']) * 100,
-                'taxName': "" if float(voucher['vat']) else "SDD",
-                'discountType': 1,
-                'discountValue': discount_value,
-            })
+            if isEMGINvoice == False and is_shipping_tax:
+                products.append({
+                    'name': 'Taxe de livrare',
+                    'code': 'shipping_tax',
+                    'isDiscount': False,
+                    'measuringUnitName': 'buc',
+                    'currency': currency,
+                    'isTaxIncluded': True,
+                    'taxPercentage': round((vat - 1) * 100, 0),
+                    'quantity': 1,
+                    'saveToDb': False,
+                    'price': order.shipping_tax,
+                    'isService': True,
+                })
+            client = {
+                "name": order.company if order.company else order.name,
+                "vatCode": order.code if order.is_vat_payer else '',
+                "isTaxPayer": order.is_vat_payer == 1,
+                "address": order.billing_street,
+                "city": order.billing_city,
+                "country": order.billing_country,
+                "county": order.billing_suburb,
+                "bank": order.bank,
+                "iban": order.iban,
+                "saveToDb": True,
+                "regCom": order.registration_number
+            }
+            data = {
+                "companyVatCode": smartbill.registration_number,
+                # "seriesName": "EMG" + marketplace.country.upper(),
+                "seriesName": "EMGINL",
+                "client": client,
+                "useStock": False,
+                "isDraft": False,
+                "mentions": f"Comanda Emag nr. {order.id}",
+                "observations": f"{order.id}_{order.order_market_place.split('.')[1].upper()}",
+                "language": order.billing_country,
+                "precision": 2,
+                "useEstimateDetails": False,
+                "estimate": {
+                    "seriesName": "",
+                    "number": ""
+                },
+                "currency": currency,
+                "issueDate": issueDate.strftime('%Y-%m-%d'),
+                "products": products
+            }
             
-        if isEMGINvoice == False and is_shipping_tax:
-            products.append({
-                'name': 'Taxe de livrare',
-                'code': 'shipping_tax',
-                'isDiscount': False,
-                'measuringUnitName': 'buc',
-                'currency': currency,
-                'isTaxIncluded': True,
-                'taxPercentage': round((vat - 1) * 100, 0),
-                'quantity': 1,
-                'saveToDb': False,
-                'price': order.shipping_tax,
-                'isService': True,
-            })
-        client = {
-            "name": order.company if order.company else order.name,
-            "vatCode": order.code if order.is_vat_payer else '',
-            "isTaxPayer": order.is_vat_payer == 1,
-            "address": order.billing_street,
-            "city": order.billing_city,
-            "country": order.billing_country,
-            "county": order.billing_suburb,
-            "bank": order.bank,
-            "iban": order.iban,
-            "saveToDb": True,
-            "regCom": order.registration_number
-        }
-        data = {
-            "companyVatCode": smartbill.registration_number,
-            # "seriesName": "EMG" + marketplace.country.upper(),
-            "seriesName": "EMGINL",
-            "client": client,
-            "useStock": False,
-            "isDraft": False,
-            "mentions": f"Comanda Emag nr. {order.id}",
-            "observations": f"{order.id}_{order.order_market_place.split('.')[1].upper()}",
-            "language": order.billing_country,
-            "precision": 2,
-            "useEstimateDetails": False,
-            "estimate": {
+            while starting_time + timedelta(seconds=3) > datetime.now():
+                continue
+            starting_time = datetime.now()
+            
+            result = generate_invoice(data, smartbill)
+            if result.get('errorText') != '':
+                logging.info(f"generate invoice result is {result}")
+                continue
+            
+            invoice = Invoice()
+            invoice.replacement_id = 0
+            invoice.order_id = order.id
+            invoice.companyVatCode = smartbill.registration_number
+            # invoice.seriesName = "EMG" + marketplace.country.upper()
+            invoice.seriesName = "EMGINL"
+            invoice.client = str(client)
+            invoice.usestock = False
+            invoice.isdraft = False
+            invoice.issueDate = issueDate
+            invoice.mentions = f"Comanda Emag nr. {order.id}"
+            invoice.observations = f"{order.id}_{order.order_market_place.split('.')[1].upper()}"
+            invoice.language = order.billing_country
+            invoice.precision = 2
+            invoice.useEstimateDetails = False
+            invoice.estimate = str({
                 "seriesName": "",
                 "number": ""
-            },
-            "currency": currency,
-            "issueDate": issueDate.strftime('%Y-%m-%d'),
-            "products": products
-        }
-        
-        while starting_time + timedelta(seconds=3) > datetime.now():
-            continue
-        starting_time = datetime.now()
-        
-        result = generate_invoice(data, smartbill)
-        if result.get('errorText') != '':
-            logging.info(f"generate invoice result is {result}")
-            continue
-        
-        invoice = Invoice()
-        invoice.replacement_id = 0
-        invoice.order_id = order.id
-        invoice.companyVatCode = smartbill.registration_number
-        invoice.seriesName = "EMG" + marketplace.country.upper()
-        invoice.client = str(client)
-        invoice.usestock = True
-        invoice.isdraft = False
-        invoice.issueDate = issueDate
-        invoice.mentions = f"Comanda Emag nr. {order.id}"
-        invoice.observations = f"{order.id}_{order.order_market_place.split('.')[1].upper()}"
-        invoice.language = order.billing_country
-        invoice.precision = 2
-        invoice.useEstimateDetails = False
-        invoice.estimate = str({
-            "seriesName": "",
-            "number": ""
-        })
-        invoice.currency = currency
-        invoice.products = str(products)
-        number = result.get('number') if result.get('number') else ''
-        series = result.get('series') if result.get('series') else ''
-        invoice.number = number
-        invoice.series = series
-        invoice.url = result.get('url') if result.get('url') else ''
-        invoice.post = 0
-        invoice.user_id = user_id
-        
-        logging.info(f"Invoice data being saved: {invoice.__dict__}")
-        try:
+            })
+            invoice.currency = currency
+            invoice.products = str(products)
+            number = result.get('number') if result.get('number') else ''
+            series = result.get('series') if result.get('series') else ''
+            invoice.number = number
+            invoice.series = series
+            invoice.url = result.get('url') if result.get('url') else ''
+            invoice.post = 0
+            invoice.user_id = user_id
+            
+            logging.info(f"Invoice data being saved: {invoice.__dict__}")
+            # try:
+            #     db.add(invoice)
+            #     # await db.commit()
+            # except Exception as e:
+            #     await db.rollback()
+            #     logging.error(f"Error saving invoice: {e}")
             db.add(invoice)
-            await db.commit()
+            # logging.info(f"order_id_list is {order_id_list}")
+            # logging.info(f"successfully generate invoice of {len(order_id_list)}")
+            name = f"factura_{series}{number}.pdf"
+            download_result = download_pdf_server(series, number, name, smartbill)
+            logging.info(f"download pdf result is {download_result}")
+            order_id_list.append(order.id)
+        # post_factura_pdf(order.id, name, marketplace)
+    
         except Exception as e:
-            await db.rollback()
-            logging.error(f"Error saving invoice: {e}")
+            logging.error(f"Error in generating invoice: {e}")
+    try:
+        logging.info("start commit")
+        await db.commit()    
         logging.info(f"order_id_list is {order_id_list}")
         logging.info(f"successfully generate invoice of {len(order_id_list)}")
-        name = f"factura_{series}{number}.pdf"
-        download_result = download_pdf_server(series, number, name, smartbill)
-        logging.info(f"download pdf result is {download_result}")
-        order_id_list.append(order.id)
-        # post_factura_pdf(order.id, name, marketplace)
-    # try:
-    #     logging.info("start commit")
-    #     await db.commit()    
-    #     logging.info(f"order_id_list is {order_id_list}")
-    #     logging.info(f"successfully generate invoice of {len(order_id_list)}")
-    # except Exception as e:
-    #     await db.rollback()
-    #     logging.error(f"Error saving invoice: {e}")
-
+    except Exception as e:
+        await db.rollback()
+        logging.error(f"Error saving invoice: {e}")
     
 # async def refresh_storno_invoice(marketplace: Marketplace, db: AsyncSession):
 #     user_id = marketplace.user_id
