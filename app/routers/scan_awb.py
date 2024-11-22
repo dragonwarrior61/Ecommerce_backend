@@ -55,7 +55,7 @@ async def create_scan_awb(scan_awb: Scan_awbCreate, db: AsyncSession = Depends(g
         
         return db_scan_awb
     
-    result = await db.execute(select(AWB).where(or_(AWB.awb_number == awb_numer, AWB.awb_number == awb_numer[:-3])))
+    result = await db.execute(select(AWB).where(or_(AWB.awb_number == awb_number, AWB.awb_number == awb_number[:-3])))
     db_awb = result.scalars().first()
     if db_awb is None:
         raise HTTPException(status_code=404, detail="This awb_nubmer is not in our database")
