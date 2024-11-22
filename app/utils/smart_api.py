@@ -268,8 +268,14 @@ async def refresh_invoice(marketplace: Marketplace, db: AsyncSession):
         invoice.url = result.get('url') if result.get('url') else ''
         invoice.post = 0
         invoice.user_id = user_id
-        db.add(invoice)
-        db.commit()
+        
+        logging.info(f"Invoice data being saved: {invoice.__dict__}")
+        try:
+            db.add(invoice)
+            await db.commit()
+        except Exception as e:
+            await db.rollback()
+            logging.error(f"Error saving invoice: {e}")
         logging.info(f"order_id_list is {order_id_list}")
         logging.info(f"successfully generate invoice of {len(order_id_list)}")
         name = f"factura_{series}{number}.pdf"
