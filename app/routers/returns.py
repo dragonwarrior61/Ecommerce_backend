@@ -91,8 +91,6 @@ async def get_returns(
             if product is None:
                 result = await db.execute(select(Product).where(Product.id == product_id))
                 product = result.scalars().first()
-            else:
-                continue
             ean.append(product.ean) 
         
         return_data.append({
