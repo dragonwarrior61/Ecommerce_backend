@@ -277,11 +277,12 @@ async def refresh_invoice(marketplace: Marketplace, db: AsyncSession):
         # post_factura_pdf(order.id, name, marketplace)
     try:
         await db.commit()    
+        logging.info(f"order_id_list is {order_id_list}")
+        logging.info(f"successfully generate invoice of {len(order_id_list)}")
     except Exception as e:
         await db.rollback()
         logging.error(f"Error saving invoice: {e}")
-    logging.info(f"order_id_list is {order_id_list}")
-    logging.info(f"successfully generate invoice of {len(order_id_list)}")
+
     
 # async def refresh_storno_invoice(marketplace: Marketplace, db: AsyncSession):
 #     user_id = marketplace.user_id
