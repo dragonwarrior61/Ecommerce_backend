@@ -88,6 +88,9 @@ async def refresh_invoice(marketplace: Marketplace, db: AsyncSession):
         if db_invoice is not None:
             continue
         
+        attachments = json.loads(order.attachments)
+        if "factura" in str(attachments).lower():
+            continue
         issueDate = datetime.now()
         products = []
         
@@ -145,7 +148,7 @@ async def refresh_invoice(marketplace: Marketplace, db: AsyncSession):
             is_shipping_tax = False
         
         isEMGINvoice = False
-        attachments = json.loads(order.attachments)
+        
         for attachment in attachments:
             if attachment.get('type') == 13:
                 isEMGINvoice = True
@@ -206,9 +209,10 @@ async def refresh_invoice(marketplace: Marketplace, db: AsyncSession):
         }
         data = {
             "companyVatCode": smartbill.registration_number,
-            "seriesName": "EMG" + marketplace.country.upper(),
+            # "seriesName": "EMG" + marketplace.country.upper(),
+            "seriesName": "EMGINL",
             "client": client,
-            "useStock": True,
+            "useStock": False,
             "isDraft": False,
             "mentions": f"Comanda Emag nr. {order.id}",
             "observations": f"{order.id}_{order.order_market_place.split('.')[1].upper()}",
