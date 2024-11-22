@@ -8,11 +8,13 @@ from app.models.internal_product import Internal_Product
 from app.models.product import Product
 from app.models.orders import Order
 from app.models.invoice import Invoice
+from app.models.awb import AWB
 from app.schemas.invoice import InvoicesCreate
 from app.utils.emag_invoice import post_pdf, post_factura_pdf
 from app.models.billing_software import Billing_software
 from app.models.marketplace import Marketplace
-from sqlalchemy import select, any_
+from sqlalchemy import select, any_, and_
+from sqlalchemy.orm import aliased
 import requests
 from io import BytesIO
 from requests.auth import HTTPBasicAuth
@@ -141,7 +143,14 @@ async def refresh_invoice(marketplace: Marketplace, db: AsyncSession):
         
         if order.delivery_mode == 'pickup' and details.get('locker_id') not in [None, '']:
             is_shipping_tax = False
-            
+        
+        isEMGINvoice = False
+        attachments = json.loads(order.attachments)
+        for attachment in attachments:
+            if attachment.get('type') == 13:
+                isEMGINvoice = True
+                break
+        
         for index, voucher in enumerate(vouchers):
             deduct_value = 0
             if shipping_tax_voucher and index < len(shipping_tax_voucher):
@@ -168,7 +177,7 @@ async def refresh_invoice(marketplace: Marketplace, db: AsyncSession):
                 'discountValue': discount_value,
             })
             
-        if is_shipping_tax:
+        if isEMGINvoice == False and is_shipping_tax:
             products.append({
                 'name': 'Taxe de livrare',
                 'code': 'shipping_tax',
@@ -262,8 +271,20 @@ async def refresh_storno_invoice(marketplace: Marketplace, db: AsyncSession):
     if smartbill is None:
         return
     
-    result = await db.execute(select(Order).where(Order.status))
-
+    result = await db.execute(select(Order).where(Order.status == 5))
+    return_orders = result.scalars().all()
+    
+    AWBAlias = aliased(AWB)
+    query = select(Order).outerjoin(
+        AWBAlias,
+        and_(AWBAlias.order_id == Order.id, AWBAlias.number > 0, AWBAlias.user_id == Order.user_id)
+    )
+    query.where(AWBAlias.awb_status == any_([16, 35, 93]))
+    result = await db.execute(query)
+    not_picked_orders = result.scalars().all()
+    
+    for order in [return_orders, not_picked_orders]:
+        
 
 def generate_invoice(data, smartbill: Billing_software):
     USERNAME = smartbill.username
