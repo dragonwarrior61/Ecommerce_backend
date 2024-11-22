@@ -232,7 +232,7 @@ async def refresh_invoice(marketplace: Marketplace, db: AsyncSession):
         if result.get('errorText') != '':
             logging.info(result)
         
-        invoice = InvoicesCreate()
+        invoice = Invoice()
         invoice.order_id = order.id
         invoice.companyVatCode = smartbill.registration_number
         invoice.seriesName = "EMG" + marketplace.country.upper()
