@@ -22,6 +22,7 @@ import base64
 import json
 import logging
 from datetime import datetime
+import asyncio
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -83,6 +84,7 @@ async def refresh_invoice(marketplace: Marketplace, db: AsyncSession):
     new_orders = result.scalars().all()
     
     order_id_list = []
+    
     for order in new_orders:
         order_id = order.id
         result = await db.execute(select(Invoice).where(Invoice.user_id == user_id, Invoice.order_id == order_id))
@@ -232,7 +234,8 @@ async def refresh_invoice(marketplace: Marketplace, db: AsyncSession):
         
         result = generate_invoice(data, smartbill)
         if result.get('errorText') != '':
-            logging.info(result)
+            logging.info(f"generate invoice result is {result}")
+            continue
         
         invoice = Invoice()
         invoice.replacement_id = 0
@@ -265,9 +268,10 @@ async def refresh_invoice(marketplace: Marketplace, db: AsyncSession):
             
         name = f"factura_{series}{number}.pdf"
         download_result = download_pdf_server(series, number, name, smartbill)
-        logging.info(download_result)
+        logging.info(f"download pdf result is {download_result}")
         order_id_list.append(order.id)
         # post_factura_pdf(order.id, name, marketplace)
+        await asyncio.sleep(3)
     try:
         await db.commit()    
     except Exception as e:
