@@ -143,13 +143,15 @@ async def refresh_invoice(db: AsyncSession):
                 })
             
             for product in products:
-                product['price'] = round(float(product['price']), 2)
-                product['price'] *= vat
-                product['isTaxIncluded'] = True
                 if currency == "HUF":
+                    product['price'] = round(float(product['price']), 2)
+                    product['price'] *= vat
+                    product['isTaxIncluded'] = True
                     product['price'] = round((product['price'] * 2) / 2, 2)
                 else:
-                    product['price'] = round(product['price'], 2)
+                    product['price'] = int(float(product['price']) * 100) / 100
+                    product['price'] *= vat
+                    product['isTaxIncluded'] = True
                     
             shipping_tax_voucher = json.loads(order.shipping_tax_voucher_split)
             vouchers = json.loads(order.vouchers)
