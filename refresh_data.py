@@ -241,26 +241,9 @@ ssl_context.load_cert_chain('ssl/cert.pem', keyfile='ssl/key.pem')
 async def generate_invoice(db:AsyncSession = Depends(get_db)):
     async for db in get_db():
         async with db as session:
-            logging.info("Starting orders refresh")
-            result = await session.execute(select(Marketplace).order_by(Marketplace.id.asc()))
-            marketplaces = result.scalars().all()
-            logging.info(f"Success getting {len(marketplaces)} marketplaces")
-            
-            order_id_list = []
-            for marketplace in marketplaces:
-                if marketplace.marketplaceDomain == "altex.ro":
-                    continue
-                logging.info("Create Invoice and Reverse Invoice")
-                order_id_list += await refresh_invoice(marketplace, session)
-            try:
-                logging.info("start commit")
-                await db.commit()    
-                logging.info(f"order_id_list is {order_id_list}")
-                logging.info(f"successfully generate invoice of {len(order_id_list)}")
-            except Exception as e:
-                await db.rollback()
-                logging.error(f"Error saving invoice: {e}")
-                
+            logging.info("Create Invoice and Reverse Invoice")
+            await refresh_invoice(session)
+
 # @app.on_event("startup")
 # @repeat_every(seconds=28800)
 # async def refresh_months_order(db:AsyncSession = Depends(get_db)):

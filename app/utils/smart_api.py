@@ -65,22 +65,8 @@ async def update_stock(db: AsyncSession):
             db_product = result.scalars.first()
             db_product.stock = product.get('quantity')
 
-async def refresh_invoice(marketplace: Marketplace, db: AsyncSession):
-    user_id = marketplace.user_id
-    
-    result = await db.execute(select(Billing_software).where(Billing_software.user_id == user_id, Billing_software.site_domain == "smartbill.ro"))
-    smartbill = result.scalars().first()
-    if smartbill is None:
-        return
-    if marketplace.country == "hu":
-        currency = "HUF"
-    elif marketplace.country == "bg":
-        currency = "BGN"
-    else:
-        currency = "RON"
-
-    vat = marketplace.vat / 100 + 1
-    result = await db.execute(select(Order).where(Order.status == any_([1, 2, 3]), Order.user_id == user_id, Order.order_market_place == marketplace.marketplaceDomain))
+async def refresh_invoice(db: AsyncSession):
+    result = await db.execute(select(Order).where(Order.status == any_([1, 2, 3])))
     new_orders = result.scalars().all()
     
     order_id_list = []
@@ -89,6 +75,26 @@ async def refresh_invoice(marketplace: Marketplace, db: AsyncSession):
     for order in new_orders:
         try:
             order_id = order.id
+            user_id = order.user_id
+            marketplace = order.order_market_place
+            
+            result = await db.execute(select(Billing_software).where(Billing_software.user_id == user_id, Billing_software.site_domain == "smartbill.ro"))
+            smartbill = result.scalars().first()
+            
+            if smartbill is None:
+                continue
+            
+            result = await db.execute(select(Marketplace).where(Marketplace.marketplaceDomain == marketplace, Marketplace.user_id == user_id))
+            marketplace = result.scalars().first()
+            
+            if marketplace.country == "hu":
+                currency = "HUF"
+            elif marketplace.country == "bg":
+                currency = "BGN"
+            else:
+                currency = "RON"
+            vat = marketplace.vat / 100 + 1
+            
             result = await db.execute(select(Invoice).where(Invoice.user_id == user_id, Invoice.order_id == order_id))
             db_invoice = result.scalars().first()
             if db_invoice is not None:
@@ -290,8 +296,7 @@ async def refresh_invoice(marketplace: Marketplace, db: AsyncSession):
     
         except Exception as e:
             logging.error(f"Error in generating invoice: {e}")
-            
-    return order_id_list
+
     try:
         logging.info("start commit")
         await db.commit()    
