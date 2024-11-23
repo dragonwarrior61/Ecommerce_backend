@@ -80,7 +80,7 @@ async def refresh_invoice(marketplace: Marketplace, db: AsyncSession):
         currency = "RON"
 
     vat = marketplace.vat / 100 + 1
-    result = await db.execute(select(Order).where(Order.status == any_([1, 2, 3]), Order.user_id == user_id))
+    result = await db.execute(select(Order).where(Order.status == any_([1, 2, 3]), Order.user_id == user_id, Order.order_market_place == marketplace.marketplaceDomain))
     new_orders = result.scalars().all()
     
     order_id_list = []
