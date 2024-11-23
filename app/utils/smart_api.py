@@ -86,7 +86,8 @@ async def refresh_invoice(db: AsyncSession):
             
             result = await db.execute(select(Marketplace).where(Marketplace.marketplaceDomain == marketplace, Marketplace.user_id == user_id))
             marketplace = result.scalars().first()
-            
+            if marketplace.marketplaceDomain == "altex.ro":
+                continue
             if marketplace.country == "hu":
                 currency = "HUF"
             elif marketplace.country == "bg":
