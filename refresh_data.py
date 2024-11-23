@@ -304,7 +304,7 @@ async def send_stock(db:AsyncSession = Depends(get_db)):
                 workbook = Workbook()
                 worksheet = workbook.active
                 worksheet.title = "Product Stocks"
-                worksheet.append(["EAN", "Smartbill", "New Order", "Damaged", "Stock"])
+                worksheet.append(["EAN", "Smartbill", "New Order", "Damaged", "EMAG_Stock", "Stock"])
                 
                 logging.info("Sync stock")
                 result = await session.execute(select(Internal_Product))
@@ -325,7 +325,7 @@ async def send_stock(db:AsyncSession = Depends(get_db)):
                         damaged = product.damaged_goods
                     ean = product.ean
                     
-                    worksheet.append([ean, smartbill_stock, new_order_stock, damaged, stock])
+                    worksheet.append([ean, smartbill_stock, new_order_stock, damaged, product.stock, stock])
                     
                 workbook.save("/var/www/html/invoices/stock_sync.xlsx")
                     # marketplaces = product.market_place
