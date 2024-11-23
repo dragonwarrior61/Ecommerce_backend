@@ -290,6 +290,8 @@ async def refresh_invoice(marketplace: Marketplace, db: AsyncSession):
     
         except Exception as e:
             logging.error(f"Error in generating invoice: {e}")
+            
+    return order_id_list
     try:
         logging.info("start commit")
         await db.commit()    
