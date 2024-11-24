@@ -382,29 +382,31 @@ async def refresh_stock(db: AsyncSession = Depends(get_db)):
             product_code_list = []
             for db_smart in db_smarts:
                 products_list = get_stock(db_smart)
-                for products in products_list:
-                    products = products.get('products')
-                    for product in products:
-                        logging.info(product)
-                        product_code = product.get('productCode')
-                        if product_code is None:
-                            continue
-                        logging.info(f"Update stock {product_code}")
-                        result = await session.execute(select(Internal_Product).where(Internal_Product.product_code == product_code))
-                        db_product = result.scalars().first()
-                        product_code_list.append({
-                            "product_code": product_code,
-                            "quantity": int(product.get('quantity'))
-                        })
-                        if db_product is None:
-                            continue
-                        db_product.smartbill_stock = int(product.get('quantity'))
-            try:
-                await session.commit()
-                logging.info(f"product_code_list: {product_code_list}")
-                logging.info("Finish sync stock")
-            except Exception as e:
-                logging.info(f"sync stock error {e}")
+                products = []
+                for smart_products in products_list:
+                    products = products + smart_products.get('products')
+                for product in products:
+                    logging.info(product)
+                    product_code = product.get('productCode')
+                    if product_code is None:
+                        continue
+                    logging.info(f"Update stock {product_code}")
+                    product_code_list.append({
+                        "product_code": product_code,
+                        "quantity": int(product.get('quantity'))
+                    })
+                    result = await session.execute(select(Internal_Product).where(Internal_Product.product_code == product_code))
+                    db_product = result.scalars().first()
+                    if db_product is None:
+                        continue
+                    
+                    db_product.smartbill_stock = int(product.get('quantity'))
+                try:
+                    await session.commit()
+                    logging.info(f"product_code_list: {product_code_list}")
+                    logging.info("Finish sync stock")
+                except Exception as e:
+                    logging.info(f"sync stock error {e}")
 
 # @app.on_event("startup")
 # @repeat_every(seconds=86400)  # Run daily for deleting video last 30 days
