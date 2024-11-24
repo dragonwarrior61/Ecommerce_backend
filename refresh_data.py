@@ -385,7 +385,10 @@ async def refresh_stock(db: AsyncSession = Depends(get_db)):
             for db_smart in db_smarts:
                 products_list = get_stock(db_smart)
                 for smart_products in products_list:
-                    products = products + smart_products.get('products')
+                    if smart_products.get('products'):
+                        products = products + smart_products.get('products')
+                    else:
+                        continue    
             for product in products:
                 logging.info(product)
                 product_code = product.get('productCode')
