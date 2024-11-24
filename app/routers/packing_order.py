@@ -31,21 +31,39 @@ async def create_packing_order(packing_order: Packing_orderCreate, user: User = 
         user_id = db_team.admin
     else:
         user_id = user.id
+    
+    order_id = packing_order.order_id
+    
+    result = await db.execute(select(Packing_order).where(Packing_order.order_id == order_id, Packing_order.user_id == user_id))
+    db_packing_order = result.scalars().first()
+    if db_packing_order is None:
+        new_packing_order = Packing_order(**packing_order.dict())
+        new_packing_order.staff_id = user.id
+        new_packing_order.user_id = user_id
         
-    db_packing_order = Packing_order(**packing_order.dict())
-    db_packing_order.staff_id = user.id
-    db_packing_order.user_id = user_id
+        settings.update_flag = 1
+        try:
+            db.add(new_packing_order)
+            await db.commit()
+            await db.refresh(new_packing_order)
+        except Exception as e:
+            db.rollback()
+        finally:
+            settings.update_flag = 0
+        
+        return new_packing_order
+    
+    for var, value in vars(packing_order).items():
+        setattr(db_packing_order, var, value) if value is not None else None
     
     settings.update_flag = 1
     try:
-        db.add(db_packing_order)
         await db.commit()
         await db.refresh(db_packing_order)
     except Exception as e:
         db.rollback()
     finally:
-        settings.update_flag = 0
-    
+        settings.update_flag = 0    
     return db_packing_order
 
 @router.get('/count')
