@@ -372,7 +372,7 @@ async def refresh_stock(db: AsyncSession = Depends(get_db)):
     async for db in get_db():
         async with db as session:
             logging.info("Starting stock refresh")
-            result = await session.execute(select(Billing_software).where(Billing_software.site_domain == "samrtbill.ro"))
+            result = await session.execute(select(Billing_software).where(Billing_software.site_domain == "smartbill.ro"))
             db_smarts = result.scalars().all()
             if db_smarts is None:
                 logging.info("Can't find billing software")
