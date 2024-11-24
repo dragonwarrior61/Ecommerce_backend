@@ -335,6 +335,7 @@ async def send_stock(db:AsyncSession = Depends(get_db)):
                     worksheet.append([ean, smartbill_stock, new_order_stock, damaged, product.stock, stock])
                     
                 workbook.save("/var/www/html/invoices/stock_sync.xlsx")
+                logging.info("successfully saved stock data")
                     # marketplaces = product.market_place
                     # for domain in marketplaces:
                     #     if domain == "altex.ro":
