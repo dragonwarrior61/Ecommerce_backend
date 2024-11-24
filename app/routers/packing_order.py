@@ -213,35 +213,6 @@ async def count_not_packing(
     
     return len(db_orders)
 
-@router.put("/{packing_order_id}", response_model=Packing_orderRead)
-async def update_packing_order(packing_order_id: int, packing_order: Packing_orderUpdate, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    if user.role == -1:
-        raise HTTPException(status_code=401, detail="Authentication error")
-    
-    if user.role != 4:
-        result = await db.execute(select(Team_member).where(Team_member.user == user.id))
-        db_team = result.scalars().first()
-        user_id = db_team.admin
-    else:
-        user_id = user.id
-        
-    result = await db.execute(select(Packing_order).filter(Packing_order.id == packing_order_id, Packing_order.user_id == user_id))
-    db_packing_order = result.scalars().first()
-    if db_packing_order is None:
-        raise HTTPException(status_code=404, detail="Packing_order not found")
-    for var, value in vars(packing_order).items():
-        setattr(db_packing_order, var, value) if value is not None else None
-    
-    settings.update_flag = 1
-    try:
-        await db.commit()
-        await db.refresh(db_packing_order)
-    except Exception as e:
-        db.rollback()
-    finally:
-        settings.update_flag = 0    
-    return db_packing_order
-
 @router.delete("/{packing_order_id}", response_model=Packing_orderRead)
 async def delete_packing_order(packing_order_id: int, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     if user.role == -1:
