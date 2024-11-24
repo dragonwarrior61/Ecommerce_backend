@@ -49,6 +49,8 @@ from pydantic import BaseModel
 from typing import Optional
 # from module import Member, get_member, check_access
 
+logging.getLogger("sqlalchemy").setLevel(logging.ERROR)
+
 app = FastAPI()
 
 class MemberResponse(BaseModel):
