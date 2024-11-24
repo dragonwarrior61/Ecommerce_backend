@@ -399,9 +399,12 @@ async def refresh_stock(db: AsyncSession = Depends(get_db)):
                         if db_product is None:
                             continue
                         db_product.smartbill_stock = int(product.get('quantity'))
-            await session.commit()
-            logging.info(f"product_code_list: {product_code_list}")
-            logging.info("Finish sync stock")
+            try:
+                await session.commit()
+                logging.info(f"product_code_list: {product_code_list}")
+                logging.info("Finish sync stock")
+            except Exception as e:
+                logging.info(f"sync stock error {e}")
 
 # @app.on_event("startup")
 # @repeat_every(seconds=86400)  # Run daily for deleting video last 30 days
