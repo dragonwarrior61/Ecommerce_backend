@@ -382,13 +382,16 @@ async def refresh_stock(db: AsyncSession = Depends(get_db)):
             product_code_list = []
             
             products = []
-            for db_smart in db_smarts:
-                products_list = get_stock(db_smart)
-                for smart_products in products_list:
-                    if smart_products.get('products'):
-                        products = products + smart_products.get('products')
-                    else:
-                        continue    
+            try:
+                for db_smart in db_smarts:
+                    products_list = get_stock(db_smart)
+                    for smart_products in products_list:
+                        if smart_products.get('products'):
+                            products = products + smart_products.get('products')
+                        else:
+                            continue    
+            except Exception as e:
+                logging.info(f"getting stock data error: {e}")
             for product in products:
                 logging.info(product)
                 product_code = product.get('productCode')
