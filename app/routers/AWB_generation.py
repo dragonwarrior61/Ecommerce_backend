@@ -291,18 +291,28 @@ async def get_order(
         return HTTPException(status_code=404, detail=f"{order_id} not found")
     product_ids = db_order.product_id
     marketplace = db_order.order_market_place
-    ean = []
+    number = db_awb.number
+    ean_list = []
     for product_id in product_ids:
         result = await db.execute(select(Product).where(Product.id == product_id, Product.product_marketplace == marketplace, Product.user_id == db_order.user_id))
         product = result.scalars().first()
         if product is None:
             result = await db.execute(select(Product).where(Product.id == product_id))
             product = result.scalars().first()
-        ean.append(product.ean)
+            
+        ean = product.ean
+        
+        result = await db.execute(select(Internal_Product).where(Internal_Product.ean == ean))
+        internal_product = result.scalars().first()
+        if internal_product is None:
+            continue
+        if internal_product.warehouse_id != number:
+            continue
+        ean_list.append(product.ean)
 
     return {
         **{column.name: getattr(db_order, column.name) for column in Order.__table__.columns},
-        "ean": ean
+        "ean": ean_list
     }
 
 @router.get("/")
