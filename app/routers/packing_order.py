@@ -40,7 +40,7 @@ async def create_packing_order(packing_order: Packing_orderCreate, user: User = 
         new_packing_order = Packing_order(**packing_order.dict())
         new_packing_order.staff_id = user.id
         new_packing_order.user_id = user_id
-        
+        new_packing_order.pack_status = 1
         settings.update_flag = 1
         try:
             db.add(new_packing_order)
@@ -56,6 +56,19 @@ async def create_packing_order(packing_order: Packing_orderCreate, user: User = 
     for var, value in vars(packing_order).items():
         setattr(db_packing_order, var, value) if value is not None else None
     
+    flag = 1
+    product_ean = db_packing_order.product_ean
+    quantity = db_packing_order.quantity
+    order_quantity = db_packing_order.order_quantity
+    for i in range(len(product_ean)):
+        if quantity[i] != order_quantity[i]:
+            flag = 0
+            break
+    if flag:
+        db_packing_order.pack_status = 2
+    else:
+        db_packing_order.pack_status = 1
+        
     settings.update_flag = 1
     try:
         await db.commit()

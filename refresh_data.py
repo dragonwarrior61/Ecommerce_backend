@@ -408,11 +408,11 @@ async def refresh_stock(db: AsyncSession = Depends(get_db)):
                     "quantity": int(product.get('quantity'))
                 })
                 result = await session.execute(select(Internal_Product).where(Internal_Product.product_code == product_code))
-                db_product = result.scalars().first()
-                if db_product is None:
+                db_products = result.scalars().all()
+                if db_products is None:
                     continue
-                
-                db_product.smartbill_stock = int(product.get('quantity'))
+                for db_product in db_products:
+                    db_product.smartbill_stock = int(product.get('quantity'))
             try:
                 await session.commit()
                 logging.info(f"product_code_list: {product_code_list}")
