@@ -50,7 +50,7 @@ async def create_packing_order(packing_order: Packing_orderCreate, user: User = 
                 flag = 0
                 break
         if flag:
-            new_packing_order = 2
+            new_packing_order.pack_status = 2
         settings.update_flag = 1
         try:
             db.add(new_packing_order)
