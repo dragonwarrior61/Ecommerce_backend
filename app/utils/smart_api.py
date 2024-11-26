@@ -149,7 +149,6 @@ async def refresh_invoice(db: AsyncSession):
                     product['isTaxIncluded'] = True
                     product['price'] = round((product['price'] * 2) / 2, 2)
                 else:
-                    product['price'] = int(float(product['price']) * 100) / 100
                     product['price'] *= vat
                     product['isTaxIncluded'] = True
                     
