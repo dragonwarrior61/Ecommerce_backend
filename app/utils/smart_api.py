@@ -24,6 +24,8 @@ import json
 import logging
 from datetime import datetime, timedelta
 import re
+import math
+
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -147,7 +149,7 @@ async def refresh_invoice(db: AsyncSession):
                     product['price'] = round(float(product['price']), 2)
                     product['price'] *= vat
                     product['isTaxIncluded'] = True
-                    product['price'] = round((product['price'] * 2) / 2, 2)
+                    product['price'] = round(math.ceil(product['price'] * 2) / 2, 2)
                 else:
                     product['price'] *= vat
                     product['isTaxIncluded'] = True
@@ -176,7 +178,7 @@ async def refresh_invoice(db: AsyncSession):
                 discount_value = float(voucher['sale_price']) if is_shipping_tax else float(voucher['sale_price']) - deduct_value
                 discount_value = round(discount_value, 2)
                 if currency == "HUF":
-                    discount_value = round((discount_value * 2) / 2, 2)
+                    discount_value = round(math.ceil(discount_value * 2) / 2, 2)
                 else:
                     discount_value = round(discount_value, 2)
                     
