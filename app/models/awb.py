@@ -1,5 +1,5 @@
 # app/models/awb.py
-from sqlalchemy import Column, Integer, String, BigInteger, DECIMAL, PrimaryKeyConstraint, DateTime, Boolean
+from sqlalchemy import Column, Integer, String, BigInteger, DECIMAL, PrimaryKeyConstraint, DateTime, Boolean, ARRAY
 from sqlalchemy.orm import relationship
 from app.database import Base
 
@@ -52,6 +52,7 @@ class AWB(Base):
     width = Column(DECIMAL, nullable=True)
     height = Column(DECIMAL, nullable=True)
     user_id = Column(Integer, index=True, nullable=True)
+    ean_list = Column(ARRAY(String), nullable=True)
 
     __table_args__ = (
         PrimaryKeyConstraint('order_id', 'number', name='pk_order_id_number'),

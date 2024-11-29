@@ -1,7 +1,7 @@
 # app/schemas/awb.py
 from pydantic import BaseModel
 from enum import Enum
-from typing import Optional
+from typing import Optional, List
 from decimal import Decimal
 from datetime import datetime
 
@@ -51,6 +51,7 @@ class AWBBase(BaseModel):
     width: Optional[Decimal] = None
     height: Optional[Decimal] = None
     user_id: Optional[int] = None
+    ean_list: Optional[List[str]] = None
     
 
 class AWBCreate(AWBBase):
