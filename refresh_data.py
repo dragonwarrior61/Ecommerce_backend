@@ -3,7 +3,7 @@ from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi_utils.tasks import repeat_every
 from sqlalchemy import select
-from sqlalchemy import any_
+from sqlalchemy import any_, cast, BigInteger
 from app.routers import auth, internal_products, returns, users, shipment, profile, marketplace, utils, orders, dashboard, supplier, inventory, AWB_generation, notifications, warehouse
 from app.database import Base, engine
 from app.backup import export_to_csv, upload_to_google_sheets
@@ -103,7 +103,7 @@ async def update_awb(db: AsyncSession = Depends(get_db)):
                     awb_creation_time = awb.awb_date
                     order_id = awb.order_id
                     user_id = awb.user_id
-                    result = await session.execute(select(AWB).where(AWB.order_id == order_id, AWB.user_id == user_id))
+                    result = await session.execute(select(AWB).where(cast(AWB.order_id, BigInteger) == order_id, AWB.user_id == user_id))
                     awb_order_id = result.scalars().all()
                     if len(awb_order_id) > 1:
                         continue
