@@ -23,7 +23,7 @@ from fastapi.responses import JSONResponse
 router = APIRouter()
 
 @router.post("/save_picture")
-async def save_picture(data_url: str):
+async def save_picture(data_url: str, name: str):
     try:
         if not data_url.startswith("data:image/"):
             raise HTTPException(status_code=400, detail="Invalid data URL format")
@@ -31,10 +31,11 @@ async def save_picture(data_url: str):
 
         # Decode the base64 data
         image_data = base64.b64decode(base64_data)
+        
+        image_type = header.split(";")[0].split("/")[1] 
 
         # Determine the file type from the header (e.g., image/png)
-        file_extension = header.split(";")[0].split("/")[1]
-        file_name = f"{UPLOAD_DIR}/uploaded_image.{file_extension}"
+        file_name = f"/var/www/html/pack_pictures/{name}.{image_type}"
 
         # Save the image file to disk
         with open(file_name, "wb") as f:
