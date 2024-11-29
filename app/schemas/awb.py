@@ -52,7 +52,7 @@ class AWBBase(BaseModel):
     height: Optional[Decimal] = None
     user_id: Optional[int] = None
     ean_list: Optional[List[str]] = None
-    
+    quantity: Optional[List[int]] = None
 
 class AWBCreate(AWBBase):
     pass

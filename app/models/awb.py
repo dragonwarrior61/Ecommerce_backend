@@ -53,6 +53,7 @@ class AWB(Base):
     height = Column(DECIMAL, nullable=True)
     user_id = Column(Integer, index=True, nullable=True)
     ean_list = Column(ARRAY(String), nullable=True)
+    quantity = Column(ARRAY(Integer), nullable=True)
 
     __table_args__ = (
         PrimaryKeyConstraint('order_id', 'number', name='pk_order_id_number'),
