@@ -282,11 +282,11 @@ async def get_order(
     else:
         result = await db.execute(select(AWB).where(or_(AWB.awb_number == awb_number, AWB.awb_number == awb_number[:-3])))
     db_awb = result.scalars().first()
-    ean_list = db_awb.ean_list
     
     if db_awb is None:
         raise HTTPException(status_code=404, detail="awb not found")
     order_id = db_awb.order_id
+    ean_list = db_awb.ean_list
     result = await db.execute(select(Order).where(Order.id == order_id))
     db_order = result.scalars().first()
     if db_order is None:
