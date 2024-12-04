@@ -21,19 +21,20 @@ async def create_damaged_good(damaged_good: Damaged_goodCreate, db: AsyncSession
     damaged_good = result.scalars().first()
     if damaged_good:
         return damaged_good
-    product_ean_list = db_damaged_good.product_ean
-    for i in range(len(product_ean_list)):
-        ean = product_ean_list[i]
-        result = await db.execute(select(Internal_Product).where(Internal_Product.ean == ean))
-        product = result.scalars().first()
-        if product is None:
+    product_code_list = db_damaged_good.product_code
+    for i in range(len(product_code_list)):
+        product_code = product_code_list[i]
+        result = await db.execute(select(Internal_Product).where(Internal_Product.product_code == product_code))
+        products = result.scalars().all()
+        if products is None:
             continue
-        if product.damaged_goods:
-            product.damaged_goods = product.damaged_goods + db_damaged_good.quantity[i]
-        else:
-            product.damaged_goods = db_damaged_good.quantity[i]
-    first_ean = product_ean_list[0]
-    result = await db.execute(select(Internal_Product).where(Internal_Product.ean == first_ean))
+        for product in products:
+            if product.damaged_goods:
+                product.damaged_goods = product.damaged_goods + db_damaged_good.quantity[i]
+            else:
+                product.damaged_goods = db_damaged_good.quantity[i]
+    first_code = product_code_list[0]
+    result = await db.execute(select(Internal_Product).where(Internal_Product.product_code == first_code))
     db_internal_product = result.scalars().first()
     user_id = db_internal_product.user_id
     db_damaged_good.user_id = user_id
