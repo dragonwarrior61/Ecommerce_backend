@@ -96,6 +96,8 @@ async def update_damaged_goods(db: AsyncSession = Depends(get_db)):
                 logging.info("Starting update damaged_goods")
                 result = await session.execute(select(Damaged_good).where(Damaged_good.user_id == 1))
                 damaged_goods = result.scalars().all()
+                if damaged_goods is None:
+                    logging.info(f"Can not find dmaged goods")
                 for damaged_good in damaged_goods:
                     product_code_list = damaged_good.product_code
                     quantity_list = damaged_good.quantity
@@ -107,6 +109,9 @@ async def update_damaged_goods(db: AsyncSession = Depends(get_db)):
                         if product_code == "":
                             result = await session.execute(select(Internal_Product).where(Internal_Product.ean == ean))
                             product = result.scalars().first()
+                            if product is None:
+                                logging.info(f"Can not find product that have {ean}")
+                                continue
                             product_code = product.product_code
                         result = await session.execute(select(Internal_Product).where(Internal_Product.product_code == product_code, Internal_Product.user_id == 1))
                         products = result.scalars().all()
