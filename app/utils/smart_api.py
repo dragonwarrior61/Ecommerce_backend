@@ -250,7 +250,6 @@ async def refresh_invoice(db: AsyncSession):
             result = generate_invoice(data, smartbill)
             if result.get('errorText') != '':
                 logging.info(f"generate invoice result is {result}")
-                continue
             
             invoice = Invoice()
             invoice.replacement_id = 0
