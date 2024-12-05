@@ -68,7 +68,7 @@ async def update_stock(db: AsyncSession):
             db_product.stock = product.get('quantity')
 
 async def refresh_invoice(db: AsyncSession):
-    result = await db.execute(select(Order).where(Order.status == any_([1, 2, 3])))
+    result = await db.execute(select(Order).where(Order.status == any_([1, 2, 3]), Order.user_id == 1))
     new_orders = result.scalars().all()
     
     order_id_list = []
@@ -224,10 +224,10 @@ async def refresh_invoice(db: AsyncSession):
             }
             data = {
                 "companyVatCode": smartbill.registration_number,
-                # "seriesName": "EMG" + marketplace.country.upper(),
-                "seriesName": "EMGINL",
+                "seriesName": "EMG" + marketplace.country.upper(),
+                # "seriesName": "EMGINL",
                 "client": client,
-                "useStock": False,
+                "useStock": True,
                 "isDraft": False,
                 "mentions": f"Comanda Emag nr. {order.id}",
                 "observations": f"{order.id}_{order.order_market_place.split('.')[1].upper()}",
@@ -255,10 +255,10 @@ async def refresh_invoice(db: AsyncSession):
             invoice.replacement_id = 0
             invoice.order_id = order.id
             invoice.companyVatCode = smartbill.registration_number
-            # invoice.seriesName = "EMG" + marketplace.country.upper()
-            invoice.seriesName = "EMGINL"
+            invoice.seriesName = "EMG" + marketplace.country.upper()
+            # invoice.seriesName = "EMGINL"
             invoice.client = str(client)
-            invoice.usestock = False
+            invoice.usestock = True
             invoice.isdraft = False
             invoice.issueDate = issueDate
             invoice.mentions = f"Comanda Emag nr. {order.id}"
