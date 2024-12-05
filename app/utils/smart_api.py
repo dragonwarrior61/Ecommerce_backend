@@ -177,6 +177,7 @@ async def refresh_invoice(db: AsyncSession):
                 
                 discount_value = float(voucher['sale_price']) if is_shipping_tax else float(voucher['sale_price']) - deduct_value
                 discount_value = round(discount_value, 2)
+                discount_value *= vat
                 if currency == "HUF":
                     discount_value = round(math.ceil(discount_value * 2) / 2, 2)
                 else:
