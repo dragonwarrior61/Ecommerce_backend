@@ -89,31 +89,31 @@ ssl_context.load_cert_chain('ssl/cert.pem', keyfile='ssl/key.pem')
 #                     # logging.info("Refresh orders form marketplace")
 #                     # await refresh_emag_all_orders(marketplace, session)
 #                     continue
-@app.on_event("startup")
-async def update_invoice_post(db: AsyncSession = Depends(get_db)):
-    async for db in get_db():
-        async with db as session:
-            try:
-                logging.info("Starting post invoices")
-                result = await session.execute(select(Invoice).where(Invoice.user_id == 1, Invoice.seriesName != 'EMGINL'))
-                invoices = result.scalars().all()
+# @app.on_event("startup")
+# async def update_invoice_post(db: AsyncSession = Depends(get_db)):
+#     async for db in get_db():
+#         async with db as session:
+#             try:
+#                 logging.info("Starting post invoices")
+#                 result = await session.execute(select(Invoice).where(Invoice.user_id == 1, Invoice.seriesName != 'EMGINL'))
+#                 invoices = result.scalars().all()
                 
-                for invoice in invoices:
-                    order_id = invoice.order_id
-                    series = invoice.seriesName
-                    number = invoice.number
-                    name = f"factura_{series}{number}.pdf"
-                    country = series[-2:]
-                    result = await session.execute(select(Marketplace).where(Marketplace.country.upper() == country, Marketplace.user_id == 1))
-                    marketplace = result.scalars().first()
-                    response = post_factura_pdf(order_id, name, marketplace)
-                    if response.status_code != 200:
-                        logging.info(f"{response.json()}")
-                        continue
-                    invoice.post = 1
-                await session.commit()
-            except Exception as e:
-                logging.info(f"Error in post invoice: {e}")
+#                 for invoice in invoices:
+#                     order_id = invoice.order_id
+#                     series = invoice.seriesName
+#                     number = invoice.number
+#                     name = f"factura_{series}{number}.pdf"
+#                     country = series[-2:]
+#                     result = await session.execute(select(Marketplace).where(Marketplace.country.upper() == country, Marketplace.user_id == 1))
+#                     marketplace = result.scalars().first()
+#                     response = post_factura_pdf(order_id, name, marketplace)
+#                     if response.status_code != 200:
+#                         logging.info(f"{response.json()}")
+#                         continue
+#                     invoice.post = 1
+#                 await session.commit()
+#             except Exception as e:
+#                 logging.info(f"Error in post invoice: {e}")
 # @app.on_event("startup")
 # async def update_damaged_goods(db: AsyncSession = Depends(get_db)):
 #     async for db in get_db():
@@ -296,13 +296,13 @@ async def update_invoice_post(db: AsyncSession = Depends(get_db)):
 #                     logging.info("Refresh orders from marketplace")
 #                     await refresh_emag_orders(marketplace)
 
-# @app.on_event("startup")
-# @repeat_every(seconds=900)
-# async def generate_invoice(db:AsyncSession = Depends(get_db)):
-#     async for db in get_db():
-#         async with db as session:
-#             logging.info("Create Invoice and Reverse Invoice")
-#             await refresh_invoice(session)
+@app.on_event("startup")
+@repeat_every(seconds=900)
+async def generate_invoice(db:AsyncSession = Depends(get_db)):
+    async for db in get_db():
+        async with db as session:
+            logging.info("Create Invoice and Reverse Invoice")
+            await refresh_invoice(session)
 # @app.on_event("startup")
 # @repeat_every(seconds=28800)
 # async def refresh_months_order(db:AsyncSession = Depends(get_db)):
@@ -320,161 +320,161 @@ async def update_invoice_post(db: AsyncSession = Depends(get_db)):
 #                     logging.info("Refresh orders from marketplace")
 #                     await refresh_months_emag_orders(marketplace)
 
-# @app.on_event("startup")
-# @repeat_every(seconds=900)
-# async def send_stock(db:AsyncSession = Depends(get_db)):
-#     async for db in get_db():
-#         try:
-#             async with db as session:
-#                 logging.info("Init orders_stock")
-#                 await session.execute(update(Internal_Product).values(orders_stock=0))
-#                 await session.commit()
-#                 logging.info("Calculate orders_stock")
-#                 result = await session.execute(select(Order).where(Order.status == any_([1,2,3])))
-#                 db_new_orders = result.scalars().all()
-#                 if db_new_orders is None:
-#                     logging.info("Can't find new orders")
-#                     return
-#                 else:
-#                     logging.info(f"Find {len(db_new_orders)} new orders")
-#                 # try:
-#                 #     for db_new_order in db_new_orders:
-#                 #         product_id_list = db_new_order.product_id
-#                 #         quantity_list = db_new_order.quantity
-#                 #         marketplace = db_new_order.order_market_place
-#                 #         # logging.info(f"@#@#!#@#@##!@#@#@ order_id is {db_new_order.id}")
-#                 #         for i in range(len(product_id_list)):
-#                 #             product_id = product_id_list[i]
-#                 #             quantity = quantity_list[i]
+@app.on_event("startup")
+@repeat_every(seconds=900)
+async def send_stock(db:AsyncSession = Depends(get_db)):
+    async for db in get_db():
+        try:
+            async with db as session:
+                logging.info("Init orders_stock")
+                await session.execute(update(Internal_Product).values(orders_stock=0))
+                await session.commit()
+                logging.info("Calculate orders_stock")
+                result = await session.execute(select(Order).where(Order.status == any_([1,2,3])))
+                db_new_orders = result.scalars().all()
+                if db_new_orders is None:
+                    logging.info("Can't find new orders")
+                    return
+                else:
+                    logging.info(f"Find {len(db_new_orders)} new orders")
+                # try:
+                #     for db_new_order in db_new_orders:
+                #         product_id_list = db_new_order.product_id
+                #         quantity_list = db_new_order.quantity
+                #         marketplace = db_new_order.order_market_place
+                #         # logging.info(f"@#@#!#@#@##!@#@#@ order_id is {db_new_order.id}")
+                #         for i in range(len(product_id_list)):
+                #             product_id = product_id_list[i]
+                #             quantity = quantity_list[i]
                         
-#                 #             result = await db.execute(select(Product).where(Product.id == product_id, Product.product_marketplace == marketplace, Product.user_id == db_new_order.user_id))
-#                 #             db_product = result.scalars().first()
-#                 #             if db_product is None:
-#                 #                 logging.info(f"Can't find {product_id} in {marketplace}")
-#                 #                 continue
-#                 #             ean = db_product.ean
-#                 #             # logging.info(f"&*&*&*&&*&*&**&ean number is {ean}")
+                #             result = await db.execute(select(Product).where(Product.id == product_id, Product.product_marketplace == marketplace, Product.user_id == db_new_order.user_id))
+                #             db_product = result.scalars().first()
+                #             if db_product is None:
+                #                 logging.info(f"Can't find {product_id} in {marketplace}")
+                #                 continue
+                #             ean = db_product.ean
+                #             # logging.info(f"&*&*&*&&*&*&**&ean number is {ean}")
 
-#                 #             result = await db.execute(select(Internal_Product).where(Internal_Product.ean == ean))
-#                 #             db_internal_product = result.scalars().first()
-#                 #             if db_internal_product is None:
-#                 #                 logging.info(f"Can't find {ean}")
-#                 #             db_internal_product.orders_stock = db_internal_product.orders_stock + quantity
-#                 #             # logging.info(f"#$$$#$#$#$#$ Orders_stock is {db_internal_product.orders_stock}")
-#                 #     await db.commit()
-#                 # except Exception as e:
-#                 #     logging.error(f"An error occurred: {e}")
-#                 #     await db.rollback() 
+                #             result = await db.execute(select(Internal_Product).where(Internal_Product.ean == ean))
+                #             db_internal_product = result.scalars().first()
+                #             if db_internal_product is None:
+                #                 logging.info(f"Can't find {ean}")
+                #             db_internal_product.orders_stock = db_internal_product.orders_stock + quantity
+                #             # logging.info(f"#$$$#$#$#$#$ Orders_stock is {db_internal_product.orders_stock}")
+                #     await db.commit()
+                # except Exception as e:
+                #     logging.error(f"An error occurred: {e}")
+                #     await db.rollback() 
 
-#                 workbook = Workbook()
-#                 worksheet = workbook.active
-#                 worksheet.title = "Product Stocks"
-#                 worksheet.append(["EAN", "Product_code", "User_id", "Smartbill", "Damaged", "EMAG_Stock", "Stock"])
+                workbook = Workbook()
+                worksheet = workbook.active
+                worksheet.title = "Product Stocks"
+                worksheet.append(["EAN", "Product_code", "User_id", "Smartbill", "Damaged", "EMAG_Stock", "Stock"])
                 
-#                 logging.info("Sync stock")
-#                 result = await session.execute(select(Internal_Product).where(Internal_Product.user_id == 1))
-#                 db_products = result.scalars().all()
-#                 for product in db_products:
-#                     if product.smartbill_stock is None:
-#                         worksheet.append([product.ean, product.product_code, product.user_id, 0, 0, 0, 0])
-#                         continue
-#                     stock = product.smartbill_stock
-#                     smartbill_stock = stock
-#                     damaged = 0
-#                     if product.damaged_goods:
-#                         stock = stock - product.damaged_goods
-#                         damaged = product.damaged_goods
-#                     ean = product.ean
-#                     user_id = product.user_id
-#                     product_code = product.product_code
+                logging.info("Sync stock")
+                result = await session.execute(select(Internal_Product).where(Internal_Product.user_id == 1))
+                db_products = result.scalars().all()
+                for product in db_products:
+                    if product.smartbill_stock is None:
+                        worksheet.append([product.ean, product.product_code, product.user_id, 0, 0, 0, 0])
+                        continue
+                    stock = product.smartbill_stock
+                    smartbill_stock = stock
+                    damaged = 0
+                    if product.damaged_goods:
+                        stock = stock - product.damaged_goods
+                        damaged = product.damaged_goods
+                    ean = product.ean
+                    user_id = product.user_id
+                    product_code = product.product_code
                     
-#                     worksheet.append([ean, product_code, user_id, smartbill_stock, damaged, product.stock, stock])
+                    worksheet.append([ean, product_code, user_id, smartbill_stock, damaged, product.stock, stock])
                     
                 
-#                     marketplaces = product.market_place
-#                     for domain in marketplaces:
-#                         if domain == "altex.ro":
-#                             continue
-#                             # if db_product.barcode_title == "":
-#                                 #     continue
-#                                 # post_stock_altex(marketplace, db_product.barcode_title, stock)
-#                                 # logging.info("post stock success in altex")
-#                         result = await session.execute(select(Marketplace).where(Marketplace.marketplaceDomain == domain, Marketplace.user_id == product.user_id))
-#                         marketplace = result.scalars().first()
+                    marketplaces = product.market_place
+                    for domain in marketplaces:
+                        if domain == "altex.ro":
+                            continue
+                            # if db_product.barcode_title == "":
+                                #     continue
+                                # post_stock_altex(marketplace, db_product.barcode_title, stock)
+                                # logging.info("post stock success in altex")
+                        result = await session.execute(select(Marketplace).where(Marketplace.marketplaceDomain == domain, Marketplace.user_id == product.user_id))
+                        marketplace = result.scalars().first()
 
-#                         result = await session.execute(select(Product).where(Product.ean == ean, Product.product_marketplace == domain))
-#                         db_product = result.scalars().first()
-#                         product_id = db_product.id
+                        result = await session.execute(select(Product).where(Product.ean == ean, Product.product_marketplace == domain))
+                        db_product = result.scalars().first()
+                        product_id = db_product.id
                                           
-#                         # if marketplace.marketplaceDomain == "altex.ro":
-#                         #     continue
-#                         #     # if db_product.barcode_title == "":
-#                         #     #     continue
-#                         #     # post_stock_altex(marketplace, db_product.barcode_title, stock)
-#                         #     # logging.info("post stock success in altex")
+                        # if marketplace.marketplaceDomain == "altex.ro":
+                        #     continue
+                        #     # if db_product.barcode_title == "":
+                        #     #     continue
+                        #     # post_stock_altex(marketplace, db_product.barcode_title, stock)
+                        #     # logging.info("post stock success in altex")
                         
-#                         product_id = int(product_id)
-#                         response = await post_stock_emag(marketplace, product_id, stock)      
-#                         logging.info(f"{response}") 
-#                         if response == "Stock updated successfully, no content returned.":
-#                             product.sync_stock_time = datetime.now()
-#                         else:
-#                             continue
-#                     await session.commit() 
-#                 workbook.save("/var/www/html/invoices/stock_sync.xlsx")
-#                 logging.info("successfully saved stock data")
-#         except Exception as e:
-#             logging.error(f"An error occurred: {e}")
-#             await session.rollback()                
+                        product_id = int(product_id)
+                        response = await post_stock_emag(marketplace, product_id, stock)      
+                        logging.info(f"{response}") 
+                        if response == "Stock updated successfully, no content returned.":
+                            product.sync_stock_time = datetime.now()
+                        else:
+                            continue
+                    await session.commit() 
+                workbook.save("/var/www/html/invoices/stock_sync.xlsx")
+                logging.info("successfully saved stock data")
+        except Exception as e:
+            logging.error(f"An error occurred: {e}")
+            await session.rollback()                
 
-# @app.on_event("startup")
-# @repeat_every(seconds=7200)
-# async def refresh_stock(db: AsyncSession = Depends(get_db)):
-#     async for db in get_db():
-#         async with db as session:
-#             logging.info("Starting stock refresh")
-#             result = await session.execute(select(Billing_software).where(Billing_software.site_domain == "smartbill.ro"))
-#             db_smarts = result.scalars().all()
-#             if db_smarts is None:
-#                 logging.info("Can't find billing software")
-#                 return
+@app.on_event("startup")
+@repeat_every(seconds=7200)
+async def refresh_stock(db: AsyncSession = Depends(get_db)):
+    async for db in get_db():
+        async with db as session:
+            logging.info("Starting stock refresh")
+            result = await session.execute(select(Billing_software).where(Billing_software.site_domain == "smartbill.ro"))
+            db_smarts = result.scalars().all()
+            if db_smarts is None:
+                logging.info("Can't find billing software")
+                return
             
-#             logging.info("Fetch stock via smarbill api")
-#             product_code_list = []
+            logging.info("Fetch stock via smarbill api")
+            product_code_list = []
             
-#             products = []
-#             try:
-#                 for db_smart in db_smarts:
-#                     products_list = get_stock(db_smart)
-#                     for smart_products in products_list:
-#                         if smart_products.get('products'):
-#                             products = products + smart_products.get('products')
-#                         else:
-#                             continue    
-#             except Exception as e:
-#                 logging.info(f"getting stock data error: {e}")
-#             for product in products:
-#                 logging.info(product)
-#                 product_code = product.get('productCode')
-#                 if product_code is None:
-#                     continue
-#                 logging.info(f"Update stock {product_code}")
-#                 product_code_list.append({
-#                     "product_code": product_code,
-#                     "quantity": int(product.get('quantity'))
-#                 })
-#                 result = await session.execute(select(Internal_Product).where(Internal_Product.product_code == product_code))
-#                 db_products = result.scalars().all()
-#                 if db_products is None:
-#                     continue
-#                 for db_product in db_products:
-#                     db_product.smartbill_stock = int(product.get('quantity'))
-#             try:
-#                 await session.commit()
-#                 logging.info(f"product_code_list: {product_code_list}")
-#                 logging.info("Finish sync stock")
-#             except Exception as e:
-#                 logging.info(f"sync stock error {e}")
+            products = []
+            try:
+                for db_smart in db_smarts:
+                    products_list = get_stock(db_smart)
+                    for smart_products in products_list:
+                        if smart_products.get('products'):
+                            products = products + smart_products.get('products')
+                        else:
+                            continue    
+            except Exception as e:
+                logging.info(f"getting stock data error: {e}")
+            for product in products:
+                logging.info(product)
+                product_code = product.get('productCode')
+                if product_code is None:
+                    continue
+                logging.info(f"Update stock {product_code}")
+                product_code_list.append({
+                    "product_code": product_code,
+                    "quantity": int(product.get('quantity'))
+                })
+                result = await session.execute(select(Internal_Product).where(Internal_Product.product_code == product_code))
+                db_products = result.scalars().all()
+                if db_products is None:
+                    continue
+                for db_product in db_products:
+                    db_product.smartbill_stock = int(product.get('quantity'))
+            try:
+                await session.commit()
+                logging.info(f"product_code_list: {product_code_list}")
+                logging.info("Finish sync stock")
+            except Exception as e:
+                logging.info(f"sync stock error {e}")
 
 # @app.on_event("startup")
 # @repeat_every(seconds=86400)  # Run daily for deleting video last 30 days
