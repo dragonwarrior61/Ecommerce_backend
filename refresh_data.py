@@ -476,27 +476,27 @@ async def refresh_stock(db: AsyncSession = Depends(get_db)):
             except Exception as e:
                 logging.info(f"sync stock error {e}")
 
-@app.on_event("startup")
-@repeat_every(seconds=86400)  # Run daily for deleting video last 30 days
-async def refresh_data(db: AsyncSession = Depends(get_db)): 
-    async for db in get_db():
-        async with db as session:
-            logging.info("Starting product refresh")
-            result = await session.execute(select(Marketplace).order_by(Marketplace.id.asc()))
-            marketplaces = result.scalars().all()
-            logging.info(f"Success getting {len(marketplaces)} marketplaces")
-            for marketplace in marketplaces:
-                if marketplace.marketplaceDomain == "altex.ro":
-                    logging.info("Refresh rmas from altex")
-                    await refresh_altex_rmas(marketplace)
-                else:
-                    logging.info("Refresh refunds from marketplace")
-                    await refresh_emag_returns(marketplace)
+# @app.on_event("startup")
+# @repeat_every(seconds=86400)  # Run daily for deleting video last 30 days
+# async def refresh_data(db: AsyncSession = Depends(get_db)): 
+#     async for db in get_db():
+#         async with db as session:
+#             logging.info("Starting product refresh")
+#             result = await session.execute(select(Marketplace).order_by(Marketplace.id.asc()))
+#             marketplaces = result.scalars().all()
+#             logging.info(f"Success getting {len(marketplaces)} marketplaces")
+#             for marketplace in marketplaces:
+#                 if marketplace.marketplaceDomain == "altex.ro":
+#                     logging.info("Refresh rmas from altex")
+#                     await refresh_altex_rmas(marketplace)
+#                 else:
+#                     logging.info("Refresh refunds from marketplace")
+#                     await refresh_emag_returns(marketplace)
                     
-                    # logging.info("Refresh reviews from emag")
-                    # await refresh_emag_reviews(marketplace, session)
-                    # logging.info("Check hijacker and review")
-                    # await check_hijacker_and_bad_reviews(marketplace, session)
+#                     # logging.info("Refresh reviews from emag")
+#                     # await refresh_emag_reviews(marketplace, session)
+#                     # logging.info("Check hijacker and review")
+#                     # await check_hijacker_and_bad_reviews(marketplace, session)
 
 if __name__ == "__main__":
     import uvicorn
