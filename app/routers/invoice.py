@@ -35,7 +35,7 @@ async def create_invoice(invoice: InvoicesCreate, user: User = Depends(get_curre
     db_invoice = Invoice(**invoice.dict())
     order_id = db_invoice.order_id
 
-    result = await db.execute(select(Invoice).where(Invoice.order_id == order_id))
+    result = await db.execute(select(Invoice).where(Invoice.order_id == order_id, Invoice.user_id == user_id))
     invoice = result.scalars().first()
 
     if invoice:

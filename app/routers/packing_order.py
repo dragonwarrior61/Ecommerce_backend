@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 from sqlalchemy.future import select
@@ -23,7 +23,7 @@ from fastapi.responses import JSONResponse
 router = APIRouter()
 
 @router.post("/save_picture")
-async def save_picture(data_url: str = Query('', description="Image Data Url"), name: str = Query('', description="Image Name")):
+async def save_picture(data_url: str = Body(..., description="Image Data URL"), name: str = Query('', description="Image Name")):
     try:
         if not data_url.startswith("data:image/"):
             raise HTTPException(status_code=400, detail="Invalid data URL format")
