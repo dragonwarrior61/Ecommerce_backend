@@ -294,7 +294,7 @@ async def refresh_invoice(db: AsyncSession):
             download_result = download_pdf_server(series, number, name, smartbill)
             logging.info(f"download pdf result is {download_result}")
             order_id_list.append(order.id)
-        # post_factura_pdf(order.id, name, marketplace)
+            post_factura_pdf(order.id, name, marketplace)
     
         except Exception as e:
             logging.error(f"Error in generating invoice: {e}")
