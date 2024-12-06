@@ -154,7 +154,6 @@ async def insert_products(products, mp_name: str, user_id):
                 %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
             ) ON CONFLICT (ean) DO UPDATE SET
                 id = EXCLUDED.id,
-                product_name = EXCLUDED.product_name,
                 buy_button_rank = EXCLUDED.buy_button_rank,
                 stock = EXCLUDED.stock,
                 market_place = array(SELECT DISTINCT unnest(array_cat(EXCLUDED.market_place, internal_products.market_place))),
