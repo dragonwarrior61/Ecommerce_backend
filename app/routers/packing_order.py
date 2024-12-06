@@ -17,35 +17,43 @@ from app.routers.auth import get_current_user
 from collections import defaultdict
 from app.schemas.packing_order import Packing_orderCreate, Packing_orderRead, Packing_orderUpdate
 from app.config import settings
+from pydantic import BaseModel
 import base64
 from fastapi.responses import JSONResponse
 
 router = APIRouter()
 
+class PictureData(BaseModel):
+    data_url: str
+    name: str
+
 @router.post("/save_picture")
-async def save_picture(data_url: str = Body(..., description="Image Data URL"), name: str = Query('', description="Image Name")):
+async def save_picture(payload: PictureData):
     try:
-        if not data_url.startswith("data:image/"):
+        # Validate data_url
+        if not payload.data_url.startswith("data:image/"):
             raise HTTPException(status_code=400, detail="Invalid data URL format")
-        header, base64_data = data_url.split(",", 1)
+
+        # Split header and base64 data
+        header, base64_data = payload.data_url.split(",", 1)
 
         # Decode the base64 data
         image_data = base64.b64decode(base64_data)
-        
-        image_type = header.split(";")[0].split("/")[1] 
 
-        # Determine the file type from the heade
-        # r (e.g., image/png)
-        file_name = f"/var/www/html/pack_pictures/{name}.{image_type}"
+        # Get image type from the header (e.g., png, jpeg)
+        image_type = header.split(";")[0].split("/")[1]
+
+        # Create the file path
+        file_name = f"/var/www/html/pack_pictures/{payload.name}.{image_type}"
 
         # Save the image file to disk
         with open(file_name, "wb") as f:
             f.write(image_data)
 
         return JSONResponse(content={"message": f"Image uploaded successfully as {file_name}"})
-    
+
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=f"Error: {str(e)}")
 
 @router.post("/", response_model=Packing_orderRead)
 async def create_packing_order(packing_order: Packing_orderCreate, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
