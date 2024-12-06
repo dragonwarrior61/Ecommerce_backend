@@ -149,7 +149,7 @@ async def refresh_invoice(db: AsyncSession):
                     product['price'] = round(float(product['price']), 2)
                     product['price'] *= vat
                     product['isTaxIncluded'] = True
-                    product['price'] = round(math.ceil(product['price'] * 2) / 2, 2)
+                    product['price'] = round(product['price'], 0)
                 else:
                     product['price'] *= vat
                     product['isTaxIncluded'] = True
@@ -179,7 +179,7 @@ async def refresh_invoice(db: AsyncSession):
                 discount_value = round(discount_value, 2)
                 discount_value *= float(voucher['vat']) + 1
                 if currency == "HUF":
-                    discount_value = round(math.ceil(discount_value * 2) / 2, 2)
+                    discount_value = round(discount_value, 0)
                 else:
                     discount_value = round(discount_value, 2)
                     
