@@ -197,6 +197,10 @@ async def refresh_invoice(db: AsyncSession):
                 })
                 
             if isEMGINvoice == False and is_shipping_tax:
+                if currency == "HUF":
+                    shipping_tax = round(order.shipping_tax + 0.01, 0)
+                else:
+                    shipping_tax = order.shipping_tax
                 products.append({
                     'name': 'Taxe de livrare',
                     'code': 'shipping_tax',
@@ -207,7 +211,7 @@ async def refresh_invoice(db: AsyncSession):
                     'taxPercentage': round((vat - 1) * 100, 0),
                     'quantity': 1,
                     'saveToDb': False,
-                    'price': round(order.shipping_tax + 0.01, 0),
+                    'price': shipping_tax,
                     'isService': True,
                 })
             client = {
