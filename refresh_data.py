@@ -296,13 +296,13 @@ async def refresh_orders_data(db:AsyncSession = Depends(get_db)):
                     logging.info("Refresh orders from marketplace")
                     await refresh_emag_orders(marketplace)
 
-# @app.on_event("startup")
-# @repeat_every(seconds=900)
-# async def generate_invoice(db:AsyncSession = Depends(get_db)):
-#     async for db in get_db():
-#         async with db as session:
-#             logging.info("Create Invoice and Reverse Invoice")
-#             await refresh_invoice(session)
+@app.on_event("startup")
+@repeat_every(seconds=900)
+async def generate_invoice(db:AsyncSession = Depends(get_db)):
+    async for db in get_db():
+        async with db as session:
+            logging.info("Create Invoice and Reverse Invoice")
+            await refresh_invoice(session)
 # @app.on_event("startup")
 # @repeat_every(seconds=28800)
 # async def refresh_months_order(db:AsyncSession = Depends(get_db)):
