@@ -207,7 +207,7 @@ async def refresh_invoice(db: AsyncSession):
                     'taxPercentage': round((vat - 1) * 100, 0),
                     'quantity': 1,
                     'saveToDb': False,
-                    'price': order.shipping_tax,
+                    'price': round(order.shipping_tax, 0),
                     'isService': True,
                 })
             client = {
