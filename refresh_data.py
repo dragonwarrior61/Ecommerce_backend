@@ -375,6 +375,11 @@ async def send_stock(db:AsyncSession = Depends(get_db)):
                 result = await session.execute(select(Internal_Product).where(Internal_Product.user_id == 1))
                 db_products = result.scalars().all()
                 for product in db_products:
+                    current_time = datetime.now()
+                    if product.smartbill_stock_time is None:
+                        continue
+                    if product.smartbill_stock_time < current_time - timedelta(days = 1):
+                        continue
                     if product.smartbill_stock is None:
                         worksheet.append([product.ean, product.product_code, product.user_id, 0, 0, 0, 0])
                         continue
