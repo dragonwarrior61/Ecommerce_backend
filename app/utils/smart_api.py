@@ -229,11 +229,11 @@ async def refresh_invoice(db: AsyncSession):
             }
             data = {
                 "companyVatCode": smartbill.registration_number,
-                # "seriesName": "EMG" + marketplace.country.upper(),
-                "seriesName": "EMGINL",
+                "seriesName": "EMG" + marketplace.country.upper(),
+                # "seriesName": "EMGINL",
                 "client": client,
-                # "useStock": True,
-                "useStock": False,
+                "useStock": True,
+                # "useStock": False,
                 "isDraft": False,
                 "mentions": f"Comanda Emag nr. {order.id}",
                 "observations": f"{order.id}_{order.order_market_place.split('.')[1].upper()}",
@@ -261,11 +261,11 @@ async def refresh_invoice(db: AsyncSession):
             invoice.replacement_id = 0
             invoice.order_id = order.id
             invoice.companyVatCode = smartbill.registration_number
-            # invoice.seriesName = "EMG" + marketplace.country.upper()
-            invoice.seriesName = "EMGINL"
+            invoice.seriesName = "EMG" + marketplace.country.upper()
+            # invoice.seriesName = "EMGINL"
             invoice.client = str(client)
-            # invoice.usestock = True
-            invoice.usestock = False
+            invoice.usestock = True
+            # invoice.usestock = False
             invoice.isdraft = False
             invoice.issueDate = issueDate
             invoice.mentions = f"Comanda Emag nr. {order.id}"
@@ -301,7 +301,9 @@ async def refresh_invoice(db: AsyncSession):
             download_result = download_pdf_server(series, number, name, smartbill)
             logging.info(f"download pdf result is {download_result}")
             order_id_list.append(order.id)
-            # post_factura_pdf(order.id, name, marketplace)
+            response = post_factura_pdf(order.id, name, marketplace)
+            if response.status_code == 200:
+                invoice.post = 1
     
         except Exception as e:
             logging.error(f"Error in generating invoice: {e}")
