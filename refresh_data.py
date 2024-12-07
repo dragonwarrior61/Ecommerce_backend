@@ -407,8 +407,14 @@ async def send_stock(db:AsyncSession = Depends(get_db)):
                         result = await session.execute(select(Marketplace).where(Marketplace.marketplaceDomain == domain, Marketplace.user_id == product.user_id))
                         marketplace = result.scalars().first()
 
+                        if marketplace is None:
+                            continue
+                        
                         result = await session.execute(select(Product).where(Product.ean == ean, Product.product_marketplace == domain))
                         db_product = result.scalars().first()
+                        
+                        if db_product is None:
+                            continue
                         product_id = db_product.id
                                           
                         # if marketplace.marketplaceDomain == "altex.ro":

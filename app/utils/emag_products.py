@@ -481,7 +481,7 @@ async def post_stock_emag(marketplace: Marketplace, product_id: int, stock: int)
     async with httpx.AsyncClient(timeout=20) as client:
         response = await client.patch(f"{url}/{product_id}", json=data, headers=headers)
         if response.status_code == 200:
-            return response.json()
+            return "Stock updated successfully, no content returned."
         elif response.status_code == 204:
             return "Stock updated successfully, no content returned."
         elif response.status_code == 404:
