@@ -44,6 +44,7 @@ class Internal_ProductBase(BaseModel):
     short_product_name: Optional[str] = None
     market_place: Optional[List[str]] = None
     sync_stock_time: Optional[datetime] = None
+    smartbill_stock_time: Optional[datetime] = None
     user_id: Optional[int] = None
 
 class Internal_ProductCreate(Internal_ProductBase):

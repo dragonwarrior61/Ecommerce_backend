@@ -44,5 +44,6 @@ class Internal_Product(Base):
     short_product_name = Column(Text, nullable=True)
     market_place = Column(ARRAY(Text), nullable=True)
     sync_stock_time = Column(DateTime, nullable=True)
+    smartbill_stock_time = Column(DateTime, nullable=True)
     user_id = Column(Integer, index=True, nullable=True)
     
