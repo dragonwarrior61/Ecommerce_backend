@@ -326,9 +326,7 @@ async def send_stock(db:AsyncSession = Depends(get_db)):
     async for db in get_db():
         try:
             async with db as session:
-                logging.info("Init orders_stock")
-                await session.execute(update(Internal_Product).values(orders_stock=0))
-                await session.commit()
+
                 logging.info("Calculate orders_stock")
                 result = await session.execute(select(Order).where(Order.status == any_([1,2,3])))
                 db_new_orders = result.scalars().all()
@@ -432,7 +430,7 @@ async def send_stock(db:AsyncSession = Depends(get_db)):
                             product.sync_stock_time = datetime.now()
                         else:
                             continue
-                    await session.commit() 
+                await session.commit() 
                 workbook.save("/var/www/html/invoices/stock_sync.xlsx")
                 logging.info("successfully saved stock data")
         except Exception as e:
