@@ -68,6 +68,11 @@ async def create_packing_order(packing_order: Packing_orderCreate, user: User = 
         user_id = user.id
     
     order_id = packing_order.order_id
+
+    result = await db.execute(select(Order).where(Order.id == order_id, Order.user_id == user_id))
+    order = result.scalars().first()
+    if order is None:
+        raise HTTPException(401, f"Not found order{order_id}")
     
     result = await db.execute(select(Packing_order).where(Packing_order.order_id == order_id, Packing_order.user_id == user_id))
     db_packing_order = result.scalars().first()
@@ -76,6 +81,7 @@ async def create_packing_order(packing_order: Packing_orderCreate, user: User = 
         new_packing_order.staff_id = user.id
         new_packing_order.user_id = user_id
         new_packing_order.pack_status = 1
+        order.packing_status = 1
         flag = 1
         product_ean = new_packing_order.product_ean
         quantity = new_packing_order.quantity
@@ -86,11 +92,13 @@ async def create_packing_order(packing_order: Packing_orderCreate, user: User = 
                 break
         if flag:
             new_packing_order.pack_status = 2
+            order.packing_status = 2
         settings.update_flag = 1
         try:
             db.add(new_packing_order)
             await db.commit()
             await db.refresh(new_packing_order)
+            await db.refresh(order)
         except Exception as e:
             db.rollback()
         finally:
@@ -111,13 +119,16 @@ async def create_packing_order(packing_order: Packing_orderCreate, user: User = 
             break
     if flag:
         db_packing_order.pack_status = 2
+        order.packing_status = 2
     else:
         db_packing_order.pack_status = 1
+        order.packing_status = 1
         
     settings.update_flag = 1
     try:
         await db.commit()
         await db.refresh(db_packing_order)
+        await db.refresh(order)
     except Exception as e:
         db.rollback()
     finally:

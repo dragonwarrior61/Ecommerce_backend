@@ -1,25 +1,15 @@
-import asyncio
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi_utils.tasks import repeat_every
-from sqlalchemy import select
 from app.routers import auth, billing_software, internal_products, returns, users, shipment, profile, marketplace, utils, orders, dashboard, supplier, inventory, AWB_generation, notifications, warehouse, team_member, locality, courier, review, product, replacement, invoice, damaged_good, sync_stock, temp_product, proxy, scan_awb, reverse_invoice, packing_order
 from app.database import Base, engine
-from app.database import get_db
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.models.marketplace import Marketplace
-from app.models.locality import Locality
-from sqlalchemy.orm import Session
 import ssl
 import logging
 
 logging.getLogger("sqlalchemy").setLevel(logging.ERROR)
 
 # member
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from pydantic import BaseModel
-from typing import Optional
-# from module import Member, get_member, check_access
 
 app = FastAPI()
 
