@@ -1,2 +1,2 @@
 from .user import UserCreate, UserRead, UserUpdate
-from .product import ProductCreate, ProductRead, ProductUpdate
+from .internal_product import Internal_ProductCreate, Internal_ProductRead, Internal_ProductUpdate

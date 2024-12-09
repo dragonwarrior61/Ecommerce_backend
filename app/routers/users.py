@@ -19,6 +19,7 @@ from app.utils.role_utils import convert_role_to_string
 from datetime import datetime
 import humanize
 import random
+from app.config import settings
 
 router = APIRouter()
 
@@ -40,22 +41,16 @@ def generate_initial(full_name: str):
     state = random.choice(["danger", "warning", "primary"])
     return {"label": label, "state": state}
 
-async def get_users_with_profiles(db: AsyncSession, offset: int = 0, limit: int = 10) -> List[UserProfileRead]:
+async def get_users_with_profiles(db: AsyncSession) -> List[UserProfileRead]:
     result = await db.execute(
         select(User)
-        .offset(offset)
-        .limit(limit)
         .options(selectinload(User.profile))
     )
     users = result.scalars().all()
     user_profiles = []
 
     for user in users:
-        if user.profile and user.profile.avatar:
-            avatar = user.profile.avatar
-        else:
-            avatar = generate_initial(user.full_name)
-        
+        avatar = generate_initial(user.full_name) if not user.profile or not user.profile.avatar else user.profile.avatar
         profile = None
         if user.profile:
             profile = ProfileRead(
@@ -64,26 +59,25 @@ async def get_users_with_profiles(db: AsyncSession, offset: int = 0, limit: int 
                 company=user.profile.company,
                 phone=user.profile.phone,
                 country=user.profile.country,
+                avatar=user.profile.avatar  # Directly use the avatar from the profile if available
             )
             
         user_profile = UserProfileRead(
-                id=user.id,
-                name=user.full_name,
-                email=user.email,
-                role=convert_role_to_string(user.role),
-                joined_day=humanize.naturaltime(user.created_at),
-                updated_at=user.updated_at,
-                last_login=humanize.naturaltime(datetime.utcnow() - user.last_logged_in) if user.last_logged_in else None,
-                profile=profile
-            )
-        if user.profile.avatar == "":
-            user_profile.initials = avatar
-        else:
-            user_profile.avatar = avatar
-        
-        user_profiles.append(
-            user_profile
+            id=user.id,
+            full_name=user.full_name,
+            username=user.username,
+            email=user.email,
+            address = user.address,
+            role=convert_role_to_string(user.role),
+            joined_day=humanize.naturaltime(user.created_at),
+            updated_at=user.updated_at,
+            last_login=humanize.naturaltime(datetime.utcnow() - user.last_logged_in) if user.last_logged_in else None,
+            profile=profile,
+            access = user.access,
+            avatar=avatar
         )
+        
+        user_profiles.append(user_profile)
     return user_profiles
 
 @router.post("/", response_model=Token)
@@ -101,12 +95,15 @@ async def create_user(user: UserCreate, db: AsyncSession = Depends(get_db)):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="User already registered",
         )
+    
     hashed_password = get_password_hash(user.password)
     db_user = User(
         username=user.username, email=user.email, full_name=user.full_name, role=user.role, hashed_password=hashed_password
     )
     db.add(db_user)
-    await db.flush()
+    await db.flush()  # This makes sure the db_user gets an ID from the database
+
+    # Now create the profile with the correct user_id
     db_profile = Profile(
         user_id=db_user.id,
         company="",
@@ -114,22 +111,33 @@ async def create_user(user: UserCreate, db: AsyncSession = Depends(get_db)):
         country="",
         avatar=""
     )
-    db.add(db_profile)
-    await db.commit()
-    await db.refresh(db_user)
-    user = await authenticate_user(db, user.email, user.password)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "bearer"},
-        )
-    await update_last_logged_in(db, user.id)
-    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    refresh_token_expires = timedelta(minutes=settings.REFRESH_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(data={"email": user.email}, expires_delta=access_token_expires)
-    refresh_token = create_refresh_token(data={"email": user.email}, expires_delta=refresh_token_expires)
+    
+    settings.update_flag = 1
+    try:
+        db.add(db_profile)
+        await db.commit()
+        await db.refresh(db_user)
+    
+        user = await authenticate_user(db, user.email, user.password)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect username or password",
+                headers={"WWW-Authenticate": "bearer"},
+            )
+        
+        await update_last_logged_in(db, user.id)
+        access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        refresh_token_expires = timedelta(minutes=settings.REFRESH_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(data={"email": user.email}, expires_delta=access_token_expires)
+        refresh_token = create_refresh_token(data={"email": user.email}, expires_delta=refresh_token_expires)
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
+    
     return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
+
 
 @router.get("/{user_id}", response_model=UserProfileRead)
 async def read_user(user_id: int, db: AsyncSession = Depends(get_db)):
@@ -141,8 +149,10 @@ async def read_user(user_id: int, db: AsyncSession = Depends(get_db)):
         avatar = generate_initial(user.full_name)
     user_profile = UserProfileRead(
         id=user.id,
-        name=user.full_name,
+        full_name=user.full_name,
         email=user.email,
+        username=user.username,
+        access=user.access,
         role=convert_role_to_string(user.role)
     )
     if user.profile.avatar == "":
@@ -153,56 +163,50 @@ async def read_user(user_id: int, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=404, detail="User not found")
     return user_profile
 
-@router.get("/", response_model=UserResponse)
+@router.get("/")
 async def read_users(
-    db: AsyncSession = Depends(get_db),
-    page: int = Query(1, ge=1, description="Page number"),
-    items_per_page: int = Query(10, ge=1, le=100, description="Number of items per page")
+    db: AsyncSession = Depends(get_db)
 ):
-    offset = (page - 1) * items_per_page
-    users = await get_users_with_profiles(db, offset=offset, limit=items_per_page)
+    users = await get_users_with_profiles(db)
     
-    total_users = await db.execute(select(func.count(User.id)))
-    total = total_users.scalar()
-
-    last_page = (total + items_per_page - 1) // items_per_page
-    from_item = offset + 1
-    to_item = min(offset + items_per_page, total)
-
-    response = UserResponse(
-        data=users,
-        payload=ResponsePayload(
-            pagination=Pagination(
-                from_item=from_item,
-                last_page=last_page,
-                page=page,
-                total=total,
-                to=to_item
-            )
-        )
-    )
-    
-    return response
+    return users
 
 @router.put("/{user_id}", response_model=UserRead)
 async def update_user(user_id: int, user: UserUpdate, db: AsyncSession = Depends(get_db)):
-    db_user = await db.execute(select(User).filter(User.id == user_id)).scalars().first()
+    result = await db.execute(select(User).filter(User.id == user_id))
+    db_user = result.scalars().first()
     if db_user is None:
         raise HTTPException(status_code=404, detail="User not found")
     for var, value in vars(user).items():
-        setattr(db_user, var, value) if value else None
+        setattr(db_user, var, value) if value is not None else None
     if user.password:
         db_user.hashed_password = get_password_hash(user.password)
     db_user.updated_at = datetime.utcnow()
-    await db.commit()
-    await db.refresh(db_user)
+    
+    settings.update_flag = 1
+    try:
+        await db.commit()
+        await db.refresh(db_user)
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
+    
     return db_user
 
 @router.delete("/{user_id}", response_model=UserRead)
 async def delete_user(user_id: int, db: AsyncSession = Depends(get_db)):
-    user = await db.execute(select(User).filter(User.id == user_id)).scalars().first()
+    result = await db.execute(select(User).filter(User.id == user_id))
+    user = result.scalars().first()
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
-    await db.delete(user)
-    await db.commit()
+    
+    settings.update_flag = 1
+    try:
+        await db.delete(user)
+        await db.commit()
+    except Exception as e:
+        db.rollback()
+    finally:
+        settings.update_flag = 0
     return user
