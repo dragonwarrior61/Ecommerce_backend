@@ -22,3 +22,4 @@ pandas
 google-auth
 google-api-python-client
 httpx
+openpyxl

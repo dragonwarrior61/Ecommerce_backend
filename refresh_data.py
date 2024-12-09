@@ -36,7 +36,6 @@ from app.models.invoice import Invoice
 from app.models.billing_software import Billing_software
 from app.models.orders import Order
 from sqlalchemy.orm import Session
-import ssl
 import logging
 from sqlalchemy import update
 from datetime import datetime, timedelta
@@ -62,9 +61,6 @@ class MemberResponse(BaseModel):
 
 
 app = FastAPI()
-
-ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-ssl_context.load_cert_chain('ssl/cert.pem', keyfile='ssl/key.pem')
 
 # @app.on_event("startup")
 # async def on_startup(db: AsyncSession = Depends(get_db)):
