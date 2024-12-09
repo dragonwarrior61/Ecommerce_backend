@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Body
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 from sqlalchemy.future import select
 from sqlalchemy import and_, any_, BigInteger, cast
-from typing import List
 from app.database import get_db
 from app.models.packing_order import Packing_order
 from app.models.user import User
@@ -14,12 +14,12 @@ from app.models.orders import Order
 from app.models.awb import AWB
 from app.models.team_member import Team_member
 from app.routers.auth import get_current_user
-from collections import defaultdict
 from app.schemas.packing_order import Packing_orderCreate, Packing_orderRead, Packing_orderUpdate
 from app.config import settings
+from collections import defaultdict
 from pydantic import BaseModel
-import base64
-from fastapi.responses import JSONResponse
+from typing import List
+import base64, os
 
 router = APIRouter()
 
@@ -27,26 +27,58 @@ class PictureData(BaseModel):
     data_url: str
     name: str
 
+class EANPictureData(BaseModel):
+    data_url: str
+    name: str
+    order_id: int
+
 @router.post("/save_picture")
-async def save_picture(payload: PictureData):
+async def save_picture(payload: PictureData, user: User = Depends(get_current_user)):
+    if user.role == -1:
+        raise HTTPException(status_code=401, detail="Authentication error")
+
     try:
-        # Validate data_url
         if not payload.data_url.startswith("data:image/"):
             raise HTTPException(status_code=400, detail="Invalid data URL format")
 
-        # Split header and base64 data
         header, base64_data = payload.data_url.split(",", 1)
-
-        # Decode the base64 data
         image_data = base64.b64decode(base64_data)
-
-        # Get image type from the header (e.g., png, jpeg)
         image_type = header.split(";")[0].split("/")[1]
-
-        # Create the file path
         file_name = f"/var/www/html/pack_pictures/{payload.name}.{image_type}"
 
-        # Save the image file to disk
+        with open(file_name, "wb") as f:
+            f.write(image_data)
+
+        return JSONResponse(content={"message": f"Image uploaded successfully as {file_name}"})
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error: {str(e)}")
+
+@router.post("/save_ean_picture")
+async def save_ean_picture(payload: EANPictureData, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    if user.role == -1:
+        raise HTTPException(status_code=401, detail="Authentication error")
+    
+    if user.role != 4:
+        result = await db.execute(select(Team_member).where(Team_member.user == user.id))
+        db_team = result.scalars().first()
+        user_id = db_team.admin
+    else:
+        user_id = user.id
+
+    try:
+        if not payload.data_url.startswith("data:image/"):
+            raise HTTPException(status_code=400, detail="Invalid data URL format")
+        
+        result = db.execute(select(Order).where(Order.id == payload.order_id, Order.user_id == user_id))
+
+        os.makedirs(f"/var/www/html/ean_pictures/{payload.order_id}", exist_ok=True)
+
+        header, base64_data = payload.data_url.split(",", 1)
+        image_data = base64.b64decode(base64_data)
+        image_type = header.split(";")[0].split("/")[1]
+        file_name = f"/var/www/html/ean_pictures/{payload.order_id}/{payload.name}.{image_type}"
+
         with open(file_name, "wb") as f:
             f.write(image_data)
 
