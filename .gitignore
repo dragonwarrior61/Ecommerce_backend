@@ -5,3 +5,4 @@ env
 uploads
 API_emag_altex
 app/config.py
+ssl

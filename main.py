@@ -31,6 +31,9 @@ class MemberResponse(BaseModel):
 
 app = FastAPI()
 
+ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+ssl_context.load_cert_chain('ssl/cert.pem', keyfile='ssl/key.pem')
+
 origins = [
     "*"
 ]
@@ -88,5 +91,7 @@ if __name__ == "__main__":
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
-        port=8000
+        port=8000,
+        ssl_keyfile=ssl_keyfile,
+        ssl_certfile=ssl_certfile,
     )
