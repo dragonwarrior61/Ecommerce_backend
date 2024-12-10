@@ -1,33 +1,19 @@
 import asyncio
 from fastapi import FastAPI, Depends
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi_utils.tasks import repeat_every
 from sqlalchemy import select
 from sqlalchemy import any_, cast, BigInteger
-from app.routers import auth, internal_products, returns, users, shipment, profile, marketplace, utils, orders, dashboard, supplier, inventory, AWB_generation, notifications, warehouse
-from app.database import Base, engine
-from app.backup import export_to_csv, upload_to_google_sheets
 from app.database import get_db
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.utils.emag_products import refresh_emag_products, post_stock_emag
-from app.utils.emag_orders import refresh_emag_orders, refresh_emag_all_orders, refresh_months_emag_orders
+from app.utils.emag_orders import refresh_emag_orders, refresh_months_emag_orders
 from app.utils.emag_returns import refresh_emag_returns
-from app.utils.emag_reviews import refresh_emag_reviews
-from app.utils.emag_awbs import *
-from app.utils.emag_locality import refresh_emag_localities
 from app.utils.emag_courier import refresh_emag_couriers
-from app.utils.altex_product import refresh_altex_products, post_stock_altex
+from app.utils.altex_product import refresh_altex_products
 from app.utils.altex_orders import refresh_altex_orders
-from app.utils.altex_courier import refresh_altex_couriers
 from app.utils.altex_returns import refresh_altex_rmas
-from app.utils.altex_location import refresh_altex_locations
-from app.utils.stock_sync import calc_order_stock
 from app.utils.smart_api import get_stock, refresh_invoice
 from app.utils.sameday import tracking, auth_sameday
-from app.routers.reviews import *
 from app.models.awb import AWB
-from app.models.user import User
-from app.routers.auth import get_current_user
 from app.models.marketplace import Marketplace
 from app.models.internal_product import Internal_Product
 from app.models.damaged_good import Damaged_good
@@ -36,22 +22,14 @@ from app.models.invoice import Invoice
 from app.models.billing_software import Billing_software
 from app.models.orders import Order
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from sqlalchemy.orm import Session
 from contextlib import asynccontextmanager
 import ssl
 import logging
-from sqlalchemy import update
 from datetime import datetime, timedelta
-import openpyxl
 from openpyxl import Workbook
-from app.config import settings
 from sqlalchemy.exc import SQLAlchemyError
-from app.utils.emag_invoice import post_pdf, post_factura_pdf
-# member
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-from typing import Optional
-# from module import Member, get_member, check_access
+from app.utils.emag_invoice import post_factura_pdf
+from fastapi import FastAPI
 
 logging.getLogger("sqlalchemy").setLevel(logging.ERROR)
 
@@ -60,7 +38,6 @@ app = FastAPI()
 ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
 ssl_context.load_cert_chain('ssl/cert.pem', keyfile='ssl/key.pem')
 
-# @app.on_event("startup")
 # async def on_startup(db: AsyncSession = Depends(get_db)):
 #     async for db in get_db():
 #         async with db as session:
@@ -83,7 +60,7 @@ ssl_context.load_cert_chain('ssl/cert.pem', keyfile='ssl/key.pem')
 #                     # print("Refresh orders form marketplace")
 #                     # await refresh_emag_all_orders(marketplace, session)
 #                     continue
-# @app.on_event("startup")
+
 # async def update_invoice_post(db: AsyncSession = Depends(get_db)):
 #     async for db in get_db():
 #         async with db as session:
@@ -108,7 +85,7 @@ ssl_context.load_cert_chain('ssl/cert.pem', keyfile='ssl/key.pem')
 #                 await session.commit()
 #             except Exception as e:
 #                 print(f"Error in post invoice: {e}")
-# @app.on_event("startup")
+
 # async def update_damaged_goods(db: AsyncSession = Depends(get_db)):
 #     async for db in get_db():
 #         async with db as session:
@@ -183,14 +160,14 @@ async def update_awb(db: AsyncSession = Depends(get_db)):
                 api_key = await auth_sameday(sameday)
                 sameday.registration_number = api_key
             await session.commit()
-            
+
             awb_status_list = [56, 85, 84, 37, 63, 1, 2, 25, 33, 7, 78, 6, 26, 14, 23, 35, 79, 112, 81, 10, 113, 27, 87, 4, 99, 74, 116, 18, 61, 111, 57, 137, 82, 3, 11, 28, 127, 17,
                             68, 101, 147, 73, 126, 47, 145, 128, 19, 0, 5, 22, 62, 65, 140, 149, 153]
             # awb_status_list = [93, 16, 15, 9]
             print("Start updating AWB status")
 
             error_barcode = []
-            
+
             try:
                 result = await session.execute(
                     select(AWB)
@@ -261,9 +238,7 @@ async def update_awb(db: AsyncSession = Depends(get_db)):
             
             print(f"Getting awb status error barcodes {error_barcode}")
             print("AWB status update completed")
-            
-# @app.on_event("startup")
-# @repeat_every(seconds=86400)
+
 # def backup_db():
 #     export_to_csv()
 
@@ -273,6 +248,7 @@ async def refresh_orders_data(db:AsyncSession = Depends(get_db)):
             print("Starting orders refresh")
             result = await session.execute(select(Marketplace).order_by(Marketplace.id.asc()))
             marketplaces = result.scalars().all()
+            await session.commit()
             print(f"Success getting {len(marketplaces)} marketplaces")
             for marketplace in marketplaces:
                 if marketplace.marketplaceDomain == "altex.ro":
@@ -493,10 +469,22 @@ async def refresh_data(db: AsyncSession = Depends(get_db)):
                     # print("Check hijacker and review")
                     # await check_hijacker_and_bad_reviews(marketplace, session)
 
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("App started")
+    scheduler = AsyncIOScheduler()
+    scheduler.add_job(update_awb, trigger='interval', seconds=14400)
+    scheduler.add_job(refresh_orders_data, trigger='interval', seconds=900)
+    scheduler.add_job(generate_invoice, trigger='interval', seconds=900)
+    scheduler.add_job(refresh_months_order, trigger='interval', seconds=28800)
+    scheduler.add_job(send_stock, trigger='interval', seconds=7200)
+    scheduler.add_job(refresh_stock, trigger='interval', seconds=7200)
+    scheduler.add_job(refresh_data, trigger='interval', seconds=86400)
+    # scheduler.add_job(backup_db, trigger='interval', seconds=86400)
+    scheduler.start()
+    # asyncio.create_task(on_startup())
+    # asyncio.create_task(update_damaged_goods())
+    # asyncio.create_task(update_invoice_post())
     asyncio.create_task(update_awb())
     asyncio.create_task(refresh_orders_data())
     asyncio.create_task(generate_invoice())
@@ -504,19 +492,10 @@ async def lifespan(app: FastAPI):
     asyncio.create_task(send_stock())
     asyncio.create_task(refresh_stock())
     asyncio.create_task(refresh_data())
-    scheduler = AsyncIOScheduler()
-    scheduler.add_job(func=lambda: asyncio.run(update_awb()), trigger='interval', seconds=14400)
-    scheduler.add_job(func=lambda: asyncio.run(refresh_orders_data()), trigger='interval', seconds=900)
-    scheduler.add_job(func=lambda: asyncio.run(generate_invoice()), trigger='interval', seconds=900)
-    scheduler.add_job(func=lambda: asyncio.run(refresh_months_order()), trigger='interval', seconds=28800)
-    scheduler.add_job(func=lambda: asyncio.run(send_stock()), trigger='interval', seconds=7200)
-    scheduler.add_job(func=lambda: asyncio.run(refresh_stock()), trigger='interval', seconds=7200)
-    scheduler.add_job(func=lambda: asyncio.run(refresh_data()), trigger='interval', seconds=86400)
-    scheduler.start()
+    # asyncio.create_task(backup_db())
     yield
     print("App stopped")
 
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("refresh_data:app", host="0.0.0.0", port=3000, reload=False)
-    
