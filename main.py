@@ -1,23 +1,11 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers import auth, billing_software, internal_products, returns, users, shipment, profile, marketplace, utils, orders, dashboard, supplier, inventory, AWB_generation, notifications, warehouse, team_member, locality, courier, review, product, replacement, invoice, damaged_good, sync_stock, temp_product, proxy, scan_awb, reverse_invoice, packing_order
 from app.database import Base, engine
-import ssl
-import logging
+import asyncio, logging, ssl
 
 logging.getLogger("sqlalchemy").setLevel(logging.ERROR)
-
-# member
-from fastapi import FastAPI
-from pydantic import BaseModel
-
-app = FastAPI()
-
-class MemberResponse(BaseModel):
-    username: str
-    role_name: str
-    access_level: str
-
 
 app = FastAPI()
 
@@ -39,9 +27,12 @@ async def init_models():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-@app.on_event("startup")
-async def on_startup():
-    await init_models()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("App started")
+    asyncio.create_task(init_models())
+    yield
+    print("App stopped")
 
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(dashboard.router, prefix="/api/dashboard", tags=["dashboard"])
