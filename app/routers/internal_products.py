@@ -122,7 +122,8 @@ async def get_imports(ean: str, db:AsyncSession):
 
     for shipment in shipments:
         quantity = 0
-        if shipment.status == "Arrived":
+        status = shipment.status
+        if status == "Arrived":
             continue
         ean_list = shipment.ean
         quantity_list = shipment.quantity
@@ -134,7 +135,8 @@ async def get_imports(ean: str, db:AsyncSession):
         imports_data.append({
             "id": shipment.id,
             "title": title,
-            "quantity": quantity
+            "quantity": quantity,
+            "status": status
         })
 
     return imports_data
