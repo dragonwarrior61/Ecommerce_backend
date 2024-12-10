@@ -512,13 +512,6 @@ async def refresh_data(db: AsyncSession = Depends(get_db)):
                     # logging.info("Check hijacker and review")
                     # await check_hijacker_and_bad_reviews(marketplace, session)
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    scheduler = AsyncIOScheduler(timezone=f'{your_timezone}')
-    scheduler.add_job(func=repeat_task, trigger='interval', seconds=10)
-    scheduler.start()
-    yield
-
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("refresh_data:app", host="0.0.0.0", port=3000, reload=False)
