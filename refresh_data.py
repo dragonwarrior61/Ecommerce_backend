@@ -37,7 +37,6 @@ from app.models.billing_software import Billing_software
 from app.models.orders import Order
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy.orm import Session
-from contextlib import asynccontextmanager
 import ssl
 import logging
 from sqlalchemy import update
@@ -148,7 +147,9 @@ ssl_context.load_cert_chain('ssl/cert.pem', keyfile='ssl/key.pem')
 #                 await session.commit()
 #             except Exception as e:
 #                 logging.error(f"Unexpected error: {e}")
-
+                            
+@app.on_event("startup")
+@repeat_every(seconds=14400)
 async def update_awb(db: AsyncSession = Depends(get_db)):
     async for db in get_db():
         async with db as session:
@@ -275,6 +276,8 @@ async def update_awb(db: AsyncSession = Depends(get_db)):
 # def backup_db():
 #     export_to_csv()
 
+@app.on_event("startup")
+@repeat_every(seconds=900)
 async def refresh_orders_data(db:AsyncSession = Depends(get_db)):
     async for db in get_db():
         async with db as session:
@@ -294,12 +297,15 @@ async def refresh_orders_data(db:AsyncSession = Depends(get_db)):
                     logging.info("Refresh orders from marketplace")
                     await refresh_emag_orders(marketplace)
 
+@app.on_event("startup")
+@repeat_every(seconds=900)
 async def generate_invoice(db:AsyncSession = Depends(get_db)):
     async for db in get_db():
         async with db as session:
             logging.info("Create Invoice and Reverse Invoice")
             await refresh_invoice(session)
-
+@app.on_event("startup")
+@repeat_every(seconds=28800)
 async def refresh_months_order(db:AsyncSession = Depends(get_db)):
     async for db in get_db():
         async with db as session:
@@ -315,6 +321,8 @@ async def refresh_months_order(db:AsyncSession = Depends(get_db)):
                     logging.info("Refresh orders from marketplace")
                     await refresh_months_emag_orders(marketplace)
 
+@app.on_event("startup")
+@repeat_every(seconds=7200)
 async def send_stock(db:AsyncSession = Depends(get_db)):
     async for db in get_db():
         try:
@@ -432,6 +440,8 @@ async def send_stock(db:AsyncSession = Depends(get_db)):
             logging.error(f"An error occurred: {e}")
             await session.rollback()                
 
+@app.on_event("startup")
+@repeat_every(seconds=7200)
 async def refresh_stock(db: AsyncSession = Depends(get_db)):
     async for db in get_db():
         async with db as session:
@@ -480,7 +490,8 @@ async def refresh_stock(db: AsyncSession = Depends(get_db)):
             except Exception as e:
                 logging.info(f"sync stock error {e}")
 
-# Run daily for deleting video last 30 days
+@app.on_event("startup")
+@repeat_every(seconds=86400)  # Run daily for deleting video last 30 days
 async def refresh_data(db: AsyncSession = Depends(get_db)): 
     async for db in get_db():
         async with db as session:
@@ -501,27 +512,12 @@ async def refresh_data(db: AsyncSession = Depends(get_db)):
                     # logging.info("Check hijacker and review")
                     # await check_hijacker_and_bad_reviews(marketplace, session)
 
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    update_awb()
-    refresh_orders_data()
-    generate_invoice()
-    refresh_months_order()
-    send_stock()
-    refresh_stock()
-    refresh_data()
-    scheduler = AsyncIOScheduler()
-    scheduler.add_job(func=update_awb, trigger='interval', seconds=14400)
-    scheduler.add_job(func=refresh_orders_data, trigger='interval', seconds=900)
-    scheduler.add_job(func=generate_invoice, trigger='interval', seconds=900)
-    scheduler.add_job(func=refresh_months_order, trigger='interval', seconds=28800)
-    scheduler.add_job(func=send_stock, trigger='interval', seconds=7200)
-    scheduler.add_job(func=refresh_stock, trigger='interval', seconds=7200)
-    scheduler.add_job(func=refresh_data, trigger='interval', seconds=86400)
+    scheduler = AsyncIOScheduler(timezone=f'{your_timezone}')
+    scheduler.add_job(func=repeat_task, trigger='interval', seconds=10)
     scheduler.start()
     yield
-    print("App stopped")
 
 if __name__ == "__main__":
     import uvicorn
