@@ -501,8 +501,16 @@ async def refresh_data(db: AsyncSession = Depends(get_db)):
                     # logging.info("Check hijacker and review")
                     # await check_hijacker_and_bad_reviews(marketplace, session)
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    update_awb()
+    refresh_orders_data()
+    generate_invoice()
+    refresh_months_order()
+    send_stock()
+    refresh_stock()
+    refresh_data()
     scheduler = AsyncIOScheduler()
     scheduler.add_job(func=update_awb, trigger='interval', seconds=14400)
     scheduler.add_job(func=refresh_orders_data, trigger='interval', seconds=900)
@@ -513,6 +521,7 @@ async def lifespan(app: FastAPI):
     scheduler.add_job(func=refresh_data, trigger='interval', seconds=86400)
     scheduler.start()
     yield
+    print("App stopped")
 
 if __name__ == "__main__":
     import uvicorn
