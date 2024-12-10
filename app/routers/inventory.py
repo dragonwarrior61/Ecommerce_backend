@@ -165,39 +165,39 @@ async def get_product_info(
             else:
                 quantity = ""
         
-            if (query_imports_stocks == 0 or imports < query_imports_stocks) or (query_stock_days == 0 or stock_imports_days < query_stock_days):
-                product_data.append({
-                    "id": product.id,
-                    "type": type,
-                    "product_name": product.product_name,
-                    "ean": product.ean,
-                    "sales_per_day": ave_sales,
-                    "quantity": quantity,
-                    "image_link": product.image_link,
-                    "link_address_1688": product.link_address_1688,
-                    "sale_price": product.price,
-                    "wechat": product.supplier_id,
-                    "stock_imports": [product.stock, ave_sales, imports],
-                    "day_stock": [stock_days, stock_imports_days],
-                    "imports_data": imports_datas,
-                    "pcs_ctn": product.pcs_ctn,
-                    "masterbox_title": product.masterbox_title,
-                    "barcode_title": product.barcode_title, 
-                    "price_1688": product.price_1688,
-                    "link_address_1688": product.link_address_1688,
-                    "variation_name_1688": product.variation_name_1688,
-                    "dimensions": product.dimensions,
-                    "weight": product.weight,
-                    "volumetric_weight": volumetric_weight,
-                    "model_name": product.model_name,
-                    "short_product_name": product.short_product_name,
-                    "observation": product.observation,
-                    "discontinued": product.discontinued,
-                    "battery": product.battery,
-                    "sales": cnt[ean],
-                    "sales90": cnt90[ean],
-                    "product_code": product.product_code
-                })
+            # if (query_imports_stocks == 0 or imports < query_imports_stocks) or (query_stock_days == 0 or stock_imports_days < query_stock_days):
+            product_data.append({
+                "id": product.id,
+                "type": type,
+                "product_name": product.product_name,
+                "ean": product.ean,
+                "sales_per_day": ave_sales,
+                "quantity": quantity,
+                "image_link": product.image_link,
+                "link_address_1688": product.link_address_1688,
+                "sale_price": product.price,
+                "wechat": product.supplier_id,
+                "stock_imports": [product.stock, ave_sales, imports],
+                "day_stock": [stock_days, stock_imports_days],
+                "imports_data": imports_datas,
+                "pcs_ctn": product.pcs_ctn,
+                "masterbox_title": product.masterbox_title,
+                "barcode_title": product.barcode_title, 
+                "price_1688": product.price_1688,
+                "link_address_1688": product.link_address_1688,
+                "variation_name_1688": product.variation_name_1688,
+                "dimensions": product.dimensions,
+                "weight": product.weight,
+                "volumetric_weight": volumetric_weight,
+                "model_name": product.model_name,
+                "short_product_name": product.short_product_name,
+                "observation": product.observation,
+                "discontinued": product.discontinued,
+                "battery": product.battery,
+                "sales": cnt[ean],
+                "sales90": cnt90[ean],
+                "product_code": product.product_code
+            })
     return product_data
 
 @router.get('/shipment_product')
