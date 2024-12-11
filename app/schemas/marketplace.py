@@ -16,17 +16,33 @@ class CRUDOperations(BaseModel):
     count: Optional[str] = None
 
 class MarketplaceBase(BaseModel):
-    image_url: Optional[str] = None
     title: Optional[str] = None
-    owner: Optional[str] = None
     baseURL: Optional[str] = None
     marketplaceDomain: Optional[str] = None
     country: Optional[str] = None
     baseAPIURL: Optional[str] = None
     credentials: Optional[Credentials] = None
-    products_crud: Optional[CRUDOperations] = None
-    orders_crud: Optional[CRUDOperations] = None
-
+    image_url: Optional[str] = None
+    vat: Optional[int] = None
+    user_id: Optional[int] = None
+    proxy: Optional[str] = None
+    products_crud: CRUDOperations = CRUDOperations(
+        endpoint="/product_offer",
+        create="/create",
+        read="/read",
+        update="/update",
+        delete="/delete",
+        count="/count"
+    )
+    orders_crud: CRUDOperations = CRUDOperations(
+        endpoint="/order",
+        create="/create",
+        read="/read",
+        update="/update",
+        delete="/delete",
+        count="/count"
+    )
+    
 class MarketplaceCreate(MarketplaceBase):
     pass
 
