@@ -1,140 +1,80 @@
-from psycopg2 import sql
-from app.config import settings
-import requests
-import psycopg2
-import base64
-import urllib
-import hashlib
+import asyncio
 import json
-import os
-import time
 import logging
-from app.models.marketplace import Marketplace
-from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.database import get_db
-from decimal import Decimal
+import psycopg2
+from fastapi import HTTPException
+from psycopg2 import sql
+
+from app.config import settings
+from app.models import Marketplace
+from app.utils.auth_market import get_auth_marketplace
+from app.utils.httpx_request import send_post_request, send_get_request
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# PROXIES = {
-#     'http': 'http://p2p_user:jDkAx4EkAyKw@65.109.7.74:54021',
-#     'https': 'http://p2p_user:jDkAx4EkAyKw@65.109.7.74:54021',
-# }
-
-def get_attachments(API_KEY):
+async def get_attachments(marketplace: Marketplace):
     url = 'https://marketplace-api.emag.ro/api-3/product_offer/save'
-    api_key = str(API_KEY).replace("b'", '').replace("'", "")
-    headers = {
-        "Authorization": f"Basic {api_key}",
-        "Content-Type": "application/json"
-    }
-    
+    headers = get_auth_marketplace(marketplace)
     data = json.dumps({
         "itmesPerPage": 100,
         "currentPage": 1
     })
 
-    # response = requests.post(url, data=data, headers=headers, proxies=PROXIES)
-    response = requests.post(url, data=data, headers=headers)
-    if response.status_code == 200:
-        get_attachments = response.json()
-        return get_attachments
-    else:
-        logging.info(f"Failed to retrieve refunds: {response.status_code}")
-        return None
+    response = await send_post_request(url, data=data, headers=headers, error_msg='get attachements')
+    if response.status_code != 200:
+        logging.error(f"Failed to get attachments: {response.text}")
+    attachments = response.json()
+    return attachments
 
-def get_all_rmas(MARKETPLACE_API_URL, RMAS_ENDPOINT, READ_ENDPOINT,  API_KEY, currentPage, PUBLIC_KEY=None, usePublicKey=False):
-    url = f"{MARKETPLACE_API_URL}{RMAS_ENDPOINT}{READ_ENDPOINT}"
-    
-    if usePublicKey is True:
-        headers = {
-            "X-Request-Public-Key": f"{PUBLIC_KEY}",
-            "X-Request-Signature": f"{API_KEY}"
-        }
-    elif usePublicKey is False:
-        api_key = str(API_KEY).replace("b'", '').replace("'", "")
-        headers = {
-            "Authorization": f"Basic {api_key}",
-            "Content-Type": "application/json"
-        }
-
+async def get_all_rmas(marketplace: Marketplace, currentPage):
+    url = f"{marketplace.baseAPIURL}/rma/read"
+    headers = get_auth_marketplace(marketplace)
     data = json.dumps({
         "itmesPerPage": 100,
         "currentPage": currentPage
     })
-    # response = requests.post(url, data=data, headers=headers, proxies=PROXIES)
-    MAX_RETRIES = 5
-    retry_delay = 5  # seconds
+    response = await send_post_request(url, data=data, headers=headers, error_msg='retrieve refunds')
+    if response.status_code != 200:
+        logging.error(f"Failed to get rmas: {response.text}")
+    return response.json()
 
-    for attempt in range(MAX_RETRIES):
-        try:
-            response = requests.post(url, data=data, headers=headers, timeout=20)
-            if response.status_code == 200:
-                return response.json()
-            else:
-                logging.info(f"Failed to retrieve refunds: {response.status_code}")
-                return None
-        except requests.Timeout:
-            logging.warning(f"Request timed out. Attempt {attempt + 1} of {MAX_RETRIES}. Retrying...")
-            time.sleep(retry_delay)
-    logging.error("All attempts failed. Could not retrieve refunds.")
-    return None
-
-def get_awb(reservation_id, marketplace: Marketplace):
+async def get_awb(reservation_id, marketplace: Marketplace):
     baseurl = marketplace.baseAPIURL
+    headers = get_auth_marketplace(marketplace)
     url = f'{baseurl}/awb/read'
-    USERNAME = marketplace.credentials["firstKey"]
-    PASSWORD = marketplace.credentials["secondKey"]
-    API_KEY = base64.b64encode(f"{USERNAME}:{PASSWORD}".encode('utf-8'))
-    
-    api_key = str(API_KEY).replace("b'", '').replace("'", "")
-    headers = {
-        "Authorization": f"Basic {api_key}",
-        "Content-Type": "application/json"
-    }
-    
     data = json.dumps({
         "reservation_id": reservation_id
     })
-    response = requests.post(url, data=data, headers=headers)
-    if response.status_code == 200:
-        awb = response.json()
-        return awb
-    elif response.status_code == 429:
-        retry_after = int(response.headers.get("Retry-After", 60))  # Default to 60 seconds if not provided
-        logging.info(f"Rate limit exceeded. Retrying after {retry_after} seconds.")
-        time.sleep(retry_after)
-        return get_awb(reservation_id, marketplace)  # Retry the request
-    else:
-        logging.info(f"Failed to retrieve refunds: {response.status_code} {reservation_id}")
-        return None
+    response = await send_post_request(url, data=data, headers=headers, error_msg="get awb")
+    if response.status_code != 200:
+        logging.error(f"Failed to get awb: {response.text}")
+    awb = response.json()
+    return awb
 
-def count_all_rmas(MARKETPLACE_API_URL, RMAS_ENDPOINT, COUNT_ENGPOINT, API_KEY):
+async def count_all_rmas(marketplace: Marketplace):
     logging.info("counting start")
-    url = f"{MARKETPLACE_API_URL}{RMAS_ENDPOINT}{COUNT_ENGPOINT}"
+    url = f"{marketplace.baseAPIURL}/rma/count"
 
-    api_key = str(API_KEY).replace("b'", '').replace("'", "")
-    headers = {
-        "Authorization": f"Basic {api_key}",
-        "Content-Type": "application/json"
-    }
+    headers = get_auth_marketplace(marketplace)
 
     # response = requests.post(url, headers=headers, proxies=PROXIES)
     MAX_RETRIES = 5
     retry_delay = 5  # seconds
+    async def retry(attempt: int):
+        logging.warning(f"Request timed out. Attempt {attempt + 1} of {MAX_RETRIES}. Retrying...")
+        await asyncio.sleep(retry_delay)
 
     for attempt in range(MAX_RETRIES):
         try:
-            response = requests.get(url, headers=headers, timeout=20)
+            response = await send_get_request(url, headers=headers, error_msg='cound refunds')
             if response.status_code == 200:
                 return response.json()
             else:
-                logging.info(f"Failed to retrieve refunds: {response.status_code}")
-                return None
-        except requests.Timeout:
-            logging.warning(f"Request timed out. Attempt {attempt + 1} of {MAX_RETRIES}. Retrying...")
-            time.sleep(retry_delay)
+                logging.error(f"Failed to cound rmas from {marketplace.baseURL}: {response.text}")
+                await retry(attempt)
+        except Exception as e:
+            logging.error(f"An error occured: {e}")
+            await retry(attempt)
     logging.error("All attempts failed. Could not retrieve refunds.")
 
 async def insert_rmas_into_db(rmas, marketplace: Marketplace):
@@ -181,7 +121,7 @@ async def insert_rmas_into_db(rmas, marketplace: Marketplace):
                 quantity = EXCLUDED.quantity,
                 observations = EXCLUDED.observations,
                 awb_status = EXCLUDED.awb_status,
-                user_id = EXCLUDED.user_id         
+                user_id = EXCLUDED.user_id
         """).format(sql.Identifier("returns"))
 
         for rma in rmas:
@@ -260,29 +200,18 @@ async def refresh_emag_returns(marketplace: Marketplace):
     # create_database()
     logging.info(f">>>>>>> Refreshing Marketplace : {marketplace.title} user is {marketplace.user_id} <<<<<<<<")
 
-    user_id = marketplace.user_id
-    USERNAME = marketplace.credentials["firstKey"]
-    PASSWORD = marketplace.credentials["secondKey"]
-    API_KEY = base64.b64encode(f"{USERNAME}:{PASSWORD}".encode('utf-8'))
-    
-    baseAPIURL = marketplace.baseAPIURL
-    endpoint = "/rma"
-    read_endpoint = "/read"
-    count_endpoint = "/count"
-
-    result = count_all_rmas(baseAPIURL, endpoint, count_endpoint, API_KEY)
-    if result:
+    result = await count_all_rmas(marketplace)
+    if result and result['isError'] == False:
         pages = result['results']['noOfPages']
         items = result['results']['noOfItems']
         logging.info(f"------------pages--------------{pages}")
         logging.info(f"------------items--------------{items}")
-    try:
-        current_page  = 1
-        while current_page <= int(pages):
-            rmas = get_all_rmas(baseAPIURL, endpoint, read_endpoint, API_KEY, current_page)
+    current_page  = 1
+    while current_page <= int(pages):
+        try:
+            rmas = await get_all_rmas(marketplace, current_page)
             logging.info(f">>>>>>> Current Page : {current_page} <<<<<<<<")
             await insert_rmas_into_db(rmas['results'], marketplace)
             current_page += 1
-    except Exception as e:
-        print('++++++++++++++++++++++++++++++++++++++++++')
-        print(e)
+        except Exception as e:
+            logging.error(f"An error occured: {e}")

@@ -55,7 +55,7 @@ def check_access(member, feature):
         allowed_features = role_access_map[member.role.access_level]
         if feature in allowed_features or "*" in allowed_features:
             return True
-    
+
     return False
 
 # Example usage

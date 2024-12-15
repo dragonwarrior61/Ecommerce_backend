@@ -1,69 +1,31 @@
-import requests
 import psycopg2
-import base64
-import hashlib
-import json
-import os
-from app.config import settings
-from psycopg2 import sql
-from urllib.parse import urlparse
-from app.models.marketplace import Marketplace
-from app.models.orders import Order
-from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List, Dict, Any
-
-from sqlalchemy.exc import IntegrityError
 import logging
-from sqlalchemy import insert
-from sqlalchemy.dialects.postgresql import insert as pg_insert
-from datetime import datetime
-from decimal import Decimal
+from fastapi import HTTPException
+from psycopg2 import sql
+
+from app.config import settings, PROXIES
+from app.models import Marketplace
+from app.utils.auth_market import get_auth_marketplace
+from app.utils.httpx_request import send_get_request
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-
-MARKETPLACE_URL = 'https://marketplace.emag.ro/'
-MARKETPLACE_API_URL = 'https://marketplace-api.emag.ro/api-3'
-ORDERS_ENDPOINT = "/order"
-
-PROXIES = {
-    'http': 'http://p2p_user:jDkAx4EkAyKw@65.109.7.74:54021',
-    'https': 'http://p2p_user:jDkAx4EkAyKw@65.109.7.74:54021',
-}
-    
-def generate_signature(public_key, private_key, params):
-
-    now = datetime.utcnow()
-    day = now.strftime('%d')
-    month = now.strftime('%m')
-    timestamp = f"{day}{month}"
-
-    string_to_hash = f"{public_key}||{hashlib.sha512(private_key.encode()).hexdigest()}||{params}||{timestamp}"
-    hash_result = hashlib.sha512(string_to_hash.encode()).hexdigest().lower()
-    signature = f"{timestamp}{hash_result}"
-    # signature = timestamp + hash_result
-    return signature
-
-def get_rmas(url, public_key, private_key, page_nr):
-
+async def get_rmas(marketplace: Marketplace, page_nr):
     params = f"page_nr={page_nr}"
-    url = f"{url}sales/rma/?{params}"
-    signature = generate_signature(public_key, private_key, params)
-    headers = {
-        'X-Request-Public-Key': public_key,
-        'X-Request-Signature': signature
-    }
-    response = requests.get(url, headers=headers, verify=False, proxies=PROXIES)
+    url = f"{marketplace.baseAPIURL}sales/rma/?{params}"
+    headers = get_auth_marketplace(marketplace, params=params)
+    response = await send_get_request(url, headers=headers, proxies=PROXIES)
+    if response.status_code != 200:
+        logging.error(f"Failed to get rmas from altex: {response.text}")
     return response.json()
 
-def get_detail_rma(url, public_key, private_key, order_id):
+async def get_detail_rma(marketplace: Marketplace, order_id):
     params = ""
-    url = f"{url}sales/rms/{order_id}/"
-    signature = generate_signature(public_key, private_key, params)
-    headers = {
-        'X-Request-Public-Key': public_key,
-        'X-Request-Signature': signature
-    }
-    response = requests.get(url, headers=headers, verify=False, proxies=PROXIES)
+    url = f"{marketplace.baseAPIURL}sales/rms/{order_id}/"
+    headers = get_auth_marketplace(marketplace, params=params)
+    response = await send_get_request(url, headers=headers, proxies=PROXIES)
+    if response.status_code != 200:
+        logging.error(f"Failed to get detailed RMA: {response.text}")
     return response.json()
 
 async def insert_rmas(rmas, place:str, user_id):
@@ -101,7 +63,7 @@ async def insert_rmas(rmas, place:str, user_id):
                 %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
             ) ON CONFLICT (eamg_id, return_market_place) DO UPDATE SET
                 return_reason = EXCLUDED.return_reason,
-                request_status = EXCLUDED.request_status               
+                request_status = EXCLUDED.request_status
         """).format(sql.Identifier("returns"))
 
         for rma in rmas:
@@ -155,26 +117,25 @@ async def insert_rmas(rmas, place:str, user_id):
         logging.info(f"Failed to insert refunds into database: {e}")
 
 async def refresh_altex_rmas(marketplace: Marketplace):
-    # create_database()
     logging.info(f">>>>>>> Refreshing Marketplace : {marketplace.title} user is {marketplace.user_id} <<<<<<<<")
 
     user_id = marketplace.user_id
-    PUBLIC_KEY = marketplace.credentials["firstKey"]
-    PRIVATE_KEY = marketplace.credentials["secondKey"]
 
     page_nr = 1
     while True:
         try:
-            result = get_rmas(marketplace.baseAPIURL, PUBLIC_KEY, PRIVATE_KEY, page_nr)
+            result = await get_rmas(marketplace, page_nr)
             if result['status'] == 'error':
                 break
             data = result['data']
             rmas = data.get('items')
+            if ((not rmas) or len(rmas) == 0):
+                break
             detail_rmas = []
             for rma in rmas:
                 if rma.get('rma_id') is not None:
                     rma_id = rma.get('rma_id')
-                    detail_rma_result = get_detail_rma(marketplace.baseAPIURL, PUBLIC_KEY, PRIVATE_KEY, rma_id)
+                    detail_rma_result = await get_detail_rma(marketplace, rma_id)
                     if detail_rma_result.get('status') == 'success':
                         detail_rmas.append(detail_rma_result.get('data'))
 

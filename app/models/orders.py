@@ -36,7 +36,7 @@ class Order(Base):
     emag_club = Column(Integer, nullable=True)
     finalization_date = Column(DateTime, nullable=True)
     details = Column(String, nullable=True)
-    payment_mode_id = Column(Integer, nullable=True)    
+    payment_mode_id = Column(Integer, nullable=True)
     order_market_place = Column(String, nullable=True)
     mkt_id = Column(BigInteger, nullable=True)
     name = Column(String, nullable=True)
@@ -70,7 +70,7 @@ class Order(Base):
     update_time = Column(DateTime, nullable=True)
     packing_status = Column(Integer, nullable=True)
     user_id = Column(Integer, index=True)
-    
+
     __table_args__ = (
         PrimaryKeyConstraint('id', 'user_id', name = 'pk_id_user_id'),
     )

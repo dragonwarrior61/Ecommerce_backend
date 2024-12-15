@@ -1,24 +1,22 @@
+import calendar
+import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import any_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import func, literal, any_, and_
 from typing import List
-from sqlalchemy.orm import aliased
-from app.database import get_db
-from app.models.user import User
-from app.routers.auth import get_current_user
-from app.models.orders import Order
-from app.models.returns import Returns
-from app.models.product import Product
-from app.schemas.product import ProductCreate, ProductRead, ProductUpdate
-from app.models.shipment import Shipment
-import json
 
-import datetime
-import base64
-import calendar
 from app.config import settings
+from app.database import get_db
+from app.models import (
+    Order,
+    Product,
+    Returns,
+    Shipment
+)
+from app.schemas.product import ProductCreate, ProductRead, ProductUpdate
 
+router = APIRouter()
 
 def get_valid_date(year, month, day):
     # Find the last day of the month
@@ -26,8 +24,6 @@ def get_valid_date(year, month, day):
     # Set the day to the last day of the month if necessary
     day = min(day, last_day_of_month)
     return datetime.date(year, month, day)
-
-router = APIRouter()
 
 @router.post("/", response_model=ProductRead)
 async def create_product(product: ProductCreate, db: AsyncSession = Depends(get_db)):
@@ -91,7 +87,6 @@ async def get_sales_info(ean, type, db: AsyncSession):
             year = today.year - 1 if month <= 12 else today.year
             month = month if month <= 12 else month - 12
             date = get_valid_date(year, month, today.day)
-            
             date_string = f"{date.strftime('%b')} {date.year}"
             st_date = datetime.date(date.year, date.month, 1)
             if date.month == 12:
@@ -101,7 +96,6 @@ async def get_sales_info(ean, type, db: AsyncSession):
 
             st_datetime = datetime.datetime.combine(st_date, datetime.time.min)
             en_datetime = datetime.datetime.combine(en_date, datetime.time.max)
-            
             sales_month_data = await get_date_info(ean, st_datetime, en_datetime, db)
             sales_info.append({"date_string": date_string, "sales": sales_month_data["sales"]})
 
@@ -177,7 +171,7 @@ async def get_orders_info(ean: str, db: AsyncSession):
             }
         )
     return order_data
-    
+
 async def get_refunded_info(ean: str, db: AsyncSession):
     query = select(Product).where(Product.ean == ean)
     result = await db.execute(query)
@@ -242,7 +236,6 @@ async def get_products(
     search_text: str = Query('', description="Text for searching"),
     db: AsyncSession = Depends(get_db)
 ):
-    
     offset = (page - 1) * items_per_page
     if supplier_ids:
         supplier_id_list = [int(id.strip()) for id  in supplier_ids.split(",")]
@@ -269,7 +262,7 @@ async def update_product(product_id: int, product: ProductUpdate, db: AsyncSessi
 
     if db_product is None:
         raise HTTPException(status_code=404, detail="Product not found")
-    
+
     for var, value in vars(product).items():
         setattr(db_product, var, value) if value is not None else None
 
@@ -281,7 +274,7 @@ async def update_product(product_id: int, product: ProductUpdate, db: AsyncSessi
         db.rollback()
     finally:
         settings.update_flag = 0
-    
+
     return db_product
 
 @router.delete("/{product_id}", response_model=ProductRead)
@@ -290,7 +283,7 @@ async def delete_product(product_id: int, db: AsyncSession = Depends(get_db)):
     product = result.scalars().first()
     if product is None:
         raise HTTPException(status_code=404, detail="Product not found")
-    
+
     settings.update_flag = 1
     try:
         await db.delete(product)
@@ -299,5 +292,5 @@ async def delete_product(product_id: int, db: AsyncSession = Depends(get_db)):
         db.rollback()
     finally:
         settings.update_flag = 0
-    
+
     return product

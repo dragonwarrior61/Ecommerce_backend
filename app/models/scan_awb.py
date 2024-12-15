@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, PrimaryKeyConstraint, DateTime
+from sqlalchemy import Column, Integer, String, DateTime
 from app.database import Base
 
 
@@ -9,5 +9,3 @@ class Scan_awb(Base):
     awb_type = Column(String, nullable=True)
     scan_date = Column(DateTime, nullable=True)
     user_id = Column(Integer, nullable=True)
-
-

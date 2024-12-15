@@ -1,25 +1,22 @@
-from fastapi import APIRouter, HTTPException, Query, Depends
+import asyncpg
+import calendar
+import datetime
+from decimal import Decimal
+from fastapi import APIRouter, Query, Depends
+from sqlalchemy import any_, text, and_, cast, ARRAY, String
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import text, and_, func, literal_column, cast, ARRAY, Integer, BigInteger, String
 from sqlalchemy.orm import aliased
-from sqlalchemy.orm import joinedload
-from app.models.product import Product
-from app.models.marketplace import Marketplace
-from app.models.orders import Order
-from app.models.user import User
-from app.models.team_member import Team_member
-from app.routers.auth import get_current_user
-from app.models.returns import Returns
-from typing import List, Optional
-from app.database import get_db
-import datetime
-import asyncpg
+
 from app.config import settings
-from psycopg2.extras import RealDictCursor
-from decimal import Decimal
-from sqlalchemy import any_
-import calendar
+from app.database import get_db
+from app.models import (
+    Marketplace,
+    Order,
+    Product,
+    Returns
+)
+from app.routers.auth import get_team_admin_user
 
 router = APIRouter()
 
@@ -34,7 +31,6 @@ async def get_vat_dict(db: AsyncSession):
     query = select(Marketplace.marketplaceDomain, Marketplace.vat)
     result = await db.execute(query)
     records = result.all()
-    
     return {record.marketplaceDomain: record.vat for record in records}
 
 async def get_db_connection():
@@ -46,17 +42,7 @@ async def get_db_connection():
         port=settings.DB_PORT,
     )
 
-async def get_return(st_datetime, en_datetime, user: User, db:AsyncSession):
-    if user.role == -1:
-        raise HTTPException(status_code=401, detail="Authentication error")
-    
-    if user.role != 4:
-        result = await db.execute(select(Team_member).where(Team_member.user == user.id))
-        db_team = result.scalars().first()
-        user_id = db_team.admin
-    else:
-        user_id = user.id
-        
+async def get_return(st_datetime, en_datetime, user_id: int, db:AsyncSession):
     query = select(Returns).where(Returns.date <= en_datetime, Returns.date >= st_datetime, Returns.user_id == user_id)
     query = query.where(Returns.type == 3)
     result = await db.execute(query)
@@ -65,22 +51,12 @@ async def get_return(st_datetime, en_datetime, user: User, db:AsyncSession):
 
     return count
 
-async def get_orders(date_string, product_ids_list, st_datetime, en_datetime, user: User, db:AsyncSession):
-    if user.role == -1:
-        raise HTTPException(status_code=401, detail="Authentication error")
-    
-    if user.role != 4:
-        result = await db.execute(select(Team_member).where(Team_member.user == user.id))
-        db_team = result.scalars().first()
-        user_id = db_team.admin
-    else:
-        user_id = user.id
-        
+async def get_orders(date_string, product_ids_list, st_datetime, en_datetime, user_id: int, db:AsyncSession):
     vat_dict = await get_vat_dict(db)
     total_units = 0
     total_refund = 0
     total_net_profit = 0
-    total_refund = await get_return(st_datetime, en_datetime, user, db)
+    total_refund = await get_return(st_datetime, en_datetime, user_id, db)
 
     orders_with_products = []
 
@@ -116,7 +92,7 @@ async def get_orders(date_string, product_ids_list, st_datetime, en_datetime, us
         for i in range(len(product_ids)):
             if product.id == product_ids[i]:
                 total_net_profit += (product.sale_price * 100 / Decimal(100.0 + vat) - product.price) * quantities[i]
-        
+
     return {
         "date_string": date_string,
         "total_units": total_units,
@@ -125,26 +101,14 @@ async def get_orders(date_string, product_ids_list, st_datetime, en_datetime, us
         # "orders": orders
     }
 
-async def get_PL(date_string, product_ids_list, st_datetime, en_datetime, user: User, db:AsyncSession):
-    if user.role == -1:
-        raise HTTPException(status_code=401, detail="Authentication error")
-    
-    if user.role != 4:
-        result = await db.execute(select(Team_member).where(Team_member.user == user.id))
-        db_team = result.scalars().first()
-        user_id = db_team.admin
-    else:
-        user_id = user.id
-        
+async def get_PL(date_string, product_ids_list, st_datetime, en_datetime, user_id: int, db:AsyncSession):
     vat_dict = await get_vat_dict(db)
-    
     total_units = 0
     total_refund = 0
     total_net_profit = 0
     total_sales = 0
     total_gross_profit = 0
-    total_refund = await get_return(st_datetime, en_datetime, user, db)
-
+    total_refund = await get_return(st_datetime, en_datetime, user_id, db)
     ProductAlias = aliased(Product)
     query = select(Order, ProductAlias).where(
         and_(
@@ -189,26 +153,15 @@ async def get_PL(date_string, product_ids_list, st_datetime, en_datetime, user: 
         "total_net_profit": total_net_profit,
         # "orders": orders
     }   
-    
-async def get_trend(date_string, product_id, st_datetime, en_datetime, user: User, db:AsyncSession):
-    if user.role == -1:
-        raise HTTPException(status_code=401, detail="Authentication error")
-    
-    if user.role != 4:
-        result = await db.execute(select(Team_member).where(Team_member.user == user.id))
-        db_team = result.scalars().first()
-        user_id = db_team.admin
-    else:
-        user_id = user.id
-        
+
+async def get_trend(date_string, product_id, st_datetime, en_datetime, user_id: int, db:AsyncSession):
     vat_dict = await get_vat_dict(db)
-    
     total_units = 0
     total_refund = 0
     total_net_profit = 0
     total_sales = 0
     total_gross_profit = 0
-    total_refund = await get_return(st_datetime, en_datetime, user, db)
+    total_refund = await get_return(st_datetime, en_datetime, user_id, db)
 
     query = select(Product).where(Product.id == product_id, Product.user_id == user_id)
     result = await db.execute(query)
@@ -244,18 +197,17 @@ async def get_trend(date_string, product_id, st_datetime, en_datetime, user: Use
     }   
 
 @router.get('/tiles')
-async def get_dashboard_info(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-        
+async def get_dashboard_info(user_id: int = Depends(get_team_admin_user), db: AsyncSession = Depends(get_db)):
     today = datetime.date.today()
-    orders_today_data = await get_value(today, today, user, db)
+    orders_today_data = await get_value(today, today, user_id, db)
 
     yesterday = datetime.date.today() - datetime.timedelta(days = 1)
-    orders_yesterday_data = await get_value(yesterday, yesterday, user, db)
-    
-    first_day_of_month = datetime.date(today.year, today.month, 1)
-    orders_month_data = await get_value(first_day_of_month, today, user, db)
+    orders_yesterday_data = await get_value(yesterday, yesterday, user_id, db)
 
-    orders_forecast_data = await forecast(first_day_of_month, today, user, db)
+    first_day_of_month = datetime.date(today.year, today.month, 1)
+    orders_month_data = await get_value(first_day_of_month, today, user_id, db)
+
+    orders_forecast_data = await forecast(first_day_of_month, today, user_id, db)
 
     if today.month > 1:
         last_month_st = datetime.date(today.year, today.month - 1, 1)
@@ -263,7 +215,7 @@ async def get_dashboard_info(user: User = Depends(get_current_user), db: AsyncSe
     else:
         last_month_st = datetime.date(today.year - 1, 12, 1)
         last_month_en = datetime.date(today.year - 1, 12, 31)
-    orders_last_month_data = await get_value(last_month_st, last_month_en, user, db)
+    orders_last_month_data = await get_value(last_month_st, last_month_en, user_id, db)
 
     return {
         "orders_today_data": { "title": "Today", **orders_today_data },
@@ -273,17 +225,7 @@ async def get_dashboard_info(user: User = Depends(get_current_user), db: AsyncSe
         "orders_last_month_data": { "title": "Last month", **orders_last_month_data },
     }
 
-async def get_value(st_date, en_date, user: User, db:AsyncSession):
-    if user.role == -1:
-        raise HTTPException(status_code=401, detail="Authentication error")
-    
-    if user.role != 4:
-        result = await db.execute(select(Team_member).where(Team_member.user == user.id))
-        db_team = result.scalars().first()
-        user_id = db_team.admin
-    else:
-        user_id = user.id
-        
+async def get_value(st_date, en_date, user_id: int, db:AsyncSession):
     vat_dict = await get_vat_dict(db)
 
     st_datetime = datetime.datetime.combine(st_date, datetime.time.min)
@@ -314,7 +256,7 @@ async def get_value(st_date, en_date, user: User, db:AsyncSession):
     total_sales = 0
     total_orders = len(orders_with_products)
     total_units = 0
-    total_refund = await get_return(st_datetime, en_datetime, user, db)
+    total_refund = await get_return(st_datetime, en_datetime, user_id, db)
     total_gross_profit = 0
     total_net_profit = 0
     orders = []
@@ -352,18 +294,8 @@ async def get_value(st_date, en_date, user: User, db:AsyncSession):
         "total_net_profit": total_net_profit,
         # "orders": orders
     }
-    
-async def forecast(st_date, en_date, user: User, db: AsyncSession):
-    if user.role == -1:
-        raise HTTPException(status_code=401, detail="Authentication error")
-    
-    if user.role != 4:
-        result = await db.execute(select(Team_member).where(Team_member.user == user.id))
-        db_team = result.scalars().first()
-        user_id = db_team.admin
-    else:
-        user_id = user.id
-        
+
+async def forecast(st_date, en_date, user_id: int, db: AsyncSession):
     st_datetime = datetime.datetime.combine(st_date, datetime.time.min)
     en_datetime = datetime.datetime.combine(en_date, datetime.time.max)
 
@@ -379,8 +311,8 @@ async def forecast(st_date, en_date, user: User, db: AsyncSession):
             "total_gross_profit": 0,
             "total_net_profit": 0,
         }
-    
-    present_data = await get_value(st_datetime, en_datetime, user, db)
+
+    present_data = await get_value(st_datetime, en_datetime, user_id, db)
 
     total_sales = present_data.get("total_sales")
     total_orders = present_data.get("total_orders")
@@ -421,10 +353,9 @@ async def forecast(st_date, en_date, user: User, db: AsyncSession):
 async def get_chart_data(
     product_ids: str = Query(None),  # Make product_ids required
     type: int = Query(...),  # Make type required
-    user: User = Depends(get_current_user),
+    user_id: int = Depends(get_team_admin_user),
     db: AsyncSession = Depends(get_db)
 ):
-    
     today = datetime.date.today()
     chart_data = []
 
@@ -440,7 +371,7 @@ async def get_chart_data(
             month = month if month <= 12 else month - 12
             date = get_valid_date(year, month, today.day)
 
-            chart_data.append(await get_month_data(product_ids_list, date, user, db))
+            chart_data.append(await get_month_data(product_ids_list, date, user_id, db))
     elif type == 2:
         week_num_en = today.isocalendar()[1]
         en_date = today
@@ -451,18 +382,18 @@ async def get_chart_data(
             else:
                 week_string = f"week {week_num_en + 52 - i}"
 
-            chart_data.insert(0, await get_week_data(week_string, product_ids_list, st_date, en_date, user, db))
+            chart_data.insert(0, await get_week_data(week_string, product_ids_list, st_date, en_date, user_id, db))
             en_date = st_date - datetime.timedelta(days=1)
             st_date = st_date - datetime.timedelta(days=7)
     else:
         for i in range(30):
             date = today - datetime.timedelta(days=i)
-            chart_data.insert(0, await get_day_data(date, product_ids_list, user, db))
+            chart_data.insert(0, await get_day_data(date, product_ids_list, user_id, db))
     return {
         "chart_data": chart_data
     }
 
-async def get_month_data(product_ids_list, date, user: User, db: AsyncSession):
+async def get_month_data(product_ids_list, date, user_id: int, db: AsyncSession):
     date_string = f"{date.strftime('%b')} {date.year}"
     st_date = datetime.date(date.year, date.month, 1)
     if date.month == 12:
@@ -473,26 +404,26 @@ async def get_month_data(product_ids_list, date, user: User, db: AsyncSession):
     st_datetime = datetime.datetime.combine(st_date, datetime.time.min)
     en_datetime = datetime.datetime.combine(en_date, datetime.time.max)
 
-    return await get_orders(date_string, product_ids_list, st_datetime, en_datetime, user, db)
+    return await get_orders(date_string, product_ids_list, st_datetime, en_datetime, user_id, db)
 
-async def get_week_data(week_string, product_ids_list, st_date, en_date, user: User, db: AsyncSession):
+async def get_week_data(week_string, product_ids_list, st_date, en_date, user_id: int, db: AsyncSession):
     st_datetime = datetime.datetime.combine(st_date, datetime.time.min)
     en_datetime = datetime.datetime.combine(en_date, datetime.time.max)
 
-    return await get_orders(week_string, product_ids_list, st_datetime, en_datetime, user, db)
+    return await get_orders(week_string, product_ids_list, st_datetime, en_datetime, user_id, db)
 
-async def get_day_data(date, product_ids_list, user: User, db: AsyncSession):
+async def get_day_data(date, product_ids_list, user_id: int, db: AsyncSession):
     st_datetime = datetime.datetime.combine(date, datetime.time.min)
     en_datetime = datetime.datetime.combine(date, datetime.time.max)
     date_string = f"{date.day} {date.strftime('%b')} {date.year}"
 
-    return await get_orders(date_string, product_ids_list, st_datetime, en_datetime, user, db)
+    return await get_orders(date_string, product_ids_list, st_datetime, en_datetime, user_id, db)
 
 @router.get('/P_L')
 async def get_PL_data(
     product_ids: str = Query(None),  # Make product_ids required
     type: int = Query(...),  # Make type required
-    user: User = Depends(get_current_user), 
+    user_id: int = Depends(get_team_admin_user), 
     db: AsyncSession = Depends(get_db)
 ):
     today = datetime.date.today()
@@ -509,8 +440,7 @@ async def get_PL_data(
             year = today.year - 1 if month <= 12 else today.year
             month = month if month <= 12 else month - 12
             date = get_valid_date(year, month, today.day)
-
-            PL_data.insert(0, await PL_month_data(product_ids_list, date, user, db))
+            PL_data.insert(0, await PL_month_data(product_ids_list, date, user_id, db))
     elif type == 2:
         week_num_en = today.isocalendar()[1]
         en_date = today
@@ -521,18 +451,18 @@ async def get_PL_data(
             else:
                 week_string = f"week {week_num_en + 52 - i}"
 
-            PL_data.append(await PL_week_data(week_string, product_ids_list, st_date, en_date, user, db))
+            PL_data.append(await PL_week_data(week_string, product_ids_list, st_date, en_date, user_id, db))
             en_date = st_date - datetime.timedelta(days=1)
             st_date = st_date - datetime.timedelta(days=7)
     else:
         for i in range(30):
             date = today - datetime.timedelta(days=i)
-            PL_data.append(await PL_day_data(date, product_ids_list, user, db))
+            PL_data.append(await PL_day_data(date, product_ids_list, user_id, db))
     return {
         "PL_data": PL_data
     }
 
-async def PL_month_data(product_ids_list, date, user: User, db: AsyncSession):
+async def PL_month_data(product_ids_list, date, user_id: int, db: AsyncSession):
     date_string = f"{date.strftime('%b')} {date.year}"
     st_date = datetime.date(date.year, date.month, 1)
     if date.month == 12:
@@ -543,27 +473,27 @@ async def PL_month_data(product_ids_list, date, user: User, db: AsyncSession):
     st_datetime = datetime.datetime.combine(st_date, datetime.time.min)
     en_datetime = datetime.datetime.combine(en_date, datetime.time.max)
 
-    return await get_PL(date_string, product_ids_list, st_datetime, en_datetime, user, db)
+    return await get_PL(date_string, product_ids_list, st_datetime, en_datetime, user_id, db)
 
-async def PL_week_data(week_string, product_ids_list, st_date, en_date, user: User, db: AsyncSession):
+async def PL_week_data(week_string, product_ids_list, st_date, en_date, user_id: int, db: AsyncSession):
     st_datetime = datetime.datetime.combine(st_date, datetime.time.min)
     en_datetime = datetime.datetime.combine(en_date, datetime.time.max)
 
-    return await get_PL(week_string, product_ids_list, st_datetime, en_datetime, user, db)
+    return await get_PL(week_string, product_ids_list, st_datetime, en_datetime, user_id, db)
 
-async def PL_day_data(date, product_ids_list, user: User, db: AsyncSession):
+async def PL_day_data(date, product_ids_list, user_id: int, db: AsyncSession):
     day_string = f"{date.day} {date.strftime('%b')} {date.year}"
     st_datetime = datetime.datetime.combine(date, datetime.time.min)
     en_datetime = datetime.datetime.combine(date, datetime.time.max)
 
-    return await get_PL(day_string, product_ids_list, st_datetime, en_datetime, user, db)
+    return await get_PL(day_string, product_ids_list, st_datetime, en_datetime, user_id, db)
 
 @router.get('/trends')
 async def get_trends_info(
     product_ids: str = Query(None),
     type: int = Query(...),
     field: str = Query(...),
-    user: User = Depends(get_current_user),
+    user_id: int = Depends(get_team_admin_user),
     db: AsyncSession = Depends(get_db)
 ):
     today = datetime.date.today()
@@ -587,8 +517,7 @@ async def get_trends_info(
             year = today.year - 1 if month <= 12 else today.year
             month = month if month <= 12 else month - 12
             date = get_valid_date(year, month, today.day)
-
-            trends_data.insert(0, await treand_month_data(product_ids_list, date, field, user, db))
+            trends_data.insert(0, await treand_month_data(product_ids_list, date, field, user_id, db))
     elif type == 2:
         week_num_en = today.isocalendar()[1]
         en_date = today
@@ -599,18 +528,18 @@ async def get_trends_info(
             else:
                 week_string = f"week {week_num_en + 52 - i}"
 
-            trends_data.append(await trend_week_data(week_string, product_ids_list, st_date, en_date, field, user, db))
+            trends_data.append(await trend_week_data(week_string, product_ids_list, st_date, en_date, field, user_id, db))
             en_date = st_date - datetime.timedelta(days=1)
             st_date = st_date - datetime.timedelta(days=7)
     else:
         for i in range(30):
             date = today - datetime.timedelta(days=i)
-            trends_data.append(await trend_day_data(date, product_ids_list, field, user, db))
+            trends_data.append(await trend_day_data(date, product_ids_list, field, user_id, db))
     return {
         "trends_data": trends_data
     }
 
-async def treand_month_data(product_ids_list, date, field, user: User, db: AsyncSession):
+async def treand_month_data(product_ids_list, date, field, user_id: int, db: AsyncSession):
     date_string = f"{date.strftime('%b')} {date.year}"
     st_date = datetime.date(date.year, date.month, 1)
     if date.month == 12:
@@ -625,29 +554,29 @@ async def treand_month_data(product_ids_list, date, field, user: User, db: Async
     field = "total_" + field
 
     for product_id in product_ids_list:
-        result = await get_trend(date_string, product_id, st_datetime, en_datetime, user, db)
+        result = await get_trend(date_string, product_id, st_datetime, en_datetime, user_id, db)
         rlt.append(result.get(f"{field}"))
     return rlt
 
-async def trend_week_data(week_string, product_ids_list, st_date, en_date, field, user: User, db: AsyncSession):
+async def trend_week_data(week_string, product_ids_list, st_date, en_date, field, user_id: int, db: AsyncSession):
     st_datetime = datetime.datetime.combine(st_date, datetime.time.min)
     en_datetime = datetime.datetime.combine(en_date, datetime.time.max)
 
     rlt = []
     for product_id in product_ids_list:
-        result = await get_trend(week_string, product_id, st_datetime, en_datetime, user, db)
+        result = await get_trend(week_string, product_id, st_datetime, en_datetime, user_id, db)
         field = "total_" + field
         rlt.append(result.get(f"{field}"))
     return rlt
 
-async def trend_day_data(date, product_ids_list, field, user: User, db: AsyncSession):
+async def trend_day_data(date, product_ids_list, field, user_id: int, db: AsyncSession):
     day_string = f"{date.day} {date.strftime('%b')} {date.year}"
     st_datetime = datetime.datetime.combine(date, datetime.time.min)
     en_datetime = datetime.datetime.combine(date, datetime.time.max)
 
     rlt = []
     for product_id in product_ids_list:
-        result = await get_trend(day_string, product_id, st_datetime, en_datetime, user, db)
+        result = await get_trend(day_string, product_id, st_datetime, en_datetime, user_id, db)
         field = "total_" + field
         rlt.append(result.get(f"{field}"))
     return rlt

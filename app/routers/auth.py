@@ -1,15 +1,22 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
 from datetime import datetime, timedelta
+from fastapi import APIRouter, Depends, HTTPException, status
 from jose import JWTError, jwt
 from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
 from typing import Optional
-from app.utils.security import oauth2_scheme, create_access_token, create_refresh_token, verify_password
-from app.database import get_db
-from app.models.user import User
+
 from app.config import settings
+from app.database import get_db
+from app.models import User
 from app.schemas.user import UserRead
+from app.models import Team_member
+from app.utils.security import (
+    oauth2_scheme,
+    create_access_token,
+    create_refresh_token,
+    verify_password
+)
 
 router = APIRouter()
 
@@ -44,12 +51,24 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession
         token_data = TokenData(email=email)
     except JWTError:
         raise credentials_exception
-    
+
     result = await db.execute(select(User).filter(User.email == token_data.email))
     user = result.scalars().first()
     if user is None:
         raise credentials_exception
     return user
+
+async def get_team_admin_user(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    if user.role == -1:
+        raise HTTPException(status_code=401, detail="Authentication error")
+
+    if user.role != 4:
+        result = await db.execute(select(Team_member).where(Team_member.user == user.id))
+        db_team = result.scalars().first()
+        user_id = db_team.admin
+    else:
+        user_id = user.id
+    return user_id
 
 @router.post("/verify_token", response_model=UserRead)
 async def get_user(current_user: User = Depends(get_current_user)):

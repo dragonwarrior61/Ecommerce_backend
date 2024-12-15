@@ -1,12 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from app.schemas.profile import ProfileCreate, ProfileUpdate, ProfileRead
-from app.database import get_db
-from app.routers.auth import get_current_user
-from app.models.user import User
-from app.models.profile import Profile
+
 from app.config import settings
+from app.database import get_db
+from app.models import Profile, User
+from app.routers.auth import get_current_user
+from app.schemas.profile import ProfileCreate, ProfileUpdate, ProfileRead
+
 router = APIRouter()
 
 async def get_profile(db: AsyncSession, user_id: int):
@@ -31,7 +32,7 @@ async def update_profile(db: AsyncSession, profile: ProfileUpdate, user_id: int)
     if db_profile:
         for key, value in profile.dict(exclude_unset=True).items():
             setattr(db_profile, key, value) if value is not None else None
-        
+
         settings.update_flag = 1
         try:
             await db.commit()
@@ -40,7 +41,7 @@ async def update_profile(db: AsyncSession, profile: ProfileUpdate, user_id: int)
             db.rollback()
         finally:
             settings.update_flag = 0
-        
+
     return db_profile
 
 @router.get("/profile", response_model=ProfileRead)

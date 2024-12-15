@@ -1,6 +1,5 @@
-from sqlalchemy import Column, Integer, String, Text, Numeric, Boolean, ARRAY, BigInteger
+from sqlalchemy import Column, Integer, Text, Numeric, Boolean
 from app.database import Base
-from sqlalchemy.orm import relationship
 
 class Temp_product(Base):
     __tablename__ = "temp_products"

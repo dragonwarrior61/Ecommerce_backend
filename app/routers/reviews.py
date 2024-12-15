@@ -1,21 +1,14 @@
-from fastapi import FastAPI, HTTPException # type: ignore
-from pydantic import BaseModel # type: ignore
-from typing import List, Dict
-import psycopg2
+import logging, psycopg2
+from fastapi import FastAPI
+from datetime import datetime
+from typing import List
 from psycopg2 import sql
-from app.models.internal_product import Internal_Product
-from app.models.notifications import Notification
-from app.models.review import Review
-from app.models.user import User
-from app.routers.auth import get_current_user
-from app.routers.notifications import create_new_notification
-from app.utils.emag_reviews import *
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+
 from app.config import settings
-from sqlalchemy import text
-from datetime import datetime
-from app.config import settings
+from app.models import Marketplace, Notification, Review
 
 app = FastAPI()
 
@@ -38,7 +31,7 @@ app = FastAPI()
 #             state TEXT,
 #             read BOOLEAN,
 #             user_id INTEGER,
-#             market_place TEXT                    
+#             market_place TEXT
 #         )"""
 #     ).format(sql.Identifier(notifications_table))
 #     cursor.execute(create_table_query)
@@ -58,11 +51,11 @@ def check_hijacker(product_list):
                 continue
             if buy_button_rank > 1:
                 hijackers.append({
-                        "product_id": product_id,
-                        "name": product.get("product_name"),
-                        "ean": product.get("ean")
-                    })
-        
+                    "product_id": product_id,
+                    "name": product.get("product_name"),
+                    "ean": product.get("ean")
+                })
+
         logging.info("############Success to read hijackers")
         return hijackers
     except Exception as e:
@@ -86,10 +79,8 @@ async def check_hijacker_and_bad_reviews(marketplace: Marketplace, db: AsyncSess
         port=settings.DB_PORT
     )
     conn.set_client_encoding('UTF8')
-    
     result = await db.execute(text(f"SELECT * FROM products"))
     products = result.fetchall()
-
     product_dicts = []
     for product in products:
         product_dict = {key: value for key, value in zip(result.keys(), product)}
@@ -104,20 +95,14 @@ async def check_hijacker_and_bad_reviews(marketplace: Marketplace, db: AsyncSess
     logging.info(marketplacename)
     result = await db.execute(select(Review).where(Review.review_marketplace == marketplacename))
     reviews = result.scalars().all()
-
     bad_reviews = check_bad_reviews(reviews)
-
     admin_id = 1
-
     result = await db.execute(select(Notification))
     notifications = result.scalars().all()
     id = max(notification.id for notification in notifications) + 1
-
     cursor = conn.cursor()
-
     # delete_notifications_query = sql.SQL("DELETE FROM {}").format(sql.Identifier("notifications"))
     # cursor.execute(delete_notifications_query)
-
     insert_notification_query = sql.SQL("""
         INSERT INTO {} (
             id,
@@ -130,16 +115,15 @@ async def check_hijacker_and_bad_reviews(marketplace: Marketplace, db: AsyncSess
             user_id,
             market_place
         ) VALUES (
-            %s, %s, %s, %s, %s, %s, %s, %s, %s                     
+            %s, %s, %s, %s, %s, %s, %s, %s, %s
         ) ON CONFLICT (title, ean, market_place) DO UPDATE SET
             time = EXCLUDED.time,
-            user_id = EXCLUDED.user_id       
+            user_id = EXCLUDED.user_id
     """).format(sql.Identifier("notifications"))
 
     for bad_review in bad_reviews:
         date_str = datetime.now()
         title = "Bad Review"
-        
         description = bad_review.content
         time = date_str.strftime('%Y-%m-%dT%H:%M:%S')
         ean = bad_review.ean
@@ -147,7 +131,6 @@ async def check_hijacker_and_bad_reviews(marketplace: Marketplace, db: AsyncSess
         read = False
         user_id = admin_id
         market_place = marketplace.marketplaceDomain.lower()
-
 
         values = (
             id,
@@ -168,9 +151,9 @@ async def check_hijacker_and_bad_reviews(marketplace: Marketplace, db: AsyncSess
         except Exception as e:
             logging.info(f"Failed to insert review into notification: {e}")
             await db.rollback()
-            
+
     for hijacker in hijackers:
-        date_str = datetime.now()            
+        date_str = datetime.now()
         title = "Detected Hijacker"
         description = hijacker["name"]
         time = date_str.strftime('%Y-%m-%dT%H:%M:%S')
@@ -197,7 +180,7 @@ async def check_hijacker_and_bad_reviews(marketplace: Marketplace, db: AsyncSess
         except Exception as e:
             logging.info(f"Failed to insert hijacker into notification: {e}")
             await db.rollback()
-            
+
     settings.update_flag = 1
     try:
         conn.commit()

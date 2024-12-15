@@ -1,12 +1,22 @@
 # app/models/awb.py
-from sqlalchemy import Column, Integer, String, BigInteger, DECIMAL, PrimaryKeyConstraint, DateTime, Boolean, ARRAY
-from sqlalchemy.orm import relationship
+from sqlalchemy import (
+    ARRAY,
+    BigInteger,
+    Boolean,
+    Column,
+    DateTime,
+    DECIMAL,
+    Integer,
+    PrimaryKeyConstraint,
+    String
+)
+
 from app.database import Base
 
 
 class AWB(Base):
     __tablename__ = "awbs"
-    
+
     order_id = Column(Integer, nullable=True)
     number = Column(Integer, default=0)
     sender_name = Column(String, nullable=True)

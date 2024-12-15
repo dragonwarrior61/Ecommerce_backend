@@ -11,7 +11,7 @@ class Billing_softwaresBase(BaseModel):
     password: Optional[str] = None
     registration_number: Optional[str] = None
     warehouse_name: Optional[str] = None
-    
+
 class Billing_softwaresCreate(Billing_softwaresBase):
     pass
 

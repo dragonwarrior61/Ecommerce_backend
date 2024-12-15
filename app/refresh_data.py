@@ -1,42 +1,41 @@
-import asyncio
-from fastapi import FastAPI, Depends
-from sqlalchemy import select
-from sqlalchemy import any_, cast, BigInteger
-from app.database import get_db
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+# from contextlib import asynccontextmanager
+from datetime import datetime, timedelta
+from fastapi import Depends
+from openpyxl import Workbook
+from sqlalchemy import select, any_, cast, BigInteger
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.utils.emag_products import refresh_emag_products, post_stock_emag
-from app.utils.emag_orders import refresh_emag_orders, refresh_months_emag_orders
-from app.utils.emag_returns import refresh_emag_returns
-from app.utils.emag_courier import refresh_emag_couriers
-from app.utils.altex_product import refresh_altex_products
-from app.utils.altex_orders import refresh_altex_orders
-from app.utils.altex_returns import refresh_altex_rmas
+import asyncio
+import logging
+# import ssl
+
+from app.database import get_db
+from app.models import (
+    AWB,
+    Billing_software,
+    Damaged_good,
+    Internal_Product,
+    Invoice,
+    Marketplace,
+    Order,
+    Product
+)
+from app.utils.emag.products import refresh_emag_products, post_stock_emag
+from app.utils.emag.orders import refresh_emag_orders
+from app.utils.emag.returns import refresh_emag_returns
+from app.utils.emag.courier import refresh_emag_couriers
+from app.utils.emag.invoice import post_factura_pdf
+from app.utils.altex.product import refresh_altex_products
+from app.utils.altex.orders import refresh_altex_orders
+from app.utils.altex.returns import refresh_altex_rmas
 from app.utils.smart_api import get_stock, refresh_invoice
 from app.utils.sameday import tracking, auth_sameday
-from app.models.awb import AWB
-from app.models.marketplace import Marketplace
-from app.models.internal_product import Internal_Product
-from app.models.damaged_good import Damaged_good
-from app.models.product import Product
-from app.models.invoice import Invoice
-from app.models.billing_software import Billing_software
-from app.models.orders import Order
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from contextlib import asynccontextmanager
-import ssl
-import logging
-from datetime import datetime, timedelta
-from openpyxl import Workbook
-from sqlalchemy.exc import SQLAlchemyError
-from app.utils.emag_invoice import post_factura_pdf
-from fastapi import FastAPI
 
-logging.getLogger("sqlalchemy").setLevel(logging.ERROR)
+# app = FastAPI()
 
-app = FastAPI()
-
-ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-ssl_context.load_cert_chain('ssl/cert.pem', keyfile='ssl/key.pem')
+# ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+# ssl_context.load_cert_chain('ssl/cert.pem', keyfile='ssl/key.pem')
 
 # async def on_startup(db: AsyncSession = Depends(get_db)):
 #     async for db in get_db():
@@ -68,7 +67,7 @@ ssl_context.load_cert_chain('ssl/cert.pem', keyfile='ssl/key.pem')
 #                 print("Starting post invoices")
 #                 result = await session.execute(select(Invoice).where(Invoice.user_id == 1, Invoice.seriesName != 'EMGINL'))
 #                 invoices = result.scalars().all()
-                
+
 #                 for invoice in invoices:
 #                     order_id = invoice.order_id
 #                     series = invoice.seriesName
@@ -77,9 +76,8 @@ ssl_context.load_cert_chain('ssl/cert.pem', keyfile='ssl/key.pem')
 #                     country = series[-2:]
 #                     result = await session.execute(select(Marketplace).where(Marketplace.country.upper() == country, Marketplace.user_id == 1))
 #                     marketplace = result.scalars().first()
-#                     response = post_factura_pdf(order_id, name, marketplace)
-#                     if response.status_code != 200:
-#                         print(f"{response.json()}")
+#                     result = await post_factura_pdf(order_id, name, marketplace)
+#                     if result is None:
 #                         continue
 #                     invoice.post = 1
 #                 await session.commit()
@@ -152,7 +150,7 @@ async def update_awb(db: AsyncSession = Depends(get_db)):
             except Exception as e:
                 print(f"Unexpected error: {e}")
                 await session.rollback()
-            
+
             print("Starting update api_key in sameday")
             result = await session.execute(select(Billing_software).where(Billing_software.site_domain == "sameday.ro"))
             samedays = result.scalars().all()
@@ -161,8 +159,9 @@ async def update_awb(db: AsyncSession = Depends(get_db)):
                 sameday.registration_number = api_key
             await session.commit()
 
-            awb_status_list = [56, 85, 84, 37, 63, 1, 2, 25, 33, 7, 78, 6, 26, 14, 23, 35, 79, 112, 81, 10, 113, 27, 87, 4, 99, 74, 116, 18, 61, 111, 57, 137, 82, 3, 11, 28, 127, 17,
-                            68, 101, 147, 73, 126, 47, 145, 128, 19, 0, 5, 22, 62, 65, 140, 149, 153]
+            awb_status_list = [56, 85, 84, 37, 63, 1, 2, 25, 33, 7, 78, 6, 26, 14, 23, 35, 79, 112, 81, 10, 113, 27,
+                               87, 4, 99, 74, 116, 18, 61, 111, 57, 137, 82, 3, 11, 28, 127, 17, 68,
+                               101, 147, 73, 126, 47, 145, 128, 19, 0, 5, 22, 62, 65, 140, 149, 153]
             # awb_status_list = [93, 16, 15, 9]
             print("Start updating AWB status")
 
@@ -216,7 +215,7 @@ async def update_awb(db: AsyncSession = Depends(get_db)):
                 #     count += 1
                 MAX_RETRIES = 5
                 retries = 0
-                
+
                 while retries < MAX_RETRIES:
                     try:
                         await session.commit()
@@ -235,7 +234,7 @@ async def update_awb(db: AsyncSession = Depends(get_db)):
             except Exception as db_ex:
                 print(f"Database query failed: {str(db_ex)}")
                 await session.rollback()
-            
+
             print(f"Getting awb status error barcodes {error_barcode}")
             print("AWB status update completed")
 
@@ -245,11 +244,11 @@ async def update_awb(db: AsyncSession = Depends(get_db)):
 async def refresh_orders_data(db:AsyncSession = Depends(get_db)):
     async for db in get_db():
         async with db as session:
-            print("Starting orders refresh")
+            # print("Starting orders refresh")
             result = await session.execute(select(Marketplace).order_by(Marketplace.id.asc()))
             marketplaces = result.scalars().all()
-            await session.commit()
-            print(f"Success getting {len(marketplaces)} marketplaces")
+            # await session.commit()
+            # print(f"Success getting {len(marketplaces)} marketplaces")
             for marketplace in marketplaces:
                 if marketplace.marketplaceDomain == "altex.ro":
                     print("Refresh products from marketplace")
@@ -281,7 +280,7 @@ async def refresh_months_order(db:AsyncSession = Depends(get_db)):
                     await refresh_altex_orders(marketplace)
                 else:
                     print("Refresh orders from marketplace")
-                    await refresh_months_emag_orders(marketplace)
+                    await refresh_emag_orders(marketplace, period=180)
 
 async def send_stock(db:AsyncSession = Depends(get_db)):
     async for db in get_db():
@@ -305,7 +304,7 @@ async def send_stock(db:AsyncSession = Depends(get_db)):
                 #         for i in range(len(product_id_list)):
                 #             product_id = product_id_list[i]
                 #             quantity = quantity_list[i]
-                        
+
                 #             result = await db.execute(select(Product).where(Product.id == product_id, Product.product_marketplace == marketplace, Product.user_id == db_new_order.user_id))
                 #             db_product = result.scalars().first()
                 #             if db_product is None:
@@ -329,7 +328,7 @@ async def send_stock(db:AsyncSession = Depends(get_db)):
                 worksheet = workbook.active
                 worksheet.title = "Product Stocks"
                 worksheet.append(["EAN", "Product_code", "User_id", "Smartbill", "Damaged", "EMAG_Stock", "Stock", "Post"])
-                
+
                 print("Sync stock")
                 result = await session.execute(select(Internal_Product).where(Internal_Product.user_id == 1))
                 db_products = result.scalars().all()
@@ -353,9 +352,9 @@ async def send_stock(db:AsyncSession = Depends(get_db)):
                     ean = product.ean
                     user_id = product.user_id
                     product_code = product.product_code
-                    
-                    worksheet.append([ean, product_code, user_id, smartbill_stock, damaged, product.stock, stock, "Successfully get stock"])
-                
+
+                    worksheet.append([ean, product_code, user_id, smartbill_stock, damaged, product.stock, stock, "Successfully get stock", current_time.isoformat()])
+
                     marketplaces = product.market_place
                     for domain in marketplaces:
                         if domain == "altex.ro":
@@ -369,25 +368,25 @@ async def send_stock(db:AsyncSession = Depends(get_db)):
 
                         if marketplace is None:
                             continue
-                        
+
                         result = await session.execute(select(Product).where(Product.ean == ean, Product.product_marketplace == domain))
                         db_product = result.scalars().first()
-                        
+
                         if db_product is None:
                             continue
                         if db_product.stock == stock:
                             continue
                         product_id = db_product.id
-                                          
+
                         # if marketplace.marketplaceDomain == "altex.ro":
                         #     continue
                         #     # if db_product.barcode_title == "":
                         #     #     continue
                         #     # post_stock_altex(marketplace, db_product.barcode_title, stock)
                         #     # print("post stock success in altex")
-                        
+
                         product_id = int(product_id)
-                        response = await post_stock_emag(marketplace, product_id, stock)      
+                        response = await post_stock_emag(marketplace, product_id, stock)
                         print(f"{response}") 
                         if response == "Stock updated successfully, no content returned.":
                             product.sync_stock_time = datetime.now()
@@ -398,7 +397,7 @@ async def send_stock(db:AsyncSession = Depends(get_db)):
                 print("successfully saved stock data")
         except Exception as e:
             print(f"An error occurred: {e}")
-            await session.rollback()                
+            await session.rollback()
 
 async def refresh_stock(db: AsyncSession = Depends(get_db)):
     async for db in get_db():
@@ -409,19 +408,18 @@ async def refresh_stock(db: AsyncSession = Depends(get_db)):
             if db_smarts is None:
                 print("Can't find billing software")
                 return
-            
+
             print("Fetch stock via smarbill api")
             product_code_list = []
-            
             products = []
             try:
                 for db_smart in db_smarts:
-                    products_list = get_stock(db_smart)
+                    products_list = await get_stock(db_smart)
                     for smart_products in products_list:
                         if smart_products.get('products'):
                             products = products + smart_products.get('products')
                         else:
-                            continue    
+                            continue
             except Exception as e:
                 print(f"getting stock data error: {e}")
             for product in products:
@@ -463,39 +461,39 @@ async def refresh_data(db: AsyncSession = Depends(get_db)):
                 else:
                     print("Refresh refunds from marketplace")
                     await refresh_emag_returns(marketplace)
-                    
+
                     # print("Refresh reviews from emag")
                     # await refresh_emag_reviews(marketplace, session)
                     # print("Check hijacker and review")
                     # await check_hijacker_and_bad_reviews(marketplace, session)
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    print("App started")
-    scheduler = AsyncIOScheduler()
-    scheduler.add_job(update_awb, trigger='interval', seconds=14400)
-    scheduler.add_job(refresh_orders_data, trigger='interval', seconds=900)
-    scheduler.add_job(generate_invoice, trigger='interval', seconds=900)
-    scheduler.add_job(refresh_months_order, trigger='interval', seconds=28800)
-    scheduler.add_job(send_stock, trigger='interval', seconds=7200)
-    scheduler.add_job(refresh_stock, trigger='interval', seconds=7200)
-    scheduler.add_job(refresh_data, trigger='interval', seconds=86400)
-    # scheduler.add_job(backup_db, trigger='interval', seconds=86400)
-    scheduler.start()
-    # asyncio.create_task(on_startup())
-    # asyncio.create_task(update_damaged_goods())
-    # asyncio.create_task(update_invoice_post())
-    asyncio.create_task(update_awb())
-    asyncio.create_task(refresh_orders_data())
-    asyncio.create_task(generate_invoice())
-    asyncio.create_task(refresh_months_order())
-    asyncio.create_task(send_stock())
-    asyncio.create_task(refresh_stock())
-    asyncio.create_task(refresh_data())
-    # asyncio.create_task(backup_db())
-    yield
-    print("App stopped")
+# @asynccontextmanager
+# async def lifespan(app: FastAPI):
+#     print("App started")
+#     scheduler = AsyncIOScheduler()
+#     scheduler.add_job(update_awb, trigger='interval', seconds=14400)
+#     scheduler.add_job(refresh_orders_data, trigger='interval', seconds=900)
+#     scheduler.add_job(generate_invoice, trigger='interval', seconds=900)
+#     scheduler.add_job(refresh_months_order, trigger='interval', seconds=28800)
+#     scheduler.add_job(send_stock, trigger='interval', seconds=7200)
+#     scheduler.add_job(refresh_stock, trigger='interval', seconds=7200)
+#     scheduler.add_job(refresh_data, trigger='interval', seconds=86400)
+#     # scheduler.add_job(backup_db, trigger='interval', seconds=86400)
+#     scheduler.start()
+#     # asyncio.create_task(on_startup())
+#     # asyncio.create_task(update_damaged_goods())
+#     # asyncio.create_task(update_invoice_post())
+#     asyncio.create_task(update_awb())
+#     asyncio.create_task(refresh_orders_data())
+#     asyncio.create_task(generate_invoice())
+#     asyncio.create_task(refresh_months_order())
+#     asyncio.create_task(send_stock())
+#     asyncio.create_task(refresh_stock())
+#     asyncio.create_task(refresh_data())
+#     # asyncio.create_task(backup_db())
+#     yield
+#     print("App stopped")
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("refresh_data:app", host="0.0.0.0", port=3000, reload=False)
+# if __name__ == "__main__":
+#     import uvicorn
+#     uvicorn.run("refresh_data:app", host="0.0.0.0", port=3000, reload=False)

@@ -25,7 +25,7 @@ class InvoicesBase(BaseModel):
     type: Optional[str] = None
     post: Optional[int] = None
     user_id: Optional[int] = None
-    
+
 class InvoicesCreate(InvoicesBase):
     pass
 

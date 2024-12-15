@@ -47,4 +47,3 @@ class Shipment(Base):
     ship_date = Column(DateTime, nullable=True)
     user_id = Column(Integer, index=True, nullable=True)
     
-    

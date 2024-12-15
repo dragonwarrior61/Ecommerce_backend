@@ -24,7 +24,7 @@ class ReplacementsBase(BaseModel):
     customer_comment: Optional[str] = None
     awb: Optional[str] = None
     user_id: Optional[int] = None
-    
+
 class ReplacementsCreate(ReplacementsBase):
     pass
 

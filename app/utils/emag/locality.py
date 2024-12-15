@@ -1,69 +1,38 @@
-from psycopg2 import sql
-from app.config import settings
-import requests
 import psycopg2
-import base64
-import urllib
-import hashlib
 import json
-import os
-import time
 import logging
-from app.models.marketplace import Marketplace
-from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.database import get_db
-from decimal import Decimal
+from fastapi import HTTPException
+from psycopg2 import sql
+
+from app.config import settings
+from app.models import Marketplace
+from app.utils.auth_market import get_auth_marketplace
+from app.utils.httpx_request import send_post_request, send_get_request
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-def get_all_localities(MARKETPLACE_API_URL, Localities_ENDPOINT, READ_ENDPOINT,  API_KEY, currentPage, PUBLIC_KEY=None, usePublicKey=False):
-    url = f"{MARKETPLACE_API_URL}{Localities_ENDPOINT}/{READ_ENDPOINT}"
-    
-    if usePublicKey is True:
-        headers = {
-            "X-Request-Public-Key": f"{PUBLIC_KEY}",
-            "X-Request-Signature": f"{API_KEY}"
-        }
-    elif usePublicKey is False:
-        api_key = str(API_KEY).replace("b'", '').replace("'", "")
-        headers = {
-            "Authorization": f"Basic {api_key}",
-            "Content-Type": "application/json"
-        }
-
+async def get_all_localities(marketplace: Marketplace, currentPage):
+    url = f"{marketplace.baseAPIURL}/locality/read"
+    headers = get_auth_marketplace(marketplace)
     data = json.dumps({
         "itmesPerPage": 100,
         "currentPage": currentPage
     })
-    response = requests.post(url, data=data, headers=headers)
-    if response.status_code == 200:
-        localities = response.json()
-        return localities
-    else:
-        logging.info(f"Failed to retrieve refunds: {response.status_code}")
-        return None
+    response = await send_post_request(url, data=data, headers=headers, error_msg='retrieve localities')
+    if response.status_code != 200:
+        logging.error(f"Failed to get localities: {response.text}")
+    localities = response.json()
+    return localities
 
-def count_all_localities(MARKETPLACE_API_URL, Localities_ENDPOINT, COUNT_ENGPOINT, API_KEY, PUBLIC_KEY=None, usePublicKey=False):
-    url = f"{MARKETPLACE_API_URL}{Localities_ENDPOINT}/{COUNT_ENGPOINT}"
-    if usePublicKey is False:
-        api_key = str(API_KEY).replace("b'", '').replace("'", "")
-        headers = {
-            "Authorization": f"Basic {api_key}",
-            "Content-Type": "application/json"
-        }
-    else:
-        headers = {
-            "X-Request-Public-Key": f"{PUBLIC_KEY}",
-            "X-Request-Signature": f"{API_KEY}"
-        }
+async def count_all_localities(marketplace: Marketplace):
+    url = f"{marketplace.baseAPIURL}/locality/count"
 
-    response = requests.get(url, headers=headers)
-    if response.status_code == 200:
-        return response.json()
-    else:
-        logging.error(f"Failed to retrieve localities: {response.status_code}")
-        return response.json()
+    headers = get_auth_marketplace(marketplace)
+
+    response = await send_get_request(url, headers=headers, error_msg='count localities')
+    if response.status_code != 200:
+        logging.error(f"Failed to count localities: {response.text}")
+    return response.json()
 
 async def insert_localities_into_db(localities, place:str, user_id):
     try:
@@ -96,7 +65,7 @@ async def insert_localities_into_db(localities, place:str, user_id):
                 %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
             ) ON CONFLICT (id, localtity_marketplace) DO UPDATE SET
                 name = EXCLUDED.name,
-                name_latin = EXCLUDED.name_latin               
+                name_latin = EXCLUDED.name_latin
         """).format(sql.Identifier("localities"))
 
         for locality in localities:
@@ -144,34 +113,23 @@ async def insert_localities_into_db(localities, place:str, user_id):
 async def refresh_emag_localities(marketplace: Marketplace):
     # create_database()
     logging.info(f">>>>>>> Refreshing Marketplace : {marketplace.title} user is {marketplace.user_id} <<<<<<<<")
-    
     user_id = marketplace.user_id
-    USERNAME = marketplace.credentials["firstKey"]
-    PASSWORD = marketplace.credentials["secondKey"]
-    API_KEY = base64.b64encode(f"{USERNAME}:{PASSWORD}".encode('utf-8'))
-    
-    baseAPIURL = marketplace.baseAPIURL
-    endpoint = "/locality"
-    read_endpoint = "/read"
-    count_endpoint = "/count"
-
-    result = count_all_localities(baseAPIURL, endpoint, count_endpoint, API_KEY)
+    result = await count_all_localities(marketplace)
     print(result)
-    if result:
+    if result and result['isError'] == False:
         pages = result['results']['noOfPages']
         items = result['results']['noOfItems']
         logging.info(f"------------pages--------------{pages}")
         logging.info(f"------------items--------------{items}")
-    try:
+    while current_page <= int(pages):
         current_page  = 1
-        while current_page <= int(pages):
-            localities = get_all_localities(baseAPIURL, endpoint, read_endpoint, API_KEY, current_page)
+        try:
+            localities = await get_all_localities(marketplace, current_page)
             logging.info(f">>>>>>> Current Page : {current_page} <<<<<<<<")
             if len(localities['results'] ) == 0:
                 print("empty locality")
                 break
             await insert_localities_into_db(localities['results'], marketplace.marketplaceDomain, user_id)
             current_page += 1
-    except Exception as e:
-        print('++++++++++++++++++++++++++++++++++++++++++')
-        print(e)
+        except Exception as e:
+            logging.error(f"An error ocurred in page {current_page}: {e}")

@@ -13,7 +13,7 @@ class Packing_orderBase(BaseModel):
     starting_time: Optional[datetime] = None
     ending_time: Optional[datetime] = None
     user_id: Optional[int] = None
-    
+
 class Packing_orderCreate(Packing_orderBase):
     pass
 

@@ -1,16 +1,9 @@
 import logging
-import requests
-import base64
-from app.models.product import Product
-from app.models.internal_product import Internal_Product
-from app.models.orders import Order
-from app.models.marketplace import Marketplace
+from sqlalchemy import any_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import any_
-import psycopg2
-from app.config import settings
-from psycopg2 import sql
+
+from app.models import Internal_Product, Order, Product
 
 async def calc_order_stock(db: AsyncSession):
     result = await db.execute(select(Order).where(Order.status == any_([1,2,3])))
@@ -29,7 +22,6 @@ async def calc_order_stock(db: AsyncSession):
             for i in range(len(product_id_list)):
                 product_id = product_id_list[i]
                 quantity = quantity_list[i]
-            
                 result = await db.execute(select(Product).where(Product.id == product_id, Product.product_marketplace == marketplace, Product.user_id == db_new_order.user_id))
                 db_product = result.scalars().first()
                 if db_product is None:

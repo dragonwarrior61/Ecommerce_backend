@@ -1,16 +1,90 @@
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import auth, billing_software, internal_products, returns, users, shipment, profile, marketplace, utils, orders, dashboard, supplier, inventory, AWB_generation, notifications, warehouse, team_member, locality, courier, review, product, replacement, invoice, damaged_good, sync_stock, temp_product, proxy, scan_awb, reverse_invoice, packing_order
-from app.database import Base, engine
 import asyncio, logging, ssl
+
+from app.routers import (
+    auth,
+    billing_software,
+    internal_products,
+    returns,
+    users,
+    shipment,
+    profile,
+    marketplace,
+    utils,
+    orders,
+    dashboard,
+    supplier,
+    inventory,
+    AWB_generation,
+    notifications,
+    warehouse,
+    team_member,
+    locality,
+    courier,
+    review,
+    product,
+    replacement,
+    invoice,
+    damaged_good,
+    sync_stock,
+    temp_product,
+    proxy,
+    scan_awb,
+    reverse_invoice,
+    packing_order
+)
+from app.database import Base, engine
+from app.refresh_data import (
+    update_awb,
+    refresh_orders_data,
+    generate_invoice,
+    refresh_months_order,
+    send_stock,
+    refresh_stock,
+    refresh_data,
+    # backup_db,
+    # on_startup,
+    # update_damaged_goods,
+    # update_invoice_post,
+)
 
 logging.getLogger("sqlalchemy").setLevel(logging.ERROR)
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("App started")
+    asyncio.create_task(init_models())
+    scheduler = AsyncIOScheduler()
+    scheduler.add_job(update_awb, trigger='interval', seconds=14400)
+    scheduler.add_job(refresh_orders_data, trigger='interval', seconds=900)
+    scheduler.add_job(generate_invoice, trigger='interval', seconds=900)
+    scheduler.add_job(refresh_months_order, trigger='interval', seconds=28800)
+    scheduler.add_job(send_stock, trigger='interval', seconds=7200)
+    scheduler.add_job(refresh_stock, trigger='interval', seconds=7200)
+    scheduler.add_job(refresh_data, trigger='interval', seconds=86400)
+    # scheduler.add_job(backup_db, trigger='interval', seconds=86400)
+    scheduler.start()
+    # asyncio.create_task(on_startup())
+    # asyncio.create_task(update_damaged_goods())
+    # asyncio.create_task(update_invoice_post())
+    asyncio.create_task(update_awb())
+    asyncio.create_task(refresh_orders_data())
+    asyncio.create_task(generate_invoice())
+    asyncio.create_task(refresh_months_order())
+    asyncio.create_task(send_stock())
+    asyncio.create_task(refresh_stock())
+    asyncio.create_task(refresh_data())
+    # asyncio.create_task(backup_db())
+    yield
+    print("App stopped")
 
-ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-ssl_context.load_cert_chain('ssl/cert.pem', keyfile='ssl/key.pem')
+app = FastAPI(lifespan=lifespan)
+
+# ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+# ssl_context.load_cert_chain('ssl/cert.pem', keyfile='ssl/key.pem')
 
 origins = [
     "*"
@@ -26,13 +100,6 @@ app.add_middleware(
 async def init_models():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    print("App started")
-    asyncio.create_task(init_models())
-    yield
-    print("App stopped")
 
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(dashboard.router, prefix="/api/dashboard", tags=["dashboard"])
@@ -67,12 +134,13 @@ app.include_router(packing_order.router, prefix="/api/packing_order", tags=['pac
 
 if __name__ == "__main__":
     import uvicorn
-    ssl_keyfile = "ssl/key.pem"
-    ssl_certfile = "ssl/cert.pem"
+    # ssl_keyfile = "ssl/key.pem"
+    # ssl_certfile = "ssl/cert.pem"
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
         port=8000,
-        ssl_keyfile=ssl_keyfile,
-        ssl_certfile=ssl_certfile,
+        reload=True,
+        # ssl_keyfile=ssl_keyfile,
+        # ssl_certfile=ssl_certfile,
     )

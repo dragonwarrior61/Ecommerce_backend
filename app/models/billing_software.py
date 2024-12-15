@@ -11,5 +11,3 @@ class Billing_software(Base):
     password = Column(Text, nullable=True)
     registration_number = Column(Text, nullable=True)
     warehouse_name = Column(Text, nullable=True)
-    
-

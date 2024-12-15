@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, Text, DateTime, ARRAY, Numeric, Boolean
+from sqlalchemy import Column, Integer, Text, DateTime, Boolean
 from app.database import Base
 
 class Invoice(Base):

@@ -12,7 +12,6 @@ fastapi_utils
 typing_inspect
 pydantic_settings
 humanize
-requests
 fastapi_utils
 python-barcode
 bs4

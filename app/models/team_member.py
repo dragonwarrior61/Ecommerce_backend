@@ -1,6 +1,6 @@
-from sqlalchemy import Column, Integer, ARRAY
+from sqlalchemy import Column, Integer
 from app.database import Base
-from datetime import datetime
+
 class Team_member(Base):
     __tablename__ = "team_members"
 

@@ -13,6 +13,12 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15000
     REFRESH_TOKEN_EXPIRE_MINUTES: int = 15000
-    
     update_flag: int = 0
+
 settings = Settings()
+
+PROXIES = None
+# {
+#     'http': 'http://p2p_user:jDkAx4EkAyKw@65.109.7.74:54021',
+#     'https': 'http://p2p_user:jDkAx4EkAyKw@65.109.7.74:54021',
+# }

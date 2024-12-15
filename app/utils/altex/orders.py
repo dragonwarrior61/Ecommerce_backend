@@ -1,73 +1,33 @@
-import requests
 import psycopg2
-import base64
-import hashlib
-import json
-import os
-from app.config import settings
-from psycopg2 import sql
-from urllib.parse import urlparse
-from app.models.marketplace import Marketplace
-from app.models.orders import Order
-from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List, Dict, Any
-
-from sqlalchemy.exc import IntegrityError
 import logging
-from sqlalchemy import insert
-from sqlalchemy.dialects.postgresql import insert as pg_insert
-from datetime import datetime
+from fastapi import HTTPException
+from psycopg2 import sql
 from decimal import Decimal
+
+from app.config import settings, PROXIES
+from app.models import Marketplace
+from app.utils.auth_market import get_auth_marketplace
+from app.utils.httpx_request import send_get_request
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-
-MARKETPLACE_URL = 'https://marketplace.emag.ro/'
-MARKETPLACE_API_URL = 'https://marketplace-api.emag.ro/api-3'
-ORDERS_ENDPOINT = "/order"
-
-PROXIES = {
-    'http': 'http://p2p_user:jDkAx4EkAyKw@65.109.7.74:54021',
-    'https': 'http://p2p_user:jDkAx4EkAyKw@65.109.7.74:54021',
-}
-    
-def generate_signature(public_key, private_key, params):
-
-    now = datetime.utcnow()
-    day = now.strftime('%d')
-    month = now.strftime('%m')
-    timestamp = f"{day}{month}"
-
-    string_to_hash = f"{public_key}||{hashlib.sha512(private_key.encode()).hexdigest()}||{params}||{timestamp}"
-    hash_result = hashlib.sha512(string_to_hash.encode()).hexdigest().lower()
-    signature = f"{timestamp}{hash_result}"
-    # signature = timestamp + hash_result
-    return signature
-
-def get_orders(url, public_key, private_key, page_nr):
+async def get_orders(marketplace: Marketplace, page_nr):
 
     params = f"page_nr={page_nr}"
-    url = f"{url}sales/order/?{params}"
-    signature = generate_signature(public_key, private_key, params)
-    headers = {
-        'X-Request-Public-Key': public_key,
-        'X-Request-Signature': signature
-    }
-    response = requests.get(url, headers=headers, verify=False, proxies=PROXIES)
-    if response.status_code == 200:
-        logging.info("Get orders in Altex Successed!")
-    else:
-        logging.info(response.json())
+    url = f"{marketplace.baseAPIURL}sales/order/?{params}"
+    headers = get_auth_marketplace(marketplace, params=params)
+    response = await send_get_request(url, headers=headers, proxies=PROXIES)
+    if response.status_code != 200:
+        logging.error(f"Failed to get orders from altex: {response.text}")
     return response.json()
 
-def get_detail_order(url, public_key, private_key, order_id):
+async def get_detail_order(marketplace: Marketplace, order_id):
     params = ""
-    url = f"{url}sales/order/{order_id}/"
-    signature = generate_signature(public_key, private_key, params)
-    headers = {
-        'X-Request-Public-Key': public_key,
-        'X-Request-Signature': signature
-    }
-    response = requests.get(url, headers=headers, verify=False, proxies=PROXIES)
+    url = f"{marketplace.baseAPIURL}sales/order/{order_id}/"
+    headers = get_auth_marketplace(marketplace, params=params)
+    response = await send_get_request(url, headers=headers, proxies=PROXIES)
+    if response.status_code != 200:
+        logging.error(f"Failed to get order {order_id} from altex: {response.text}")
     return response.json()
 
 async def insert_orders(orders, mp_name:str, user_id):
@@ -154,7 +114,7 @@ async def insert_orders(orders, mp_name:str, user_id):
                 vendor_name = EXCLUDED.vendor_name,
                 type = EXCLUDED.type,
                 date = EXCLUDED.date,
-                payment_mode = EXCLUDED.payment_mode,                      
+                payment_mode = EXCLUDED.payment_mode,
                 status = EXCLUDED.status,
                 payment_status = EXCLUDED.payment_status,
                 product_id = EXCLUDED.product_id,
@@ -172,7 +132,7 @@ async def insert_orders(orders, mp_name:str, user_id):
                 details = EXCLUDED.details,
                 payment_mode_id = EXCLUDED.payment_mode_id
         """).format(sql.Identifier("orders"))
-        
+
         for order in orders:
             customer_id = order.get('order_id')
             customer_mkt_id = 0
@@ -239,7 +199,7 @@ async def insert_orders(orders, mp_name:str, user_id):
             payment_mode_id = 0
             order_martet_place = mp_name
             user_id = user_id
-            
+
             values = (
                 id,
                 vendor_name,
@@ -317,28 +277,27 @@ async def insert_orders(orders, mp_name:str, user_id):
         logging.info(f"Failed to insert orders into database: {e}")
 
 async def refresh_altex_orders(marketplace: Marketplace):
-    # create_database()
     logging.info(f">>>>>>> Refreshing Marketplace : {marketplace.title} user is {marketplace.user_id} <<<<<<<<")
 
     user_id = marketplace.user_id
-    PUBLIC_KEY = marketplace.credentials["firstKey"]
-    PRIVATE_KEY = marketplace.credentials["secondKey"]
-
     page_nr = 1
+
     while True:
         try:
-            result = get_orders(marketplace.baseAPIURL, PUBLIC_KEY, PRIVATE_KEY, page_nr)
+            result = await get_orders(marketplace, page_nr)
             if result['status'] == 'error':
                 break
             data = result['data']
             orders = data.get('items')
+            if ((not orders) or len(orders) == 0):
+                break
             logging.info(f"Get {len(orders)}")
             detail_orders = []
             for order in orders:
                 if order.get('order_id') is not None:
                     order_id = order.get('order_id')
                     logging.info(f"Get order id is {order_id}")
-                    detail_order_result = get_detail_order(marketplace.baseAPIURL, PUBLIC_KEY, PRIVATE_KEY, order_id)
+                    detail_order_result = await get_detail_order(marketplace, order_id)
                     if detail_order_result.get('status') == 'success':
                         detail_orders.append(detail_order_result.get('data'))
 

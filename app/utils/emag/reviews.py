@@ -1,32 +1,23 @@
 import logging
-import requests
-import base64
-from app.models.product import Product
-from app.models.marketplace import Marketplace
+import psycopg2
+from psycopg2 import sql
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-import psycopg2
-from app.config import settings
-from psycopg2 import sql
 
-PROXIES = {
-    'http': 'http://ab4mojudsn-mobile.res-country-RO-hold-query-session-66a940669734f:DHXMncAFmQwa0gNc@185.21.60.181:9999',
-    'https': 'http://ab4mojudsn-mobile.res-country-RO-hold-query-session-66a940669734f:DHXMncAFmQwa0gNc@185.21.60.181:9999',
-}
-
+from app.config import settings, PROXIES
+from app.models import Marketplace, Product
+from app.utils.httpx_request import send_get_request
 
 async def get_review_by_product(product_id, product_part_number_key, marketplace: Marketplace):
     url = f'{marketplace.baseURL.replace("marketplace", "www")}/product-feedback/{product_id}/pd/{product_part_number_key}/reviews/list'
     print('------------------', url)
 
-    response = requests.get(url, proxies=PROXIES)
-    # response = requests.get(url)
-    if response.status_code == 200:
-        logging.info("success count")
-        return response.json()
-    else:
-        logging.error(f"Failed to retrieve reviews from product '{product_part_number_key}': {response.status_code}")
-        return "nothing"
+    response = await send_get_request(url, proxies=PROXIES, error_msg=f"retrieve reviews from product '{product_part_number_key}'")
+    if response.status_code != 200:
+        logging.error(f"Failed to get review of product {product_id}: {response.text}")
+        return []
+    result = response.json()
+    return result
 
 async def get_all_reviews(product_id_list, product_part_number_key_list, marketplace: Marketplace):
     result = []
@@ -67,7 +58,7 @@ async def insert_review_into_db(review, place, ean):
                 moderated_by,
                 rating,
                 brand_id,
-                review_marketplace           
+                review_marketplace
             ) VALUES (
                 %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
             ) ON CONFLICT (id, review_id, review_marketplace) DO UPDATE SET
@@ -144,8 +135,5 @@ async def refresh_emag_reviews(marketplace: Marketplace, db: AsyncSession):
         reviews = result.get("reviews").get("items")
 
         await insert_reviews_into_db(reviews, marketplace.marketplaceDomain, product.ean)
-    
-    logging.info(f"Processed {cnt} products")
-    
 
-    print(cnt)
+    logging.info(f"Processed {cnt} products")

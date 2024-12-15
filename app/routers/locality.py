@@ -1,19 +1,16 @@
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from app.models.locality import Locality
-from app.models.user import User
-from app.routers.auth import get_current_user
-from app.database import get_db
-from app.schemas.locality import LocalityCreate, LocalityUpdate, LocalityRead
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
-from pydantic import ValidationError
+
 from app.config import settings
+from app.database import get_db
+from app.models import Locality
+from app.schemas.locality import LocalityCreate, LocalityUpdate, LocalityRead
 
 async def create_locality(db: AsyncSession, locality: LocalityCreate):
     db_locality = Locality(**locality.dict())
-    
     settings.update_flag = 1
     try:
         db.add(db_locality)
@@ -39,7 +36,6 @@ async def update_locality(db: AsyncSession, locality_id: int, locality: Locality
         return None
     for key, value in locality.dict().items():
         setattr(db_locality, key, value) if value is not None else None
-        
     settings.update_flag = 1
     try:
         await db.commit()
@@ -48,14 +44,12 @@ async def update_locality(db: AsyncSession, locality_id: int, locality: Locality
         db.rollback()
     finally:
         settings.update_flag = 0
-    
     return db_locality
 
 async def delete_locality(db: AsyncSession, locality_id: int):
     db_locality = await get_locality(db, locality_id)
     if db_locality is None:
         return None
-    
     settings.update_flag = 1
     try:
         await db.delete(db_locality)
@@ -64,7 +58,6 @@ async def delete_locality(db: AsyncSession, locality_id: int):
         db.rollback()
     finally:
         settings.update_flag = 0
-    
     return db_locality
 
 router = APIRouter()

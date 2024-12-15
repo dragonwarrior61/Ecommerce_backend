@@ -1,6 +1,15 @@
-from sqlalchemy import Column, Integer, String, Text, Numeric, Boolean, ARRAY, BigInteger, DateTime
+from sqlalchemy import (
+    ARRAY,
+    BigInteger,
+    Boolean,
+    Column,
+    DateTime,
+    Integer,
+    Numeric,
+    String,
+    Text
+)
 from app.database import Base
-from sqlalchemy.orm import relationship
 
 class Internal_Product(Base):
     __tablename__ = "internal_products"

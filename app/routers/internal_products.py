@@ -1,33 +1,25 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import func, literal, any_, and_
-from typing import List
 from sqlalchemy.orm import aliased
-from app.database import get_db
-from app.routers.auth import get_current_user
-from app.models.orders import Order
-from app.models.user import User
-from app.routers.auth import get_current_user
-from app.models.product import Product
-from app.models.damaged_good import Damaged_good
-from app.models.returns import Returns
-from app.models.awb import AWB
-from app.models.shipment import Shipment
-from app.models.internal_product import Internal_Product
-from app.schemas.internal_product import Internal_ProductCreate, Internal_ProductRead, Internal_ProductUpdate
-from app.models.shipment import Shipment
-from app.models.team_member import Team_member
-from sqlalchemy import cast, String
-from app.models.marketplace import Marketplace
-import json
-from app.config import settings
+from sqlalchemy import any_, and_, cast, String
 
 import datetime
-from datetime import timedelta
-
-import base64
 import calendar
+
+from app.config import settings
+from app.database import get_db
+from app.models import (
+    AWB,
+    Damaged_good,
+    Internal_Product,
+    Order,
+    Product,
+    Returns,
+    Shipment
+)
+from app.routers.auth import get_team_admin_user
+from app.schemas.internal_product import Internal_ProductCreate, Internal_ProductRead, Internal_ProductUpdate
 
 def get_valid_date(year, month, day):
     # Find the last day of the month
@@ -43,14 +35,12 @@ async def get_orders_info(ean: str, db: AsyncSession):
     product_id_list = []
     for product in products:
         product_id_list.append(product.id)
-        
+
     product_id_list = list(set(product_id_list))
-    
     result = await db.execute(select(Internal_Product).where(Internal_Product.ean == ean))
     internal_product = result.scalars().first()
     warehouse_id = internal_product.warehouse_id
     user_id = internal_product.user_id
-    
     order_data = []
 
     for product_id in product_id_list:
@@ -67,7 +57,7 @@ async def get_orders_info(ean: str, db: AsyncSession):
                 "awb": awb
             })
     return order_data
-    
+
 async def get_refunded_info(ean: str, db: AsyncSession):
     query = select(Product).where(Product.ean == ean)
     result = await db.execute(query)
@@ -82,7 +72,6 @@ async def get_refunded_info(ean: str, db: AsyncSession):
 
     for product in products:
         product_id = product.id
-
         query_total = select(Returns).where(product_id == any_(Returns.products))
         result_total = await db.execute(query_total)
         total += len(result_total.scalars().all())
@@ -144,20 +133,10 @@ async def get_imports(ean: str, db:AsyncSession):
 router = APIRouter()
 
 @router.post("/", response_model=Internal_ProductRead)
-async def create_product(product: Internal_ProductCreate, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    if user.role == -1:
-        raise HTTPException(status_code=401, detail="Authentication error")
-    
-    if user.role != 4:
-        result = await db.execute(select(Team_member).where(Team_member.user == user.id))
-        db_team = result.scalars().first()
-        user_id = db_team.admin
-    else:
-        user_id = user.id
-        
+async def create_product(product: Internal_ProductCreate, user_id: int = Depends(get_team_admin_user), db: AsyncSession = Depends(get_db)):
     db_product = Internal_Product(**product.dict())
     db_product.user_id = user_id
-    
+
     settings.update_flag = 1
     try:
         db.add(db_product)
@@ -167,38 +146,28 @@ async def create_product(product: Internal_ProductCreate, user: User = Depends(g
         db.rollback()
     finally:
         settings.update_flag = 0
-    
+
     return db_product
 
 @router.get('/count')
 async def get_products_count(
     supplier_ids: str = Query(None),
     search_text: str = Query('', description="Text for searching"),
-    user: User = Depends(get_current_user),
+    user_id: int = Depends(get_team_admin_user),
     db: AsyncSession = Depends(get_db)
 ):
-    if user.role == -1:
-        raise HTTPException(status_code=401, detail="Authentication error")
-    
-    if user.role != 4:
-        result = await db.execute(select(Team_member).where(Team_member.user == user.id))
-        db_team = result.scalars().first()
-        user_id = db_team.admin
-    else:
-        user_id = user.id
-        
     query = select(Internal_Product)
     if supplier_ids:
         supplier_id_list = [int(id.strip()) for id in supplier_ids.split(",")]
         query = query.filter(Internal_Product.supplier_id == any_(supplier_id_list))
-    
+
     query = query.filter(
         (cast(Internal_Product.id, String).ilike(f"%{search_text}%")) |
         (Internal_Product.product_name.ilike(f"%{search_text}%")) |
         (Internal_Product.model_name.ilike(f"%{search_text}%")) |
         (Internal_Product.ean.ilike(f"%{search_text}%"))).order_by(Internal_Product.id)
     query = query.where(Internal_Product.user_id == user_id)
-    
+
     result = await db.execute(query)
     db_products = result.scalars().all()
     return len(db_products)
@@ -216,17 +185,7 @@ async def get_all_products(
     return db_products
 
 @router.get("/{ean}", response_model=Internal_ProductRead)
-async def read_product(ean: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    if user.role == -1:
-        raise HTTPException(status_code=401, detail="Authentication error")
-    
-    if user.role != 4:
-        result = await db.execute(select(Team_member).where(Team_member.user == user.id))
-        db_team = result.scalars().first()
-        user_id = db_team.admin
-    else:
-        user_id = user.id
-        
+async def read_product(ean: str, user_id: int = Depends(get_team_admin_user), db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Internal_Product).where(Internal_Product.ean == ean))
     product = result.scalars().first()
     if product is None:
@@ -239,19 +198,9 @@ async def read_product(ean: str, user: User = Depends(get_current_user), db: Asy
 async def get_info(
     ean: str,
     type: int,
-    user: User = Depends(get_current_user),
+    user_id: int = Depends(get_team_admin_user),
     db: AsyncSession = Depends(get_db)
 ):
-    if user.role == -1:
-        raise HTTPException(status_code=401, detail="Authentication error")
-    
-    if user.role != 4:
-        result = await db.execute(select(Team_member).where(Team_member.user == user.id))
-        db_team = result.scalars().first()
-        user_id = db_team.admin
-    else:
-        user_id = user.id
-        
     result = await db.execute(select(Internal_Product).where(Internal_Product.ean == ean, Internal_Product.user_id == user_id))
     db_product = result.scalars().first()
     if db_product is None:
@@ -278,7 +227,6 @@ async def get_sales_info(ean, type, db: AsyncSession):
             year = today.year - 1 if month <= 12 else today.year
             month = month if month <= 12 else month - 12
             date = get_valid_date(year, month, today.day)
-            
             date_string = f"{date.strftime('%b')} {date.year}"
             st_date = datetime.date(date.year, date.month, 1)
             if date.month == 12:
@@ -288,7 +236,6 @@ async def get_sales_info(ean, type, db: AsyncSession):
 
             st_datetime = datetime.datetime.combine(st_date, datetime.time.min)
             en_datetime = datetime.datetime.combine(en_date, datetime.time.max)
-            
             sales_month_data = await get_date_info(ean, st_datetime, en_datetime, db)
             sales_info.append({"date_string": date_string, "sales": sales_month_data["sales"]})
 
@@ -303,7 +250,6 @@ async def get_sales_info(ean, type, db: AsyncSession):
                 week_string = f"week {week_num_en + 52 - i}"
             st_datetime = datetime.datetime.combine(st_date, datetime.time.min)
             en_datetime = datetime.datetime.combine(en_date, datetime.time.max)
-
             sales_week_data = await get_date_info(ean, st_datetime, en_datetime, db)
             sales_info.append({"date_string": week_string, "sales": sales_week_data["sales"]})
             en_date = st_date - datetime.timedelta(days=1)
@@ -313,7 +259,6 @@ async def get_sales_info(ean, type, db: AsyncSession):
             date = today - datetime.timedelta(days=i)
             st_datetime = datetime.datetime.combine(date, datetime.time.min)
             en_datetime = datetime.datetime.combine(date, datetime.time.max)
-
             day_string = f"{date.day} {date.strftime('%b')} {date.year}"
             sales_day_info = await get_date_info(ean, st_datetime, en_datetime, db)
             sales_info.append({"date_string": day_string, "sales": sales_day_info["sales"]})
@@ -321,7 +266,6 @@ async def get_sales_info(ean, type, db: AsyncSession):
     return sales_info
 
 async def get_date_info(ean: str, st_datetime, en_datetime, db: AsyncSession):
-
     query = select(Product).where(Product.ean == ean)
     result = await db.execute(query)
     products = result.scalars().all()
@@ -330,8 +274,12 @@ async def get_date_info(ean: str, st_datetime, en_datetime, db: AsyncSession):
     for product in products:
         product_id = product.id
         marketplace = product.product_marketplace
-
-        query = select(Order).where(Order.date >= st_datetime, Order.date <= en_datetime, Order.order_market_place == marketplace, Order.user_id == product.user_id)
+        query = select(Order).where(
+            Order.date >= st_datetime,
+            Order.date <= en_datetime,
+            Order.order_market_place == marketplace,
+            Order.user_id == product.user_id
+        )
         query = query.where(product_id == any_(Order.product_id))
         result = await db.execute(query)
         orders = result.scalars().all()
@@ -357,21 +305,10 @@ async def get_products(
     page: int = Query(1, ge=1, description="Page number"),
     items_per_page: int = Query(50, ge=1, le=1000, description="Number of items per page"),
     search_text: str = Query('', description="Text for searching"),
-    user: User = Depends(get_current_user),
+    user_id: int = Depends(get_team_admin_user),
     db: AsyncSession = Depends(get_db)
 ):
-    if user.role == -1:
-        raise HTTPException(status_code=401, detail="Authentication error")
-    
-    if user.role != 4:
-        result = await db.execute(select(Team_member).where(Team_member.user == user.id))
-        db_team = result.scalars().first()
-        user_id = db_team.admin
-    else:
-        user_id = user.id
-    
     cnt = {}
-    
     ProductAlias = aliased(Product)
     query = select(Order, ProductAlias).outerjoin(
         ProductAlias,
@@ -383,7 +320,7 @@ async def get_products(
     )
     query = query.where(Order.user_id == user_id)
     time = datetime.datetime.now()
-    thirty_days_ago = time - timedelta(days=30)
+    thirty_days_ago = time - datetime.timedelta(days=30)
     query1 = query.where(Order.date > thirty_days_ago)
     result = await db.execute(query1)
     orders_with_products = result.all()
@@ -399,7 +336,7 @@ async def get_products(
                     cnt[product.ean] = quantities[i]
                 else:
                     cnt[product.ean] += quantities[i]
-                    
+
     returns_cnt = {}
     ProductAlias = aliased(Product)
     query = select(Returns, ProductAlias).outerjoin(
@@ -412,7 +349,7 @@ async def get_products(
     )
     query = query.where(Returns.user_id == user_id)
     time = datetime.datetime.now()
-    thirty_days_ago = time - timedelta(days=30)
+    thirty_days_ago = time - datetime.timedelta(days=30)
     query1 = query.where(Returns.date > thirty_days_ago)
     result = await db.execute(query1)
     returns_with_products = result.all()
@@ -428,13 +365,13 @@ async def get_products(
                     returns_cnt[product.ean] = quantities[i]
                 else:
                     returns_cnt[product.ean] += quantities[i]
-    
+
     offset = (page - 1) * items_per_page
     query = select(Internal_Product)
     if supplier_ids:
         supplier_id_list = [int(id.strip()) for id  in supplier_ids.split(",")]
         query = query.filter(Internal_Product.supplier_id == any_(supplier_id_list))
-    
+
     query = query.filter(
         (cast(Internal_Product.id, String).ilike(f"%{search_text}")) |
         (Internal_Product.product_name.ilike(f"%{search_text}%")) |
@@ -446,7 +383,7 @@ async def get_products(
 
     if db_products is None:
         raise HTTPException(status_code=404, detail="Internal_Product not found")
-    
+
     product_data = []
     for db_product in db_products:
         if db_product.ean is None:
@@ -460,7 +397,7 @@ async def get_products(
             refunds = 0
         else:
             refunds = returns_cnt[ean]
-            
+
         imports_data = await get_imports(ean, db)
         damaged_good = await get_damaged(ean, db)
         product_data.append({
@@ -483,27 +420,17 @@ async def get_damaged(ean: str, db: AsyncSession):
         for i in range(len(db_damaged.product_ean)):
             if db_damaged.product_ean[i] == ean:
                 total += db_damaged.quantity[i]
-                
+
     return total
 
 @router.put("/{ean}", response_model=Internal_ProductRead)
-async def update_product(ean: str, product: Internal_ProductUpdate, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    if user.role == -1:
-        raise HTTPException(status_code=401, detail="Authentication error")
-    
-    if user.role != 4:
-        result = await db.execute(select(Team_member).where(Team_member.user == user.id))
-        db_team = result.scalars().first()
-        user_id = db_team.admin
-    else:
-        user_id = user.id
-        
+async def update_product(ean: str, product: Internal_ProductUpdate, user_id: int = Depends(get_team_admin_user), db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Internal_Product).filter(Internal_Product.ean == ean, Internal_Product.user_id == user_id).with_for_update())
     db_product = result.scalars().first()
 
     if db_product is None:
         raise HTTPException(status_code=404, detail="Internal_Product not found")
-    
+
     for var, value in vars(product).items():
         setattr(db_product, var, value) if value is not None else None
 
@@ -515,34 +442,24 @@ async def update_product(ean: str, product: Internal_ProductUpdate, user: User =
         db.rollback()
     finally:
         settings.update_flag = 0
-    
+
     return db_product
 
 @router.delete("/{ean}", response_model=Internal_ProductRead)
-async def delete_product(ean: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    if user.role == -1:
-        raise HTTPException(status_code=401, detail="Authentication error")
-    
-    if user.role != 4:
-        result = await db.execute(select(Team_member).where(Team_member.user == user.id))
-        db_team = result.scalars().first()
-        user_id = db_team.admin
-    else:
-        user_id = user.id
-        
+async def delete_product(ean: str, user_id: int = Depends(get_team_admin_user), db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Internal_Product).filter(Internal_Product.ean == ean, Internal_Product.user_id == user_id))
     product = result.scalars().first()
     if product is None:
         raise HTTPException(status_code=404, detail="Internal_Product not found")
     if product.market_place:
         raise HTTPException(status_code=500, detail="This product is in marketplaces")
-    
+
     query = select(Shipment).where(ean == any_(Shipment.ean))
     result = await db.execute(query)
     shipment = result.scalars().all()
     if shipment:
         raise HTTPException(status_code=500, detail="This product is in shipment")
-    
+
     settings.update_flag = 1
     try:
         await db.delete(product)

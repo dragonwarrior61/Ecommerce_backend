@@ -12,7 +12,7 @@ class Reverse_InvoiceBase(BaseModel):
     storno_number: Optional[str] = None
     post: Optional[int] = None
     user_id: Optional[int] = None
-    
+
 class Reverse_InvoiceCreate(Reverse_InvoiceBase):
     pass
 

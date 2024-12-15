@@ -1,25 +1,20 @@
-from datetime import timedelta
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+import humanize
+import random
+from datetime import datetime, timedelta
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
-from sqlalchemy import func
-from pydantic import BaseModel
 from typing import List
+
+from app.config import settings
 from app.database import get_db
-from app.models.profile import Profile
-from app.models.user import User
+from app.models import Profile, User
 from app.routers.auth import Token, authenticate_user, update_last_logged_in
 from app.schemas.profile import UserProfileRead, ProfileRead
 from app.schemas.user import UserCreate, UserRead, UserUpdate
-from app.schemas.response import UserResponse, ResponsePayload, Pagination
 from app.utils.security import create_access_token, create_refresh_token, get_password_hash
-from app.config import settings
 from app.utils.role_utils import convert_role_to_string
-from datetime import datetime
-import humanize
-import random
-from app.config import settings
 
 router = APIRouter()
 
@@ -61,7 +56,7 @@ async def get_users_with_profiles(db: AsyncSession) -> List[UserProfileRead]:
                 country=user.profile.country,
                 avatar=user.profile.avatar  # Directly use the avatar from the profile if available
             )
-            
+
         user_profile = UserProfileRead(
             id=user.id,
             full_name=user.full_name,
@@ -76,7 +71,7 @@ async def get_users_with_profiles(db: AsyncSession) -> List[UserProfileRead]:
             access = user.access,
             avatar=avatar
         )
-        
+
         user_profiles.append(user_profile)
     return user_profiles
 
@@ -88,17 +83,21 @@ async def create_user(user: UserCreate, db: AsyncSession = Depends(get_db)):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="User already registered",
         )
-    
+
     existing_user_by_email = await get_user_by_email(db, user.email)
     if existing_user_by_email:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="User already registered",
         )
-    
+
     hashed_password = get_password_hash(user.password)
     db_user = User(
-        username=user.username, email=user.email, full_name=user.full_name, role=user.role, hashed_password=hashed_password
+        username=user.username,
+        email=user.email,
+        full_name=user.full_name,
+        role=user.role,
+        hashed_password=hashed_password
     )
     db.add(db_user)
     await db.flush()  # This makes sure the db_user gets an ID from the database
@@ -111,13 +110,11 @@ async def create_user(user: UserCreate, db: AsyncSession = Depends(get_db)):
         country="",
         avatar=""
     )
-    
     settings.update_flag = 1
     try:
         db.add(db_profile)
         await db.commit()
         await db.refresh(db_user)
-    
         user = await authenticate_user(db, user.email, user.password)
         if not user:
             raise HTTPException(
@@ -125,7 +122,7 @@ async def create_user(user: UserCreate, db: AsyncSession = Depends(get_db)):
                 detail="Incorrect username or password",
                 headers={"WWW-Authenticate": "bearer"},
             )
-        
+
         await update_last_logged_in(db, user.id)
         access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
         refresh_token_expires = timedelta(minutes=settings.REFRESH_TOKEN_EXPIRE_MINUTES)
@@ -135,9 +132,8 @@ async def create_user(user: UserCreate, db: AsyncSession = Depends(get_db)):
         db.rollback()
     finally:
         settings.update_flag = 0
-    
-    return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
 
+    return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
 
 @router.get("/{user_id}", response_model=UserProfileRead)
 async def read_user(user_id: int, db: AsyncSession = Depends(get_db)):
@@ -168,7 +164,6 @@ async def read_users(
     db: AsyncSession = Depends(get_db)
 ):
     users = await get_users_with_profiles(db)
-    
     return users
 
 @router.put("/{user_id}", response_model=UserRead)
@@ -182,7 +177,6 @@ async def update_user(user_id: int, user: UserUpdate, db: AsyncSession = Depends
     if user.password:
         db_user.hashed_password = get_password_hash(user.password)
     db_user.updated_at = datetime.utcnow()
-    
     settings.update_flag = 1
     try:
         await db.commit()
@@ -191,7 +185,7 @@ async def update_user(user_id: int, user: UserUpdate, db: AsyncSession = Depends
         db.rollback()
     finally:
         settings.update_flag = 0
-    
+
     return db_user
 
 @router.delete("/{user_id}", response_model=UserRead)
@@ -200,7 +194,7 @@ async def delete_user(user_id: int, db: AsyncSession = Depends(get_db)):
     user = result.scalars().first()
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
-    
+
     settings.update_flag = 1
     try:
         await db.delete(user)

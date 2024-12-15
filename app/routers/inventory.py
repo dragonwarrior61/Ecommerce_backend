@@ -1,32 +1,27 @@
-from fastapi import APIRouter, HTTPException, Query, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
-from sqlalchemy import any_
-from sqlalchemy.orm import aliased
-from app.models.product import Product
-from app.models.user import User
-from app.routers.auth import get_current_user
-from app.models.internal_product import Internal_Product
-from app.models.orders import Order
-from app.models.shipment import Shipment 
-from app.models.team_member import Team_member
-from app.schemas.shipment import ShipmentCreate, ShipmentRead, ShipmentUpdate
-from app.database import get_db
-from app.utils.emag_products import *
-from sqlalchemy import func, and_, text
+import logging
 from datetime import datetime, timedelta
 from decimal import Decimal
-import barcode
-from barcode.writer import ImageWriter
+from fastapi import APIRouter, Query, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+from sqlalchemy.orm import aliased
+from sqlalchemy import any_, and_
+
+from app.database import get_db
+from app.models import (
+    Internal_Product,
+    Order,
+    Product,
+    Shipment
+)
+from app.routers.auth import get_team_admin_user
 
 router = APIRouter()
 
 async def get_imports(ean: str, db:AsyncSession):
     query = select(Shipment).where(ean == any_(Shipment.ean))
     result = await db.execute(query)
-
     shipments = result.scalars().all()
-
     imports_data = []
 
     for shipment in shipments:
@@ -53,21 +48,10 @@ async def get_product_info(
     shipment_type: int = Query(0),
     query_stock_days: int = Query(0),
     query_imports_stocks: int = Query(0),
-    user: User = Depends(get_current_user),
+    user_id: int = Depends(get_team_admin_user),
     db: AsyncSession = Depends(get_db)
 ):
-    if user.role == -1:
-        raise HTTPException(status_code=401, detail="Authentication error")
-    
-    if user.role != 4:
-        result = await db.execute(select(Team_member).where(Team_member.user == user.id))
-        db_team = result.scalars().first()
-        user_id = db_team.admin
-    else:
-        user_id = user.id
-        
     cnt = {}
-
     ProductAlias = aliased(Product)
     query = select(Order, ProductAlias).join(
         ProductAlias,
@@ -117,6 +101,7 @@ async def get_product_info(
     product_data = []
     for product in products:
         dimension = product.dimensions
+        pcs_ctn = int(product.pcs_ctn) if product.pcs_ctn else 1
         if dimension:
             numbers = dimension.split('*')
             if len(numbers) == 3 and all(num.strip() for num in numbers):
@@ -125,11 +110,11 @@ async def get_product_info(
                 w, h, d = (0.0, 0.0, 0.0)
         else:
             w, h, d = (0.0, 0.0, 0.0)
-        if product.pcs_ctn:
-            volumetric_weight = w * h * d / 5000 / int(product.pcs_ctn)
+        if pcs_ctn:
+            volumetric_weight = w * h * d / 5000 / pcs_ctn
         else:
             volumetric_weight = 0
-        
+
         if w == 0.0 or h == 0.0 or d == 0.0:
             type = -1
         elif product.weight < 0.35 and volumetric_weight < 0.35:
@@ -138,12 +123,12 @@ async def get_product_info(
             type = 2
         else:
             type = 3
-        
+
         if type != shipment_type and shipment_type != 0:
             continue
 
         if type == 2:
-            volumetric_weight = w * h * d / 6000 / int(product.pcs_ctn)
+            volumetric_weight = w * h * d / 6000 / pcs_ctn
         stock = product.stock
         product_id = product.id
         ean = product.ean
@@ -164,7 +149,7 @@ async def get_product_info(
                 quantity = int(query_stock_days * ave_sales) - stock - imports
             else:
                 quantity = ""
-        
+
             # if (query_imports_stocks == 0 or imports < query_imports_stocks) or (query_stock_days == 0 or stock_imports_days < query_stock_days):
             product_data.append({
                 "id": product.id,
@@ -205,21 +190,10 @@ async def get_product_info(
     shipment_type: int = Query(0),
     query_stock_days: int = Query(0),
     query_imports_stocks: int = Query(0),
-    user: User = Depends(get_current_user),
+    user_id: int = Depends(get_team_admin_user),
     db: AsyncSession = Depends(get_db)
 ):
-    if user.role == -1:
-        raise HTTPException(status_code=401, detail="Authentication error")
-    
-    if user.role != 4:
-        result = await db.execute(select(Team_member).where(Team_member.user == user.id))
-        db_team = result.scalars().first()
-        user_id = db_team.admin
-    else:
-        user_id = user.id
-
     cnt = {}
-
     ProductAlias = aliased(Product)
     query = select(Order, ProductAlias).join(
         ProductAlias,
@@ -229,13 +203,10 @@ async def get_product_info(
             ProductAlias.user_id == Order.user_id
         )
     )
-    
     query = query.where(Order.user_id == user_id)
-
     time = datetime.now()
     thirty_days_ago = time - timedelta(days=30)
     query1 = query.where(Order.date > thirty_days_ago)
-
     result = await db.execute(query1)
     orders_with_products = result.all()
 
@@ -251,10 +222,10 @@ async def get_product_info(
 
     product_result = await db.execute(select(Internal_Product).where(Internal_Product.user_id == user_id))
     products = product_result.scalars().all()
-
     product_data = []
     for product in products:
         dimension = product.dimensions
+        pcs_ctn = int(product.pcs_ctn) if product.pcs_ctn else 1
         if dimension:
             numbers = dimension.split('*')
             # Ensure all parts are valid before conversion
@@ -266,27 +237,27 @@ async def get_product_info(
         else:
             w, h, d = (0.0, 0.0, 0.0)
         if product.pcs_ctn:
-            volumetric_weight = w * h * d / 5000 / int(product.pcs_ctn)
+            volumetric_weight = w * h * d / 5000 / pcs_ctn
         else:
             volumetric_weight = 0
-        
+
         if w == 0.0 or h == 0.0 or d == 0.0:
             type = -1
         else:
             if product.weight < 0.35 and volumetric_weight < 0.35:
                 type = 1
             else:
-                volumetric_weight = w * h * d / 6000 / int(product.pcs_ctn)
+                volumetric_weight = w * h * d / 6000 / pcs_ctn
                 if product.battery:
                     type = 2
                 else:
                     type = 3
-        
+
         if type != shipment_type and shipment_type != 0:
             continue
 
         if type == 2:
-            volumetric_weight = w * h * d / 6000 / int(product.pcs_ctn)
+            volumetric_weight = w * h * d / 6000 / pcs_ctn
         stock = product.stock
         product_id = product.id
         ean = product.ean
@@ -332,7 +303,7 @@ async def get_product_info(
                 quantity = int(query_stock_days * ave_sales) - stock - imports
             else:
                 quantity = ""
-        
+
             if (query_imports_stocks == 0 or imports < query_imports_stocks) and (query_stock_days == 0 or stock_imports_days < query_stock_days):
                 product_data.append({
                     "id": product.id,
@@ -369,23 +340,13 @@ async def get_product_advanced_info(
     weight_max: Decimal = Query(None),
     volumetric_weight_min: Decimal = Query(None),
     volumetric_weight_max: Decimal = Query(None),
-    user: User = Depends(get_current_user)
+    user_id: int = Depends(get_team_admin_user)
 ):
-    if user.role == -1:
-        raise HTTPException(status_code=401, detail="Authentication error")
-    
-    if user.role != 4:
-        result = await db.execute(select(Team_member).where(Team_member.user == user.id))
-        db_team = result.scalars().first()
-        user_id = db_team.admin
-    else:
-        user_id = user.id
-        
     query_ship = select(Shipment)
 
     if shipment_type is not None:
         query_ship = query_ship.where(Shipment.type == shipment_type)
-    
+
     query_ship = query_ship.where(Shipment.user_id == user_id)
     shipments_result = await db.execute(query_ship)
     shipments = shipments_result.scalars().all()
@@ -403,16 +364,16 @@ async def get_product_advanced_info(
     query = select(Internal_Product)
     if weight_min is not None:
         query = query.where(Internal_Product.weight >= weight_min)
-    
+
     if weight_max is not None:
         query = query.where(Internal_Product.weight <= weight_max)
-    
+
     if volumetric_weight_min is not None:
         query = query.where(Internal_Product.volumetric_weight >= volumetric_weight_min)
-    
+
     if volumetric_weight_max is not None:
         query = query.where(Internal_Product.volumetric_weight <= volumetric_weight_max)
-    
+
     if shipment_type is not None:
         query = query.where(Internal_Product.product_name in product_type_list)
     query = query.where(Internal_Product.user_id == user_id)
@@ -437,21 +398,11 @@ async def get_product_advanced_info(
 
 @router.get('/shipment')
 async def  get_shipment_info(
-    user: User = Depends(get_current_user),
+    user_id: int = Depends(get_team_admin_user),
     db: AsyncSession = Depends(get_db),
     type_str: str = Query(None),
     status_str: str = Query(None)
 ):
-    if user.role == -1:
-        raise HTTPException(status_code=401, detail="Authentication error")
-    
-    if user.role != 4:
-        result = await db.execute(select(Team_member).where(Team_member.user == user.id))
-        db_team = result.scalars().first()
-        user_id = db_team.admin
-    else:
-        user_id = user.id
-        
     if type_str:
         type = [str(id.strip()) for id in type_str.split(",")]
     else:
