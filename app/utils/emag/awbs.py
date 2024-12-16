@@ -17,7 +17,7 @@ def convert_decimal_to_float(obj):
 
 async def save(marketplace: Marketplace, data):
     url = f"{marketplace.baseAPIURL}/awb/save"
-    headers = get_auth_marketplace()
+    headers = get_auth_marketplace(marketplace)
     response = await send_post_request(url, data=json.dumps(data, default=convert_decimal_to_float), headers=headers, error_msg='generate awb')
     if response.status_code != 200:
         logging.error(f"Failed to save data: {response.text}")
