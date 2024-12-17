@@ -277,14 +277,14 @@ async def refresh_orders_data(db:AsyncSession = Depends(get_db)):
                     except Exception as e:
                         log_refresh_orders(f"An error occurred: {e}")
                 else:
-                    print("Refresh products from emag")
-                    log_refresh_orders("Refresh products from emag")
+                    print(f"Refresh products from {marketplace.marketplaceDomain}")
+                    log_refresh_orders(f"Refresh products from {marketplace.marketplaceDomain}")
                     try:
                         await refresh_emag_products(marketplace)
                     except Exception as e:
                         log_refresh_orders(f"An error occurred: {e}")
-                    print("Refresh orders from emag")
-                    log_refresh_orders("Refresh orders from emag")
+                    print(f"Refresh orders from {marketplace.marketplaceDomain}")
+                    log_refresh_orders(f"Refresh orders from {marketplace.marketplaceDomain}")
                     try:
                         await refresh_emag_orders(marketplace)
                     except Exception as e:

@@ -367,10 +367,10 @@ async def refresh_emag_products(marketplace: Marketplace):
                     await insert_products_into_db(products['results'], marketplace.marketplaceDomain, user_id)
                     await asyncio.sleep(2)
                     await insert_products(products['results'], marketplace.marketplaceDomain, user_id)
-                currentPage += 1
             except Exception as e:
                 logging.error(f"An error occured to get products from page {currentPage}: {e}")
                 log_refresh_orders(f"An error occured to get products from page {currentPage}: {e}")
+            currentPage += 1
 
 async def save(marketplace: Marketplace, data):
     ENDPOINT = marketplace.products_crud['endpoint']
