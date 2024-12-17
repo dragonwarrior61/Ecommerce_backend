@@ -28,7 +28,7 @@ async def tracking(sameday: Billing_software, awb_barcode):
     headers = {
         "X-Auth-TOKEN": api_key,
     }
-    response = await send_get_request(f"{url}/{awb_barcode}/status-history", headers=headers, error_msg="get history")
+    response = await send_get_request(f"{url}/{awb_barcode}/status-history", headers=headers, error_msg="get history", verify=False)
     if response.status_code != 200:
         logging.error(f"Failed to track awb {awb_barcode}: {response.text}")
     return response
