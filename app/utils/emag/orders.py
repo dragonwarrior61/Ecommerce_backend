@@ -143,6 +143,7 @@ async def insert_orders(orders, marketplace: Marketplace):
                         order_db = result.scalars().first()
                     except Exception as e:
                         logging.error(f"Failed to get order {order_id} from database: {e}")
+                        log_refresh_orders(f"Failed to get order {order_id} from database: {e}")
                         await session.rollback()
                     try:
                         if order_db:
@@ -154,6 +155,7 @@ async def insert_orders(orders, marketplace: Marketplace):
                                 awbs = result.scalars().all()
                             except Exception as e:
                                 logging.error(f"Failed to get awb of order {order_id} from database: {e}")
+                                log_refresh_orders(f"Failed to get awb of order {order_id} from database: {e}")
                                 await session.rollback()
                             for awb in awbs:
                                 if awb and not awb.awb_barcode:
@@ -165,8 +167,10 @@ async def insert_orders(orders, marketplace: Marketplace):
                                         try:
                                             await session.delete(awb)
                                             logging.warning(f"The empty AWB of order {order_id} was deleted.")
+                                            log_refresh_orders(f"The empty AWB of order {order_id} was deleted.")
                                         except Exception as e:
                                             logging.error(f"Failed to delete awb of order {order_id}: {e}")
+                                            log_refresh_orders(f"Failed to delete awb of order {order_id}: {e}")
                                             await session.rollback()
                             await session.merge(order_processed)
                         else:
@@ -174,9 +178,11 @@ async def insert_orders(orders, marketplace: Marketplace):
                         await session.commit()
                     except Exception as e:
                         logging.error(f"Failed to insert or update order {order_id}: {e}")
+                        log_refresh_orders(f"Failed to insert or update order {order_id}: {e}")
                         await session.rollback()
                 except Exception as e:
                     logging.error(f"Failed to insert or update order {order_id}: {e}")
+                    log_refresh_orders(f"Failed to insert or update order {order_id}: {e}")
 
 async def refresh_emag_orders(marketplace: Marketplace, period=3):
     logging.info(f">>>>>>> Refreshing Marketplace : {marketplace.title} user is {marketplace.user_id} <<<<<<<<")
@@ -208,7 +214,6 @@ async def refresh_emag_orders(marketplace: Marketplace, period=3):
                     # await insert_orders_into_db(orders['results'], customer_table, orders_table, marketplace.marketplaceDomain)
                     await insert_orders(orders, marketplace)
             except Exception as e:
-                log_refresh_orders(f"Failed to get orders: {response.text}")
                 logging.error(f"Error occured while refreshing emag orders: {e}")
                 log_refresh_orders(f"Error occured while refreshing emag orders: {e}")
             currentPage += 1
