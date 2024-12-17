@@ -22,6 +22,7 @@ from app.models import (
 )
 from app.utils.emag.invoice import post_factura_pdf
 from app.utils.httpx_request import send_get_request, send_post_request, send_put_request
+from app.logfiles import log_generate_invoice
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -281,27 +282,33 @@ async def refresh_invoice(db: AsyncSession):
 
             logging.info(f"Invoice data being saved: {invoice.__dict__}")
             try:
-                db.add(invoice)
-                await db.commit()
                 name = f"factura_{series}{number}.pdf"
                 download_result = await download_pdf_server(series, number, name, smartbill)
                 logging.info(f"download pdf result is {download_result}")
                 order_id_list.append(order.id)
                 result = await post_factura_pdf(order.id, name, marketplace)
-                if result is not None:
+                if result.status_code == 200:
                     invoice.post = 1
+                    db.add(invoice)
+                    await db.commit()
+                else:
+                    log_generate_invoice(f"Failed to generate invoice of order {order.id}: {result.text}")
             except Exception as e:
-                await db.rollback()
                 logging.error(f"Error saving invoice: {e}")
+                log_generate_invoice(f"Error saving invoice: {e}")
+                await db.rollback()
             # logging.info(f"order_id_list is {order_id_list}")
             # logging.info(f"successfully generate invoice of {len(order_id_list)}")
 
         except Exception as e:
             logging.error(f"Error in generating invoice: {e}")
+            log_generate_invoice(f"Error in generating invoice: {e}")
 
     try:
         logging.info("start commit")
         await db.commit()
+        log_generate_invoice(f"order_id_list is {order_id_list}")
+        log_generate_invoice(f"successfully generate invoice of {len(order_id_list)}")
         logging.info(f"order_id_list is {order_id_list}")
         logging.info(f"successfully generate invoice of {len(order_id_list)}")
     except Exception as e:

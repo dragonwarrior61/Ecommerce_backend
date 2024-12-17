@@ -44,7 +44,7 @@ from app.refresh_data import (
     refresh_months_order,
     send_stock,
     refresh_stock,
-    refresh_data,
+    refresh_return,
     # backup_db,
     # on_startup,
     # update_damaged_goods,
@@ -64,7 +64,7 @@ async def lifespan(app: FastAPI):
     scheduler.add_job(refresh_months_order, trigger='interval', seconds=28800)
     scheduler.add_job(send_stock, trigger='interval', seconds=7200)
     scheduler.add_job(refresh_stock, trigger='interval', seconds=7200)
-    scheduler.add_job(refresh_data, trigger='interval', seconds=86400)
+    scheduler.add_job(refresh_return, trigger='interval', seconds=86400)
     # scheduler.add_job(backup_db, trigger='interval', seconds=86400)
     scheduler.start()
     # asyncio.create_task(on_startup())
@@ -76,7 +76,7 @@ async def lifespan(app: FastAPI):
     asyncio.create_task(refresh_months_order())
     asyncio.create_task(send_stock())
     asyncio.create_task(refresh_stock())
-    asyncio.create_task(refresh_data())
+    asyncio.create_task(refresh_return())
     # asyncio.create_task(backup_db())
     yield
     print("App stopped")

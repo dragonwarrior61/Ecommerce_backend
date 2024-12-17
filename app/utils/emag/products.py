@@ -12,6 +12,7 @@ from app.config import settings
 from app.models import Marketplace
 from app.utils.auth_market import get_auth_marketplace
 from app.utils.httpx_request import send_post_request, send_get_request, send_patch_request
+from app.logfiles import log_refresh_orders
 
 lock = threading.Lock()
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -348,6 +349,7 @@ async def refresh_emag_products(marketplace: Marketplace):
     user_id = marketplace.user_id
     result = await count_all_products(marketplace)
     logging.info(f"count result is {result}")
+    log_refresh_orders(f"count result is {result}")
     if result and result['isError'] == False:
         pages = result['results']['noOfPages']
         items = result['results']['noOfItems']
@@ -357,6 +359,7 @@ async def refresh_emag_products(marketplace: Marketplace):
         currentPage = 1
         while currentPage <= int(pages):
             try:
+                log_refresh_orders(f"Started fetching products from emag: page {currentPage}")
                 products = await get_all_products(marketplace, currentPage)
 
                 logging.info(f">>>>>>> Current Page : {currentPage} <<<<<<<<")
@@ -367,6 +370,7 @@ async def refresh_emag_products(marketplace: Marketplace):
                 currentPage += 1
             except Exception as e:
                 logging.error(f"An error occured to get products from page {currentPage}: {e}")
+                log_refresh_orders(f"An error occured to get products from page {currentPage}: {e}")
 
 async def save(marketplace: Marketplace, data):
     ENDPOINT = marketplace.products_crud['endpoint']

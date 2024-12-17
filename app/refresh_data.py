@@ -31,8 +31,17 @@ from app.utils.altex.orders import refresh_altex_orders
 from app.utils.altex.returns import refresh_altex_rmas
 from app.utils.smart_api import get_stock, refresh_invoice
 from app.utils.sameday import tracking, auth_sameday
+from app.logfiles import (
+    log_generate_invoice,
+    log_msg_file,
+    log_refresh_month_order,
+    log_refresh_orders,
+    log_refresh_returns,
+    log_refresh_stock,
+    log_send_stock,
+    log_update_awb
+)
 
-LOG_DIR = "/var/www/html/log/"
 logging.getLogger("sqlalchemy").setLevel(logging.CRITICAL)
 
 # app = FastAPI()
@@ -122,15 +131,27 @@ logging.getLogger("sqlalchemy").setLevel(logging.CRITICAL)
 async def update_awb(db: AsyncSession = Depends(get_db)):
     async for db in get_db():
         async with db as session:
-            file = open(f"{LOG_DIR}update_awb", "+a", encoding="utf-8")
-            file.write(f"Started on {datetime.now(timezone.utc)}\n")
+            log_update_awb(f"Started on {datetime.now(timezone.utc)}")
             print("Starting update api_key in sameday")
             result = await session.execute(select(Billing_software).where(Billing_software.site_domain == "sameday.ro"))
-            samedays = result.scalars().all()
-            for sameday in samedays:
-                api_key = await auth_sameday(sameday)
-                sameday.registration_number = api_key
-            await session.commit()
+            sameday = result.scalars().first()
+            if not sameday:
+                log_update_awb("Not found sameday in database.")
+                logging.warning("Not found sameday in database.")
+                return
+            response = await auth_sameday(sameday)
+            if response.status_code != 200:
+                log_update_awb(f"Failed to authenticate sameday: {response.text}")
+                logging.error(f"Failed to authenticate sameday: {response.text}")
+                return
+            result = response.json()
+            api_key = result.get('token')
+            sameday.registration_number = api_key
+            try:
+                await session.commit()
+            except Exception as e:
+                logging.error(f"Failed to commit database: {e}")
+                log_update_awb(f"Failed to commit database: {e}")
 
             awb_status_list = [56, 85, 84, 37, 63, 1, 2, 25, 33, 7, 78, 6, 26, 14, 23, 35, 79, 112, 81, 10, 113, 27,
                                87, 4, 99, 74, 116, 18, 61, 111, 57, 137, 82, 3, 11, 28, 127, 17, 68,
@@ -149,6 +170,8 @@ async def update_awb(db: AsyncSession = Depends(get_db)):
 
                 if not db_awbs:
                     return
+                
+                log_update_awb(f"Found {len(db_awbs)} awbs.")
 
                 for awb in db_awbs:
                     awb_barcode = awb.awb_barcode
@@ -159,7 +182,6 @@ async def update_awb(db: AsyncSession = Depends(get_db)):
                         # Track and update awb status
                         awb_status_response = await tracking(sameday, awb_barcode)
                         if (awb_status_response.status_code != 200):
-                            file.write(f"An error occured while tracking {awb_barcode}: {awb_status_response.text}\n")
                             raise Exception(awb_status_response.text)
                         awb_status_result = awb_status_response.json()
                         pickedup = awb_status_result.get('parcelSummary').get('isPickedUp')
@@ -185,10 +207,11 @@ async def update_awb(db: AsyncSession = Depends(get_db)):
                         awb.width = width
                         awb.length = length
                         awb.awb_status_update_time = datetime.now()
+                        await asyncio.sleep(20)
                     except Exception as track_ex:
                         error_barcode.append(awb_barcode)
                         print(f"Tracking API error for AWB {awb_barcode}: {str(track_ex)}")
-                        file.write(f"Tracking API error for AWB {awb_barcode}: {str(track_ex)}\n")
+                        log_update_awb(f"Tracking API error for AWB {awb_barcode}: {str(track_ex)}")
                         continue  # Continue to next AWB if tracking fails
                 #     count += 1
                 MAX_RETRIES = 5
@@ -211,14 +234,13 @@ async def update_awb(db: AsyncSession = Depends(get_db)):
                             await asyncio.sleep(2)
             except Exception as db_ex:
                 print(f"Database query failed: {str(db_ex)}")
-                file.write(f"Database query failed: {str(db_ex)}\n")
+                log_update_awb(f"Database query failed: {str(db_ex)}")
                 await session.rollback()
 
             print(f"Getting awb status error barcodes {error_barcode}")
-            file.write(f"Getting awb status error barcodes {error_barcode}\n")
+            log_update_awb(f"Getting awb status error barcodes {error_barcode}")
             print("AWB status update completed")
-            file.write(f"Finished on {datetime.now(timezone.utc)}\n\n")
-            file.close()
+            log_update_awb(f"Finished on {datetime.now(timezone.utc)}\n")
 
 # def backup_db():
 #     export_to_csv()
@@ -226,8 +248,7 @@ async def update_awb(db: AsyncSession = Depends(get_db)):
 async def refresh_orders_data(db:AsyncSession = Depends(get_db)):
     async for db in get_db():
         async with db as session:
-            file = open(f"{LOG_DIR}refresh_orders", "+a", encoding="utf-8")
-            file.write(f"Started on {datetime.now(timezone.utc)}\n")
+            log_refresh_orders(f"Started on {datetime.now(timezone.utc)}")
             # print("Starting orders refresh")
             result = await session.execute(select(Marketplace).order_by(Marketplace.id.asc()))
             marketplaces = result.scalars().all()
@@ -236,51 +257,47 @@ async def refresh_orders_data(db:AsyncSession = Depends(get_db)):
             for marketplace in marketplaces:
                 if marketplace.marketplaceDomain == "altex.ro":
                     print("Refresh products from altex")
-                    file.write("Refresh products from altex\n")
+                    log_refresh_orders("Refresh products from altex")
                     try:
                         await refresh_altex_products(marketplace)
                     except Exception as e:
-                        file.write(f"An error occurred: {e}\n")
+                        log_refresh_orders(f"An error occurred: {e}")
                     print("Refresh orders from altex")
-                    file.write("Refresh orders from altex\n")
+                    log_refresh_orders("Refresh orders from altex")
                     try:
                         await refresh_altex_orders(marketplace)
                     except Exception as e:
-                        file.write(f"An error occurred: {e}\n")
+                        log_refresh_orders(f"An error occurred: {e}")
                 else:
                     print("Refresh products from emag")
-                    file.write("Refresh products from emag\n")
+                    log_refresh_orders("Refresh products from emag")
                     try:
                         await refresh_emag_products(marketplace)
                     except Exception as e:
-                        file.write(f"An error occurred: {e}\n")
+                        log_refresh_orders(f"An error occurred: {e}")
                     print("Refresh orders from emag")
-                    file.write("Refresh orders from emag\n")
+                    log_refresh_orders("Refresh orders from emag")
                     try:
                         await refresh_emag_orders(marketplace)
                     except Exception as e:
-                        file.write(f"An error occurred: {e}\n")
-            file.write(f"Finished on {datetime.now(timezone.utc)}\n\n")
-            file.close()
+                        log_refresh_orders(f"An error occurred: {e}")
+            log_refresh_orders(f"Finished on {datetime.now(timezone.utc)}")
 
 async def generate_invoice(db:AsyncSession = Depends(get_db)):
     async for db in get_db():
         async with db as session:
-            file = open(f"{LOG_DIR}generate_invoice", "+a", encoding="utf-8")
-            file.write(f"Started on {datetime.now(timezone.utc)}\n")
+            log_generate_invoice(f"Started on {datetime.now(timezone.utc)}")
             print("Create Invoice and Reverse Invoice")
             try:
                 await refresh_invoice(session)
             except Exception as e:
-                file.write(f"An error occured: {e}\n")
-            file.write(f"Finished on {datetime.now(timezone.utc)}\n\n")
-            file.close()
+                log_generate_invoice(f"An error occured: {e}")
+            log_generate_invoice(f"Finished on {datetime.now(timezone.utc)}\n")
 
 async def refresh_months_order(db:AsyncSession = Depends(get_db)):
     async for db in get_db():
         async with db as session:
-            file = open(f"{LOG_DIR}refresh_month_order", "+a", encoding="utf-8")
-            file.write(f"Started on {datetime.now(timezone.utc)}\n")
+            log_refresh_month_order(f"Started on {datetime.now(timezone.utc)}")
             print("Starting orders refresh")
             result = await session.execute(select(Marketplace).order_by(Marketplace.id.asc()))
             marketplaces = result.scalars().all()
@@ -294,14 +311,12 @@ async def refresh_months_order(db:AsyncSession = Depends(get_db)):
                         print("Refresh orders from marketplace")
                         await refresh_emag_orders(marketplace, period=180)
                 except Exception as e:
-                    file.write(f"An error occured: {e}\n")
-            file.write(f"Finished on {datetime.now(timezone.utc)}\n\n")
-            file.close()
+                    log_refresh_month_order(f"An error occured: {e}")
+            log_refresh_month_order(f"Finished on {datetime.now(timezone.utc)}\n")
 
 async def send_stock(db:AsyncSession = Depends(get_db)):
     async for db in get_db():
-        file = open(f"{LOG_DIR}send_stock", "+a", encoding="utf-8")
-        file.write(f"Stock sending started on f{datetime.now(timezone.utc)}\n")
+        log_send_stock(f"Stock sending started on f{datetime.now(timezone.utc)}")
         try:
             async with db as session:
                 print("Calculate orders_stock")
@@ -309,9 +324,11 @@ async def send_stock(db:AsyncSession = Depends(get_db)):
                 db_new_orders = result.scalars().all()
                 if db_new_orders is None:
                     print("Can't find new orders")
+                    log_send_stock("Can't find new orders")
                     return
                 else:
                     print(f"Find {len(db_new_orders)} new orders")
+                    log_send_stock(f"Find {len(db_new_orders)} new orders")
                 # try:
                 #     for db_new_order in db_new_orders:
                 #         product_id_list = db_new_order.product_id
@@ -374,33 +391,37 @@ async def send_stock(db:AsyncSession = Depends(get_db)):
 
                     marketplaces = product.market_place
                     for domain in marketplaces:
-                        if domain == "altex.ro":
-                            continue
-                            # if db_product.barcode_title == "":
-                                #     continue
-                                # post_stock_altex(marketplace, db_product.barcode_title, stock)
-                                # print("post stock success in altex")
-                        result = await session.execute(select(Marketplace).where(Marketplace.marketplaceDomain == domain, Marketplace.user_id == product.user_id))
-                        marketplace = result.scalars().first()
+                        try:
+                            if domain == "altex.ro":
+                                continue
+                                # if db_product.barcode_title == "":
+                                    #     continue
+                                    # post_stock_altex(marketplace, db_product.barcode_title, stock)
+                                    # print("post stock success in altex")
+                            result = await session.execute(select(Marketplace).where(Marketplace.marketplaceDomain == domain, Marketplace.user_id == product.user_id))
+                            marketplace = result.scalars().first()
 
-                        if marketplace is None:
-                            continue
+                            if marketplace is None:
+                                continue
 
-                        result = await session.execute(select(Product).where(Product.ean == ean, Product.product_marketplace == domain))
-                        db_product = result.scalars().first()
+                            result = await session.execute(select(Product).where(Product.ean == ean, Product.product_marketplace == domain))
+                            db_product = result.scalars().first()
 
-                        if db_product is None:
-                            continue
-                        if db_product.stock == stock:
-                            continue
-                        product_id = db_product.id
+                            if db_product is None:
+                                continue
+                            if db_product.stock == stock:
+                                continue
+                            product_id = db_product.id
 
-                        # if marketplace.marketplaceDomain == "altex.ro":
-                        #     continue
-                        #     # if db_product.barcode_title == "":
-                        #     #     continue
-                        #     # post_stock_altex(marketplace, db_product.barcode_title, stock)
-                        #     # print("post stock success in altex")
+                            # if marketplace.marketplaceDomain == "altex.ro":
+                            #     continue
+                            #     # if db_product.barcode_title == "":
+                            #     #     continue
+                            #     # post_stock_altex(marketplace, db_product.barcode_title, stock)
+                            #     # print("post stock success in altex")
+                        except Exception as e:
+                            log_send_stock(f"Failed to send stock to {domain}: {e}")
+                            logging.error(f"Failed to send stock to {domain}: {e}")
 
                         product_id = int(product_id)
                         response = await post_stock_emag(marketplace, product_id, stock)
@@ -408,30 +429,28 @@ async def send_stock(db:AsyncSession = Depends(get_db)):
                         if response.status_code == 200:
                             product.sync_stock_time = datetime.now(timezone.utc)
                         else:
-                            file.write(f"An error occured: {response.text}\n")
+                            log_send_stock(f"An error occured: {response.text}")
                             continue
                 await session.commit() 
                 workbook.save("/var/www/html/invoices/stock_sync.xlsx")
                 print("successfully saved stock data")
-                file.write(f"successfully saved stock data on {datetime.now(timezone.utc)}\n")
+                log_send_stock(f"successfully saved stock data on {datetime.now(timezone.utc)}")
         except Exception as e:
             print(f"An error occurred: {e}")
-            file.write(f"An error occurred: {e}\n")
+            log_send_stock(f"An error occurred: {e}")
             await session.rollback()
-        file.write(f"Finished on {datetime.now(timezone.utc)}")
-        file.close()
+        log_send_stock(f"Finished on {datetime.now(timezone.utc)}\n")
 
 async def refresh_stock(db: AsyncSession = Depends(get_db)):
     async for db in get_db():
         async with db as session:
-            file = open(f"{LOG_DIR}refresh_stock", "+a", encoding="utf-8")
-            file.write(f"Stock refresh started on f{datetime.now(timezone.utc)}\n")
+            log_refresh_stock(f"Stock refresh started on f{datetime.now(timezone.utc)}")
             print("Starting stock refresh")
             result = await session.execute(select(Billing_software).where(Billing_software.site_domain == "smartbill.ro"))
             db_smarts = result.scalars().all()
             if db_smarts is None:
                 print("Can't find billing software")
-                file.write("Can't find billing software\n")
+                log_refresh_stock("Can't find billing software")
                 return
 
             print("Fetch stock via smarbill api")
@@ -447,7 +466,7 @@ async def refresh_stock(db: AsyncSession = Depends(get_db)):
                             continue
             except Exception as e:
                 logging.error(f"getting stock data error: {e}")
-                file.write(f"getting stock data error: {e}\n")
+                log_refresh_stock(f"getting stock data error: {e}")
             for product in products:
                 print(product)
                 product_code = product.get('productCode')
@@ -471,39 +490,39 @@ async def refresh_stock(db: AsyncSession = Depends(get_db)):
                 print("Finish sync stock")
             except Exception as e:
                 logging.error(f"sync stock error {e}")
-                file.write(f"sync stock error {e}\n")
-            file.write(f"Finish sync stock on {datetime.now(timezone.utc)}\n\n")
-            file.close()
+                log_refresh_stock(f"sync stock error {e}")
+            log_refresh_stock(f"Finish sync stock on {datetime.now(timezone.utc)}\n")
 
 # Run daily for deleting video last 30 days
-async def refresh_data(db: AsyncSession = Depends(get_db)): 
+async def refresh_return(db: AsyncSession = Depends(get_db)): 
     async for db in get_db():
         async with db as session:
-            file = open(f"{LOG_DIR}refresh_data", "+a", encoding="utf-8")
-            file.write(f"Refresh data (returns) started on f{datetime.now(timezone.utc)}\n")
+            log_refresh_returns(f"Refresh return (returns) started on f{datetime.now(timezone.utc)}")
             print("Starting product refresh")
             result = await session.execute(select(Marketplace).order_by(Marketplace.id.asc()))
             marketplaces = result.scalars().all()
             print(f"Success getting {len(marketplaces)} marketplaces")
             for marketplace in marketplaces:
-                try:
-                    if marketplace.marketplaceDomain == "altex.ro":
+                if marketplace.marketplaceDomain == "altex.ro":
+                    try:
                         print("Refresh rmas from altex")
-                        file.write("Refresh rmas from altex\n")
+                        log_refresh_returns("Refresh rmas from altex")
                         await refresh_altex_rmas(marketplace)
-                    else:
+                    except Exception as e:
+                        log_refresh_returns(f"An error occured: {e}")
+                else:
+                    try:
                         print("Refresh refunds from marketplace")
-                        file.write("Refresh refunds from marketplace\n")
+                        log_refresh_returns("Refresh refunds from marketplace")
                         await refresh_emag_returns(marketplace)
+                    except Exception as e:
+                        log_refresh_returns(f"An error occured: {e}")
 
-                        # print("Refresh reviews from emag")
-                        # await refresh_emag_reviews(marketplace, session)
-                        # print("Check hijacker and review")
-                        # await check_hijacker_and_bad_reviews(marketplace, session)
-                except Exception as e:
-                    file.write(f"An error occured: {e}\n")
-            file.write(f"Finished on {datetime.now(timezone.utc)}\n\n")
-            file.close()
+                    # print("Refresh reviews from emag")
+                    # await refresh_emag_reviews(marketplace, session)
+                    # print("Check hijacker and review")
+                    # await check_hijacker_and_bad_reviews(marketplace, session)
+            log_refresh_returns(f"Finished on {datetime.now(timezone.utc)}\n")
 
 # @asynccontextmanager
 # async def lifespan(app: FastAPI):

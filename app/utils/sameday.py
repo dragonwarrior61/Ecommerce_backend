@@ -15,11 +15,7 @@ async def auth_sameday(sameday: Billing_software):
     }
 
     response = await send_post_request(auth_url, headers=headers, error_msg="auth sameday")
-    if response.status_code != 200:
-        logging.error(f"Failed to auhenticate: {response.text}")
-        return response.json()
-    result = response.json()
-    return result.get('token')
+    return response
 
 async def tracking(sameday: Billing_software, awb_barcode):
     url = "https://api.sameday.ro/api/client/parcel"

@@ -43,4 +43,4 @@ async def post_factura_pdf(order_id: int, name: str, marketplace: Marketplace):
     response = await send_post_request(url=url, data=json.dumps(data), headers=headers, error_msg="post factura pdf")
     if response.status_code != 200:
         logging.error(f"Failed to post factura pdf to {MARKETPLACE_API_URL}: {response.text}")
-    return response.json()
+    return response

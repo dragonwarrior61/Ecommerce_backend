@@ -8,6 +8,7 @@ from app.config import settings, PROXIES
 from app.models import Marketplace
 from app.utils.auth_market import get_auth_marketplace
 from app.utils.httpx_request import send_get_request
+from app.logfiles import log_refresh_orders
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -284,6 +285,7 @@ async def refresh_altex_orders(marketplace: Marketplace):
 
     while True:
         try:
+            log_refresh_orders(f"Started fetching products from altex: page {page_nr}")
             result = await get_orders(marketplace, page_nr)
             if result['status'] == 'error':
                 break
@@ -306,4 +308,5 @@ async def refresh_altex_orders(marketplace: Marketplace):
             page_nr += 1
         except Exception as e:
             logging.error(f"Exception occurred: {e}")
+            log_refresh_orders(f"Exception occurred: {e}")
             
