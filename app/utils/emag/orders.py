@@ -147,10 +147,34 @@ async def insert_orders(orders, marketplace: Marketplace):
                         await session.rollback()
                     try:
                         if order_db:
-                            await session.merge(order_processed)
                             fetched_time = order_db.update_time
                             if fetched_time:
                                 fetched_time = fetched_time.replace(tzinfo=timezone.utc)
+                            await session.merge(order_processed)
+                            order_db.vendor_name = order_processed.vendor_name
+                            order_db.type = order_processed.type
+                            order_db.date = order_processed.date
+                            order_db.payment_mode = order_processed.payment_mode
+                            order_db.status = order_processed.status
+                            order_db.payment_status = order_processed.payment_status
+                            order_db.product_id = order_processed.product_id
+                            order_db.quantity = order_processed.quantity
+                            order_db.initial_quantity = order_processed.initial_quantity
+                            order_db.sale_price = order_processed.sale_price
+                            order_db.shipping_tax = order_processed.shipping_tax
+                            order_db.shipping_tax_voucher_split = order_processed.shipping_tax_voucher_split
+                            order_db.refunded_amount = order_processed.refunded_amount
+                            order_db.cancellation_request = order_processed.cancellation_request
+                            order_db.cancellation_reason = order_processed.cancellation_reason
+                            order_db.is_complete = order_processed.is_complete
+                            order_db.refund_status = order_processed.refund_status
+                            order_db.attachments = order_processed.attachments
+                            order_db.emag_club = order_processed.emag_club
+                            order_db.finalization_date = order_processed.finalization_date
+                            order_db.details = order_processed.details
+                            order_db.payment_mode_id = order_processed.payment_mode_id
+                            order_db.update_time = order_processed.update_time
+                            order_db.product_voucher_split = order_processed.product_voucher_split
                             try:
                                 result = await session.execute(select(AWB).where(AWB.order_id == order_id))
                                 awbs = result.scalars().all()
