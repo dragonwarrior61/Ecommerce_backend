@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, Text, DateTime, ARRAY
+from sqlalchemy import Column, Integer, Text, DateTime, ARRAY, BigInteger
 from app.database import Base
 
 class Packing_order(Base):
@@ -6,7 +6,7 @@ class Packing_order(Base):
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     awb_number = Column(Text, nullable=True, index=True)
-    order_id = Column(Integer, nullable=True, index=True)
+    order_id = Column(BigInteger, nullable=True, index=True)
     product_ean = Column(ARRAY(Text), nullable=True)
     quantity = Column(ARRAY(Integer), nullable=True)
     order_quantity = Column(ARRAY(Integer), nullable=True)

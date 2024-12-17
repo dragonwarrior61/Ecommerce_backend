@@ -1,11 +1,11 @@
-from sqlalchemy import Column, Integer, Text, DateTime, ARRAY, Numeric, Boolean
+from sqlalchemy import Column, Integer, Text, DateTime, ARRAY, Numeric, Boolean, BigInteger
 from app.database import Base
 
 class Replacement(Base):
     __tablename__ = "replacements"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    order_id = Column(Integer, nullable=True)
+    order_id = Column(BigInteger, nullable=True)
     number = Column(Integer, nullable=True, default=1)
     date = Column(DateTime, nullable=True)
     product_ean = Column(ARRAY(Text), nullable=True)

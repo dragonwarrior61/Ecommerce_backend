@@ -216,7 +216,6 @@ async def refresh_emag_orders(marketplace: Marketplace, period=3):
             except Exception as e:
                 logging.error(f"Error occured while refreshing emag orders: {e}")
                 log_refresh_orders(f"Error occured while refreshing emag orders: {e}")
-                log_refresh_orders(f"Error occured while refreshing emag orders: {order_response}")
             currentPage += 1
 
 async def change_status(order_id: int, marketplace: Marketplace):

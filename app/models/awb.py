@@ -17,7 +17,7 @@ from app.database import Base
 class AWB(Base):
     __tablename__ = "awbs"
 
-    order_id = Column(Integer, nullable=True)
+    order_id = Column(BigInteger, nullable=True)
     number = Column(Integer, default=0)
     sender_name = Column(String, nullable=True)
     sender_phone1 = Column(String, nullable=True)
