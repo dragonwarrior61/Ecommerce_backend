@@ -152,7 +152,10 @@ async def update_awb(db: AsyncSession = Depends(get_db)):
                     sameday = result.scalars().first()
                     try:
                         # Track and update awb status
-                        awb_status_result = await tracking(sameday, awb_barcode)
+                        awb_status_response = await tracking(sameday, awb_barcode)
+                        if (awb_status_response.status_code != 200):
+                            raise Exception(awb_status_response.text)
+                        awb_status_result = awb_status_response.json()
                         pickedup = awb_status_result.get('parcelSummary').get('isPickedUp')
                         weight = awb_status_result.get('parcelSummary').get('parcelWeight')
                         length = awb_status_result.get('parcelSummary').get('parcelLength')
