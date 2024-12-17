@@ -167,7 +167,7 @@ async def update_awb(db: AsyncSession = Depends(get_db)):
                     select(AWB)
                     .where(
                         AWB.awb_status == any_(awb_status_list),
-                        AWB.awb_date < datetime_3months_ago
+                        AWB.awb_date.replace(tzinfo=timezone.utc) < datetime_3months_ago
                     )
                 )
                 db_awbs = result.scalars().all()
