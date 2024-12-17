@@ -46,9 +46,7 @@ async def get_orders(marketplace: Marketplace, currentPage, period=3):
         "modifiedAfter": modifiedAfter_date
     })
     response = await send_post_request(url, headers, "get orders", data)
-    if response.status_code != 200:
-        logging.error(f"Failed to get orders from {MARKETPLACE_API_URL}: {response.text}")
-    return response.json()
+    return response
 
 async def acknowledge(marketplace: Marketplace, order_id):
     MARKETPLACE_API_URL = marketplace.baseAPIURL
@@ -196,17 +194,23 @@ async def refresh_emag_orders(marketplace: Marketplace, period=3):
         currentPage = 1
         while currentPage <= int(pages):
             try:
-                log_refresh_orders(f"Started fetching products from emag: page {currentPage}")
-                order_response = await get_orders(marketplace, currentPage, period)
+                log_refresh_orders(f"Started fetching orders from emag: page {currentPage}")
+                response = await get_orders(marketplace, currentPage, period)
+                order_response = response.json()
+                if response.status_code != 200:
+                    log_refresh_orders(f"Failed to get orders: {response.text}")
+                    logging.error(f"Failed to get orders: {response.text}")
+                    currentPage += 1
+                    continue
                 logging.info(f">>>>>>> Current Page : {currentPage} <<<<<<<<")
                 if order_response and order_response['isError'] == False:
                     orders = order_response['results']
                     # await insert_orders_into_db(orders['results'], customer_table, orders_table, marketplace.marketplaceDomain)
                     await insert_orders(orders, marketplace)
-                currentPage += 1
             except Exception as e:
                 logging.error(f"Error occured while refreshing emag orders: {e}")
                 log_refresh_orders(f"Error occured while refreshing emag orders: {e}")
+            currentPage += 1
 
 async def change_status(order_id: int, marketplace: Marketplace):
     url = f"{marketplace.baseAPIURL}/order/read"
