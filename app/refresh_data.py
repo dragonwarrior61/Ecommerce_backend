@@ -175,6 +175,8 @@ async def update_awb(db: AsyncSession = Depends(get_db)):
 
                 for awb in db_awbs:
                     awb_barcode = awb.awb_barcode
+                    if not awb_barcode:
+                        logging.warning("AWB number is empty.")
                     awb_user_id = awb.user_id
                     result = await session.execute(select(Billing_software).where(Billing_software.user_id == awb_user_id, Billing_software.site_domain == "sameday.ro"))
                     sameday = result.scalars().first()
@@ -408,6 +410,7 @@ async def send_stock(db:AsyncSession = Depends(get_db)):
                             db_product = result.scalars().first()
 
                             if db_product is None:
+                                log_send_stock(f"Product not found: EAN {ean}")
                                 continue
                             if db_product.stock == stock:
                                 continue

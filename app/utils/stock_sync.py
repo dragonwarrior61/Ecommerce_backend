@@ -25,7 +25,7 @@ async def calc_order_stock(db: AsyncSession):
                 result = await db.execute(select(Product).where(Product.id == product_id, Product.product_marketplace == marketplace, Product.user_id == db_new_order.user_id))
                 db_product = result.scalars().first()
                 if db_product is None:
-                    logging.info(f"Can't find {product_id} in {marketplace}")
+                    logging.info(f"Can't find {product_id} of order {db_new_order.id} in {marketplace}")
                     continue
                 ean = db_product.ean
                 logging.info(f"&*&*&*&&*&*&**&ean number is {ean}")

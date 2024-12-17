@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import or_, and_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -179,6 +180,9 @@ async def get_scan_awbs(
                         Product.user_id == return_info.user_id
                     ))
                     db_product = result.scalars().first()
+                    if db_product is None:
+                        logging.error(f"Product {product_id} not found.")
+                        continue
                 ean.append(db_product.ean)
         elif order:
             ean = []
@@ -196,6 +200,9 @@ async def get_scan_awbs(
                         Product.user_id == order.user_id
                     ))
                     db_product = result.scalars().first()
+                    if db_product is None:
+                        logging.error(f"Product {product_id} not found.")
+                        continue
                 ean.append(db_product.ean)
         else:
             ean = []

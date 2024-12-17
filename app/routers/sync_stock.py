@@ -55,7 +55,7 @@ async def send_stock(
                 db_product = result.scalars().first()
 
                 if db_product is None:
-                    logging.info(f"Can't find {product_id} in {marketplace}")
+                    logging.info(f"Can't find {product_id} order {new_order.id} in {marketplace}")
                     continue
                 ean = db_product.ean
                 logging.info(f"&*&*&*&&*&*&**&ean number is {ean}")

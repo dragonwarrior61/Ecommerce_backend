@@ -204,7 +204,7 @@ async def get_info(
     result = await db.execute(select(Internal_Product).where(Internal_Product.ean == ean, Internal_Product.user_id == user_id))
     db_product = result.scalars().first()
     if db_product is None:
-        raise HTTPException(status_code=404, detail="You can't see this product")
+        raise HTTPException(status_code=404, detail=f"You can't see this product: EAN {ean}")
     sales_info = await get_sales_info(ean, type, db)
     orders_info = await get_orders_info(ean, db)
     returns_info = await get_refunded_info(ean, db)
@@ -429,7 +429,7 @@ async def update_product(ean: str, product: Internal_ProductUpdate, user_id: int
     db_product = result.scalars().first()
 
     if db_product is None:
-        raise HTTPException(status_code=404, detail="Internal_Product not found")
+        raise HTTPException(status_code=404, detail=f"Product not found: EAN {ean}")
 
     for var, value in vars(product).items():
         setattr(db_product, var, value) if value is not None else None

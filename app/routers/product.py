@@ -261,7 +261,7 @@ async def update_product(product_id: int, product: ProductUpdate, db: AsyncSessi
     db_product = result.scalars().first()
 
     if db_product is None:
-        raise HTTPException(status_code=404, detail="Product not found")
+        raise HTTPException(status_code=404, detail=f"Product {product_id} not found")
 
     for var, value in vars(product).items():
         setattr(db_product, var, value) if value is not None else None

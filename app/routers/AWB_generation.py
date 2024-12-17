@@ -334,6 +334,9 @@ async def get_awbs(
                 if db_product is None:
                     result = await db.execute(select(Product).where(Product.id == product_id, Product.user_id == order.user_id))
                     db_product = result.scalars().first()
+                    if db_product is None:
+                        logging.error(f"Not found product {product_id} of order {order.id}")
+                        continue
                 ean.append(db_product.ean)
             order.ean = ean
         awb_info.update(warehouse_info)

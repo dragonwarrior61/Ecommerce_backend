@@ -49,7 +49,7 @@ async def get_stock(smartbill: Billing_software):
     header = get_header(smartbill)
 
     response = await send_get_request(url, headers=header, params=params)
-    if response.statues_code != 200:
+    if response.status_code != 200:
         raise HTTPException(status_code=response.status_code, detail=response.text)
     result = response.json()
     products = result.get('list')
@@ -115,12 +115,9 @@ async def refresh_invoice(db: AsyncSession):
                     result = await db.execute(select(Product).where(Product.id == product_id, Product.user_id == user_id))
                     db_product = result.scalars().first()
                     if db_product is None:
-                        result = await db.execute(select(Product).where(Product.id == product_id))
-                        db_product = result.scalars().first()
-                        if db_product is None:
-                            log_generate_invoice(f"Not found product {product_id} for {order.id}")
-                            logging.error(f"Not found product {product_id}")
-                            continue
+                        log_generate_invoice(f"Not found product {product_id} for {order.id}")
+                        logging.error(f"Not found product {product_id}")
+                        continue
 
                 name = db_product.product_name
                 ean = db_product.ean

@@ -221,6 +221,9 @@ async def get_not_packed_orders(
             if db_product is None:
                 result = await db.execute(select(Product).where(Product.id == product_id, Product.user_id == user_id))
                 db_product = result.scalars().first()
+                if db_product is None:
+                    logging.error(f"Failed to get product {product_id} of order {db_order.id}")
+                    continue
             ean.append(db_product.ean)
 
         if awb_dict[db_order.id]:

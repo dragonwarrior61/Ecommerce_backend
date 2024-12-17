@@ -632,6 +632,9 @@ async def read_order(order_id: int, user_id: int = Depends(get_team_admin_user),
         if db_product is None:
             result = await db.execute(select(Product).where(Product.id == product_id, Product.user_id == db_order.user_id))
             db_product = result.scalars().first()
+            if db_product is None:
+                logging.error(f"Failed to get product {product_id} of order {order_id}")
+                continue
         ean.append(db_product.ean)
         product_name.append(db_product.product_name)
 
