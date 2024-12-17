@@ -194,6 +194,7 @@ async def insert_products(products, mp_name: str, user_id):
         logging.info("Internal_Products inserted into Products successfully")
     except Exception as e:
         logging.info(f"Failed to insert Internal_Products into database: {e}")
+        log_refresh_orders(f"Failed to insert Internal_Products into database: {e}")
         raise
     finally:
         conn.close()
@@ -336,6 +337,7 @@ async def insert_products_into_db(products, place, user_id):
         logging.info("Products inserted successfully")
     except Exception as e:
         logging.info(f"Failed to insert products into database: {e}")
+        log_refresh_orders(f"Failed to insert products into database: {e}")
         raise
     finally:
         conn.close()
@@ -367,7 +369,7 @@ async def refresh_emag_products(marketplace: Marketplace):
 
                 logging.info(f">>>>>>> Current Page : {currentPage} <<<<<<<<")
                 products = response.json()
-                if products and not products.get('isError'):
+                if products.get('isError') == False:
                     await insert_products_into_db(products['results'], marketplace.marketplaceDomain, user_id)
                     await asyncio.sleep(2)
                     await insert_products(products['results'], marketplace.marketplaceDomain, user_id)
