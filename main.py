@@ -51,7 +51,7 @@ from app.refresh_data import (
     # update_invoice_post,
 )
 
-logging.getLogger("sqlalchemy").setLevel(logging.ERROR)
+logging.getLogger("sqlalchemy").setLevel(logging.CRITICAL)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -83,8 +83,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-ssl_context.load_cert_chain('ssl/cert.pem', keyfile='ssl/key.pem')
+# ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+# ssl_context.load_cert_chain('ssl/cert.pem', keyfile='ssl/key.pem')
 
 origins = [
     "*"
@@ -141,6 +141,6 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=8000,
         # reload=True,
-        ssl_keyfile=ssl_keyfile,
-        ssl_certfile=ssl_certfile,
+        # ssl_keyfile=ssl_keyfile,
+        # ssl_certfile=ssl_certfile,
     )

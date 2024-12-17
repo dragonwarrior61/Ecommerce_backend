@@ -32,7 +32,8 @@ from app.utils.altex.returns import refresh_altex_rmas
 from app.utils.smart_api import get_stock, refresh_invoice
 from app.utils.sameday import tracking, auth_sameday
 
-LOG_DIR = "/log/"
+LOG_DIR = "/var/www/html/log/"
+logging.getLogger("sqlalchemy").setLevel(logging.CRITICAL)
 
 # app = FastAPI()
 
