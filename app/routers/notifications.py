@@ -12,7 +12,7 @@ from app.routers.auth import get_current_user, get_team_admin_user
 from app.schemas.notifications import NotificationCreate, NotificationUpdate, NotificationRead
 
 async def create_notification(db: AsyncSession, notifications: NotificationCreate, user_id: int):
-    db_notification = Notification(**notifications.dict())
+    db_notification = Notification(**notifications.model_dump())
     db_notification.user_id = user_id
     settings.update_flag = 1
     try:

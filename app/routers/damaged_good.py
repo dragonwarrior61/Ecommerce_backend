@@ -13,7 +13,7 @@ router = APIRouter()
 
 @router.post("/", response_model=Damaged_goodRead)
 async def create_damaged_good(damaged_good: Damaged_goodCreate, db: AsyncSession = Depends(get_db)):
-    db_damaged_good = Damaged_good(**damaged_good.dict())
+    db_damaged_good = Damaged_good(**damaged_good.model_dump())
     result = await db.execute(select(Damaged_good).where(Damaged_good.return_id == db_damaged_good.return_id))
     damaged_good = result.scalars().first()
     if damaged_good:

@@ -17,7 +17,7 @@ async def create_warehouse(
     user_id: int = Depends(get_team_admin_user),
     db: AsyncSession = Depends(get_db)
 ):
-    db_warehouse = Warehouse(**warehouse.dict())
+    db_warehouse = Warehouse(**warehouse.model_dump())
     db_warehouse.user_id = user_id
     settings.update_flag = 1
     try:

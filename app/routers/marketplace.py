@@ -11,7 +11,7 @@ from app.routers.auth import get_team_admin_user
 from app.schemas.marketplace import MarketplaceCreate, MarketplaceUpdate, MarketplaceRead
 
 async def create_marketplace(db: AsyncSession, marketplace: MarketplaceCreate, user_id: int):
-    db_marketplace = Marketplace(**marketplace.dict())
+    db_marketplace = Marketplace(**marketplace.model_dump())
     db_marketplace.user_id = user_id
     settings.update_flag = 1
     try:
@@ -37,7 +37,7 @@ async def update_marketplace(db: AsyncSession, marketplace_id: int, marketplace:
     db_marketplace = await get_marketplace(db, marketplace_id, user_id)
     if db_marketplace is None:
         return None
-    for key, value in marketplace.dict().items():
+    for key, value in marketplace.model_dump().items():
         setattr(db_marketplace, key, value) if value is not None else None
 
     settings.update_flag = 1

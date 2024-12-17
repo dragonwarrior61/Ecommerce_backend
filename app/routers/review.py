@@ -13,7 +13,7 @@ router = APIRouter()
 
 @router.post("/", response_model=ReviewRead)
 async def create_review(review: ReviewCreate, user_id: int = Depends(get_team_admin_user), db: AsyncSession = Depends(get_db)):
-    db_review = Review(**review.dict())
+    db_review = Review(**review.model_dump())
     db_review.admin_id = user_id
 
     settings.update_flag = 1

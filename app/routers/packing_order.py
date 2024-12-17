@@ -89,7 +89,7 @@ async def create_packing_order(
     result = await db.execute(select(Packing_order).where(Packing_order.order_id == order_id, Packing_order.user_id == user_id))
     db_packing_order = result.scalars().first()
     if db_packing_order is None:
-        new_packing_order = Packing_order(**packing_order.dict())
+        new_packing_order = Packing_order(**packing_order.model_dump())
         new_packing_order.staff_id = user.id
         new_packing_order.user_id = user_id
         new_packing_order.pack_status = 1

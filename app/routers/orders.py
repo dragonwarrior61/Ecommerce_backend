@@ -34,7 +34,7 @@ async def update_order(db: AsyncSession, order_id: int, order: OrderUpdate, user
     result = await db.execute(select(Order).where(Order.id == order_id, Order.user_id == user_id))
     db_order = result.scalars().first()
     if db_order:
-        for key, value in order.dict().items():
+        for key, value in order.model_dump().items():
             setattr(db_order, key, value) if value is not None else None
 
         settings.update_flag = 1
@@ -63,7 +63,7 @@ async def delete_order(db: AsyncSession, order_id: int, user_id: int):
 
 @router.post("/", response_model=OrderRead, status_code=status.HTTP_201_CREATED)
 async def create_order(order: OrderCreate, user_id: int = Depends(get_team_admin_user), db: AsyncSession = Depends(get_db)):
-    db_order = Order(**order.dict())
+    db_order = Order(**order.model_dump())
     db_order.user_id == user_id
     settings.update_flag = 1
     try:

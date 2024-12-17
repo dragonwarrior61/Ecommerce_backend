@@ -24,7 +24,7 @@ router = APIRouter()
 
 @router.post("/", response_model=ReplacementsRead)
 async def create_replacement(replacement: ReplacementsCreate, user_id: int = Depends(get_team_admin_user), db: AsyncSession = Depends(get_db)):
-    db_replacement = Replacement(**replacement.dict())
+    db_replacement = Replacement(**replacement.model_dump())
     order_id = db_replacement.order_id
     result = await db.execute(select(Replacement).where(Replacement.order_id == order_id))
     replacements = result.scalars().all()

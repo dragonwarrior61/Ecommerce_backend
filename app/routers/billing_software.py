@@ -21,7 +21,7 @@ async def create_billing_software(
     user_id: int = Depends(get_team_admin_user),
     db: AsyncSession = Depends(get_db)
 ):
-    db_billing_software = Billing_software(**billing_software.dict())
+    db_billing_software = Billing_software(**billing_software.model_dump())
     db_billing_software.user_id = user_id
     settings.update_flag = 1
     db.add(db_billing_software)

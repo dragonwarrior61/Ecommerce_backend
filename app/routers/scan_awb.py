@@ -23,7 +23,7 @@ router = APIRouter()
 
 @router.post("/")
 async def create_scan_awb(scan_awb: Scan_awbCreate, db: AsyncSession = Depends(get_db)):
-    db_scan_awb = Scan_awb(**scan_awb.dict())
+    db_scan_awb = Scan_awb(**scan_awb.model_dump())
     awb_number = db_scan_awb.awb_number
     result = await db.execute(
         select(Scan_awb).where(

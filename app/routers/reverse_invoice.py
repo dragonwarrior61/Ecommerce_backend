@@ -20,7 +20,7 @@ async def create_reverse_invoice(
     user_id: int = Depends(get_team_admin_user),
     db: AsyncSession = Depends(get_db)
 ):
-    db_reverse_invoice = Reverse_Invoice(**reverse_invoice.dict())
+    db_reverse_invoice = Reverse_Invoice(**reverse_invoice.model_dump())
     logging.info(f"params: {reverse_invoice}")
     result = await db.execute(
         select(Reverse_Invoice).where(

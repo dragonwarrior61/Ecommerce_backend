@@ -17,7 +17,7 @@ async def create_temp_product(
     user_id: int = Depends(get_team_admin_user),
     db: AsyncSession = Depends(get_db)
 ):
-    db_temp_product = Temp_product(**temp_product.dict())
+    db_temp_product = Temp_product(**temp_product.model_dump())
     db_temp_product.user_id = user_id
     settings.update_flag = 1
     try:

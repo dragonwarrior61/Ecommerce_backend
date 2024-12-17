@@ -134,7 +134,7 @@ router = APIRouter()
 
 @router.post("/", response_model=Internal_ProductRead)
 async def create_product(product: Internal_ProductCreate, user_id: int = Depends(get_team_admin_user), db: AsyncSession = Depends(get_db)):
-    db_product = Internal_Product(**product.dict())
+    db_product = Internal_Product(**product.model_dump())
     db_product.user_id = user_id
 
     settings.update_flag = 1

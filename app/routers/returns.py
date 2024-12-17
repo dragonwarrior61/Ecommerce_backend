@@ -13,7 +13,7 @@ router = APIRouter()
 
 @router.post("/", response_model=ReturnsRead)
 async def create_return(returns: ReturnsCreate, user_id: int = Depends(get_team_admin_user), db: AsyncSession = Depends(get_db)):
-    db_return = Returns(**returns.dict())
+    db_return = Returns(**returns.model_dump())
     db_return.user_id = user_id
     settings.update_flag = 1
     try:

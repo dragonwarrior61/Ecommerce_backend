@@ -412,7 +412,7 @@ async def download_pdf(cif: str, seriesname: str, number: str, smartbill: Billin
         "number": number
     }
 
-    response = await send_get_request(url, headers=headers, params=params, stream=True, error_msg="download pdf")
+    response = await send_get_request(url, headers=headers, params=params, error_msg="download pdf")
     content = BytesIO(response.content)
     return StreamingResponse(content, media_type=response.headers['Content-Type']) 
 
@@ -425,7 +425,7 @@ async def download_storno_pdf(cif: str, seriesname: str, number: str, smartbill:
         "number": number
     }
 
-    response = await send_get_request(url, headers=headers, params=params, stream=True, error_msg="download storno pdf")
+    response = await send_get_request(url, headers=headers, params=params, error_msg="download storno pdf")
     content = BytesIO(response.content)
     return StreamingResponse(content, media_type=response.headers['Content-Type']) 
 
@@ -441,7 +441,7 @@ async def download_pdf_server(seriesname: str, number: str, name: str, smartbill
         "number": number
     }
 
-    response = await send_get_request(url, headers=headers, params=params, stream=True, error_msg="download pdf")
+    response = await send_get_request(url, headers=headers, params=params, error_msg="download pdf")
 
     output_filename = f"/var/www/html/invoices/{name}"
     if response.status_code == 200:

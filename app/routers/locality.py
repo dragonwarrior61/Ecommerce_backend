@@ -10,7 +10,7 @@ from app.models import Locality
 from app.schemas.locality import LocalityCreate, LocalityUpdate, LocalityRead
 
 async def create_locality(db: AsyncSession, locality: LocalityCreate):
-    db_locality = Locality(**locality.dict())
+    db_locality = Locality(**locality.model_dump())
     settings.update_flag = 1
     try:
         db.add(db_locality)
@@ -34,7 +34,7 @@ async def update_locality(db: AsyncSession, locality_id: int, locality: Locality
     db_locality = await get_locality(db, locality_id)
     if db_locality is None:
         return None
-    for key, value in locality.dict().items():
+    for key, value in locality.model_dump().items():
         setattr(db_locality, key, value) if value is not None else None
     settings.update_flag = 1
     try:

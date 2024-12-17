@@ -17,7 +17,7 @@ async def create_supplier(
     user_id: int = Depends(get_team_admin_user),
     db: AsyncSession = Depends(get_db)
 ):
-    db_supplier = Supplier(**supplier.dict())
+    db_supplier = Supplier(**supplier.model_dump())
     db_supplier.user_id = user_id
     settings.update_flag = 1
     try:

@@ -20,7 +20,7 @@ async def create_team_member(
         raise HTTPException(status_code=401, detail="Authentication error")
     elif user.role != 4:
         raise HTTPException(status_code=403, detail="Forbidden")
-    db_team_member = Team_member(**team_member.dict())
+    db_team_member = Team_member(**team_member.model_dump())
     db_team_member.admin = user.id
     user_id = db_team_member.user
     result = await db.execute(select(User).where(User.id == user_id))

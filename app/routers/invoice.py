@@ -21,7 +21,7 @@ async def create_invoice(
     user_id: int = Depends(get_team_admin_user),
     db: AsyncSession = Depends(get_db)
 ):
-    db_invoice = Invoice(**invoice.dict())
+    db_invoice = Invoice(**invoice.model_dump())
     order_id = db_invoice.order_id
     result = await db.execute(select(Invoice).where(
         Invoice.order_id == order_id,

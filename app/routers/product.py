@@ -27,7 +27,7 @@ def get_valid_date(year, month, day):
 
 @router.post("/", response_model=ProductRead)
 async def create_product(product: ProductCreate, db: AsyncSession = Depends(get_db)):
-    db_product = Product(**product.dict())
+    db_product = Product(**product.model_dump())
     settings.update_flag = 1
     try:
         db.add(db_product)

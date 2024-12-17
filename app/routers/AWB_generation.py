@@ -30,7 +30,7 @@ async def create_awb_manually(
     user_id: int = Depends(get_team_admin_user),
     db: AsyncSession = Depends(get_db)
 ):
-    db_awb = AWB(**awb.dict())
+    db_awb = AWB(**awb.model_dump())
 
     awb_number = db_awb.awb_number
     number = db_awb.number
@@ -56,7 +56,7 @@ async def create_awb_manually(
 
 @router.post("/")
 async def create_awbs(awb: AWBCreate, marketplace: str, user_id: int = Depends(get_team_admin_user), db: AsyncSession = Depends(get_db)):
-    db_awb = AWB(**awb.dict())
+    db_awb = AWB(**awb.model_dump())
     order_id = db_awb.order_id
     number = db_awb.number
     result = await db.execute(select(AWB).where(AWB.order_id == order_id, AWB.number == number, AWB.user_id == user_id))

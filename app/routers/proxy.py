@@ -9,7 +9,7 @@ router = APIRouter()
 async def proxy(url: str):
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.get(url, stream=True)
+            response = await client.get(url)
             return StreamingResponse(BytesIO(response.content), media_type=response.headers['Content-Type'])
     except httpx.RequestError as e:
         return {"error": str(e)}

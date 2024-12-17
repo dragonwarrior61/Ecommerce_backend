@@ -27,7 +27,7 @@ router = APIRouter()
 
 @router.post("/", response_model=ShipmentRead)
 async def create_shipment(shipment: ShipmentCreate, user_id: int = Depends(get_team_admin_user), db: AsyncSession = Depends(get_db)):
-    db_shipment = Shipment(**shipment.dict())
+    db_shipment = Shipment(**shipment.model_dump())
     db_shipment.user_id = user_id
     settings.update_flag = 1
     try:
