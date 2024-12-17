@@ -111,10 +111,16 @@ async def refresh_invoice(db: AsyncSession):
                 product_id = product_list[i]
                 result = await db.execute(select(Product).where(Product.id == product_id, Product.user_id == user_id, Product.product_marketplace == marketplace.marketplaceDomain))
                 db_product = result.scalars().first()
-
                 if db_product is None:
                     result = await db.execute(select(Product).where(Product.id == product_id, Product.user_id == user_id))
                     db_product = result.scalars().first()
+                    if db_product is None:
+                        result = await db.execute(select(Product).where(Product.id == product_id))
+                        db_product = result.scalars().first()
+                        if db_product is None:
+                            log_generate_invoice(f"Not found product {product_id} for {order.id}")
+                            logging.error(f"Not found product {product_id}")
+                            continue
 
                 name = db_product.product_name
                 ean = db_product.ean
