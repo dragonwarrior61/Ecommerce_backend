@@ -166,8 +166,8 @@ async def update_awb(db: AsyncSession = Depends(get_db)):
                 result = await session.execute(
                     select(AWB)
                     .where(
-                        AWB.awb_status == any_(awb_status_list),
-                        AWB.awb_date.replace(tzinfo=timezone.utc) < datetime_3months_ago
+                        AWB.awb_status.in_(awb_status_list),
+                        AWB.awb_date.astimezone(timezone.utc) < datetime_3months_ago
                     )
                 )
                 db_awbs = result.scalars().all()
