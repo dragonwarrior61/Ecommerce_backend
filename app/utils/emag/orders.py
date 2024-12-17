@@ -147,6 +147,7 @@ async def insert_orders(orders, marketplace: Marketplace):
                         await session.rollback()
                     try:
                         if order_db:
+                            await session.merge(order_processed)
                             fetched_time = order_db.update_time
                             if fetched_time:
                                 fetched_time = fetched_time.replace(tzinfo=timezone.utc)
@@ -172,7 +173,6 @@ async def insert_orders(orders, marketplace: Marketplace):
                                             logging.error(f"Failed to delete awb of order {order_id}: {e}")
                                             log_refresh_orders(f"Failed to delete awb of order {order_id}: {e}")
                                             await session.rollback()
-                            await session.merge(order_processed)
                         else:
                             session.add(order_processed)
                         await session.commit()
@@ -210,13 +210,16 @@ async def refresh_emag_orders(marketplace: Marketplace, period=3):
                 logging.info(f">>>>>>> Current Page : {currentPage} <<<<<<<<")
                 order_response = response.json()
                 if order_response['isError'] == False:
-                    orders = order_response['results']
-                    # await insert_orders_into_db(orders['results'], customer_table, orders_table, marketplace.marketplaceDomain)
-                    await insert_orders(orders, marketplace)
+                    for _ in range(3):
+                        try:
+                            await insert_orders(order_response['results'], marketplace)
+                            break
+                        except Exception as e:
+                            log_refresh_orders(f"Failed to insert products: {e}")
+                            continue
             except Exception as e:
                 logging.error(f"Error occured while refreshing emag orders: {e}")
                 log_refresh_orders(f"Error occured while refreshing emag orders: {e}")
-                log_refresh_orders(f"Error occured while refreshing emag orders: {order_response}")
             currentPage += 1
 
 async def change_status(order_id: int, marketplace: Marketplace):
