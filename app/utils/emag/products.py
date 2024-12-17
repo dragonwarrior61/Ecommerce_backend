@@ -359,6 +359,7 @@ async def refresh_emag_products(marketplace: Marketplace):
             try:
                 log_refresh_orders(f"Started fetching products from emag: page {currentPage}")
                 response = await get_all_products(marketplace, currentPage)
+                log_refresh_orders(f"{response}")
                 if response.status_code != 200:
                     logging.error(f"Failed to get products: {response.text}")
                     log_refresh_orders(f"Failed to get products: {response.text}")
@@ -382,10 +383,7 @@ async def save(marketplace: Marketplace, data):
     url = f"{marketplace.baseAPIURL}{ENDPOINT}/{save_ENDPOINT}"
     headers = get_auth_marketplace(marketplace)
     response = await send_post_request(url, data=json.dumps(data), headers=headers, error_msg='save products')
-    if response.status_code != 200:
-        logging.error(f"Failed to save data to {marketplace.baseURL}: {response.text}")
-    products = response.json()
-    return products
+    return response
 
 async def save_product(data, marketplace:Marketplace, db: AsyncSession):
     result = await save(marketplace, data)
