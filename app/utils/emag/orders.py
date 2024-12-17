@@ -196,13 +196,13 @@ async def refresh_emag_orders(marketplace: Marketplace, period=3):
             try:
                 log_refresh_orders(f"Started fetching orders from emag: page {currentPage}")
                 response = await get_orders(marketplace, currentPage, period)
-                order_response = response.json()
+                log_refresh_orders(f"Failed to get orders: {response.text}")
                 if response.status_code != 200:
-                    log_refresh_orders(f"Failed to get orders: {response.text}")
                     logging.error(f"Failed to get orders: {response.text}")
                     currentPage += 1
                     continue
                 logging.info(f">>>>>>> Current Page : {currentPage} <<<<<<<<")
+                order_response = response.json()
                 if order_response and order_response['isError'] == False:
                     orders = order_response['results']
                     # await insert_orders_into_db(orders['results'], customer_table, orders_table, marketplace.marketplaceDomain)
