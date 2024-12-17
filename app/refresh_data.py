@@ -32,7 +32,7 @@ from app.utils.altex.returns import refresh_altex_rmas
 from app.utils.smart_api import get_stock, refresh_invoice
 from app.utils.sameday import tracking, auth_sameday
 
-LOG_DIR = "/var/www/html/log/"
+LOG_DIR = "/log/"
 
 # app = FastAPI()
 
@@ -234,32 +234,32 @@ async def refresh_orders_data(db:AsyncSession = Depends(get_db)):
             # print(f"Success getting {len(marketplaces)} marketplaces")
             for marketplace in marketplaces:
                 if marketplace.marketplaceDomain == "altex.ro":
-                    print("Refresh products from marketplace")
-                    file.write("Refresh products from marketplace\n")
+                    print("Refresh products from altex")
+                    file.write("Refresh products from altex\n")
                     try:
                         await refresh_altex_products(marketplace)
                     except Exception as e:
                         file.write(f"An error occurred: {e}\n")
-                    print("Refresh orders from marketplace")
-                    file.write("Refresh orders from marketplace\n")
+                    print("Refresh orders from altex")
+                    file.write("Refresh orders from altex\n")
                     try:
                         await refresh_altex_orders(marketplace)
                     except Exception as e:
                         file.write(f"An error occurred: {e}\n")
                 else:
-                    print("Refresh products from marketplace")
-                    file.write("Refresh products from marketplace")
+                    print("Refresh products from emag")
+                    file.write("Refresh products from emag\n")
                     try:
                         await refresh_emag_products(marketplace)
                     except Exception as e:
                         file.write(f"An error occurred: {e}\n")
-                    print("Refresh orders from marketplace")
-                    file.write("Refresh orders from marketplace\n")
+                    print("Refresh orders from emag")
+                    file.write("Refresh orders from emag\n")
                     try:
                         await refresh_emag_orders(marketplace)
                     except Exception as e:
                         file.write(f"An error occurred: {e}\n")
-            file.write(f"Finished on {datetime.now(timezone.utc)}\n")
+            file.write(f"Finished on {datetime.now(timezone.utc)}\n\n")
             file.close()
 
 async def generate_invoice(db:AsyncSession = Depends(get_db)):
@@ -488,9 +488,11 @@ async def refresh_data(db: AsyncSession = Depends(get_db)):
                 try:
                     if marketplace.marketplaceDomain == "altex.ro":
                         print("Refresh rmas from altex")
+                        file.write("Refresh rmas from altex\n")
                         await refresh_altex_rmas(marketplace)
                     else:
                         print("Refresh refunds from marketplace")
+                        file.write("Refresh refunds from marketplace\n")
                         await refresh_emag_returns(marketplace)
 
                         # print("Refresh reviews from emag")
