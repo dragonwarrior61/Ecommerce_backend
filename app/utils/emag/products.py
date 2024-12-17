@@ -103,7 +103,7 @@ async def insert_products(products, mp_name: str, user_id):
                         result = await session.execute(
                             select(Internal_Product).where(
                                 Internal_Product.id == product_id,
-                                any_(Internal_Product.market_place)
+                                mp_name == any_(Internal_Product.market_place)
                             )
                         )
                         product_db = result.scalars().first()
