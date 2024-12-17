@@ -114,7 +114,8 @@ async def insert_products(products, mp_name: str, user_id):
                         await session.rollback()
                     try:
                         if product_db:
-                            product_processed.market_place = list(set(product_processed.market_place + mp_name))
+                            origin_mkp = product_db.market_place or []
+                            product_processed.market_place = list(set(origin_mkp + [mp_name]))
                             await session.merge(product_processed)
                         else:
                             session.add(product_processed)
