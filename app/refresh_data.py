@@ -160,14 +160,14 @@ async def update_awb(db: AsyncSession = Depends(get_db)):
             print("Start updating AWB status")
 
             error_barcode = []
-            datetime_3months_ago = datetime.now(timezone.utc) - timedelta(days=90)
+            datetime_3months_ago = (datetime.now(timezone.utc) - timedelta(days=90)).replace(tzinfo=None)
 
             try:
                 result = await session.execute(
                     select(AWB)
                     .where(
                         AWB.awb_status.in_(awb_status_list),
-                        AWB.awb_date.astimezone(timezone.utc) < datetime_3months_ago
+                        AWB.awb_date < datetime_3months_ago
                     )
                 )
                 db_awbs = result.scalars().all()
