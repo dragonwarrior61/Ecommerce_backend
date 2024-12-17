@@ -1,4 +1,4 @@
-import json
+import json, logging
 from collections import defaultdict
 from decimal import Decimal
 from fastapi import APIRouter, Depends, HTTPException, status, Query
@@ -188,6 +188,8 @@ async def read_new_orders(
                 if db_product is None:
                     result = await db.execute(select(Product).where(Product.id == product_id))
                     db_product = result.scalars().first()
+                    logging.error(f"Product {product_id} in order {db_order.id} is not found.")
+                    continue
             ean.append(db_product.ean)
             product_name.append(db_product.product_name)
 
@@ -439,6 +441,11 @@ async def read_orders(
             if db_product is None:
                 result = await db.execute(select(Product).where(Product.id == product_id, Product.user_id == db_order.user_id))
                 db_product = result.scalars().first()
+                if db_product is None:
+                    result = await db.execute(select(Product).where(Product.id == product_id))
+                    db_product = result.scalars().first()
+                    logging.error(f"Product {product_id} in order {db_order.id} is not found.")
+                    continue
             ean.append(db_product.ean)
             product_name.append(db_product.product_name)
 
