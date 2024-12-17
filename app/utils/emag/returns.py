@@ -9,6 +9,7 @@ from app.config import settings
 from app.models import Marketplace
 from app.utils.auth_market import get_auth_marketplace
 from app.utils.httpx_request import send_post_request, send_get_request
+from app.logfiles import log_refresh_returns
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -62,6 +63,7 @@ async def count_all_rmas(marketplace: Marketplace):
     retry_delay = 5  # seconds
     async def retry(attempt: int):
         logging.warning(f"Request timed out. Attempt {attempt + 1} of {MAX_RETRIES}. Retrying...")
+        log_refresh_returns(f"Request timed out. Attempt {attempt + 1} of {MAX_RETRIES}. Retrying...")
         await asyncio.sleep(retry_delay)
 
     for attempt in range(MAX_RETRIES):
@@ -71,11 +73,15 @@ async def count_all_rmas(marketplace: Marketplace):
                 return response.json()
             else:
                 logging.error(f"Failed to cound rmas from {marketplace.baseURL}: {response.text}")
+                log_refresh_returns(f"Failed to cound rmas from {marketplace.baseURL}: {response.text}")
                 await retry(attempt)
         except Exception as e:
             logging.error(f"An error occured: {e}")
+            log_refresh_returns(f"An error occured: {e}")
             await retry(attempt)
     logging.error("All attempts failed. Could not retrieve refunds.")
+    log_refresh_returns("All attempts failed. Could not retrieve refunds.")
+    return None
 
 async def insert_rmas_into_db(rmas, marketplace: Marketplace):
     try:
@@ -201,6 +207,7 @@ async def refresh_emag_returns(marketplace: Marketplace):
     logging.info(f">>>>>>> Refreshing Marketplace : {marketplace.title} user is {marketplace.user_id} <<<<<<<<")
 
     result = await count_all_rmas(marketplace)
+    log_refresh_returns(f"Count result is: {result}")
     if result and result['isError'] == False:
         pages = result['results']['noOfPages']
         items = result['results']['noOfItems']

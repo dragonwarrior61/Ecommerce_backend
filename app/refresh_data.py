@@ -512,8 +512,8 @@ async def refresh_return(db: AsyncSession = Depends(get_db)):
                         log_refresh_returns(f"An error occured: {e}")
                 else:
                     try:
-                        print("Refresh refunds from marketplace")
-                        log_refresh_returns("Refresh refunds from marketplace")
+                        print(f"Refresh refunds from marketplace: {marketplace.marketplaceDomain}")
+                        log_refresh_returns(f"Refresh refunds from marketplace: {marketplace.marketplaceDomain}")
                         await refresh_emag_returns(marketplace)
                     except Exception as e:
                         log_refresh_returns(f"An error occured: {e}")
