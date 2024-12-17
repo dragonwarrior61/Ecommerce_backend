@@ -359,7 +359,6 @@ async def refresh_emag_products(marketplace: Marketplace):
             try:
                 log_refresh_orders(f"Started fetching products from emag: page {currentPage}")
                 response = await get_all_products(marketplace, currentPage)
-                log_refresh_orders(f"{response}")
                 if response.status_code != 200:
                     logging.error(f"Failed to get products: {response.text}")
                     log_refresh_orders(f"Failed to get products: {response.text}")
