@@ -160,21 +160,26 @@ async def update_awb(db: AsyncSession = Depends(get_db)):
             print("Start updating AWB status")
 
             error_barcode = []
+            datetime_3months_ago = datetime.now(timezone.utc) - timedelta(days=90)
 
             try:
                 result = await session.execute(
                     select(AWB)
-                    .where(AWB.awb_status == any_(awb_status_list))
+                    .where(
+                        AWB.awb_status == any_(awb_status_list),
+                        AWB.awb_date < datetime_3months_ago
+                    )
                 )
                 db_awbs = result.scalars().all()
 
                 if not db_awbs:
                     return
-                
+
                 log_update_awb(f"Found {len(db_awbs)} awbs.")
 
                 for awb in db_awbs:
                     awb_barcode = awb.awb_barcode
+                    old_status = awb.awb_status
                     if not awb_barcode:
                         logging.warning("AWB number is empty.")
                     awb_user_id = awb.user_id
@@ -209,6 +214,7 @@ async def update_awb(db: AsyncSession = Depends(get_db)):
                         awb.width = width
                         awb.length = length
                         awb.awb_status_update_time = datetime.now()
+                        log_update_awb(f"AWB {awb_barcode} has been updated from status {old_status} to status {awb_status}")
                         await asyncio.sleep(20)
                     except Exception as track_ex:
                         error_barcode.append(awb_barcode)

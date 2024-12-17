@@ -7,6 +7,7 @@ from app.config import settings, PROXIES
 from app.models import Marketplace
 from app.utils.auth_market import get_auth_marketplace
 from app.utils.httpx_request import send_get_request
+from app.logfiles import log_refresh_returns
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -129,6 +130,7 @@ async def refresh_altex_rmas(marketplace: Marketplace):
                 break
             data = result['data']
             rmas = data.get('items')
+            log_refresh_returns(f"Fetching {len(rmas)} refunds from {marketplace.title} in page {page_nr}")
             if ((not rmas) or len(rmas) == 0):
                 break
             detail_rmas = []
@@ -143,4 +145,5 @@ async def refresh_altex_rmas(marketplace: Marketplace):
             page_nr += 1
         except Exception as e:
             logging.error(f"Exception occurred: {e}")
+            log_refresh_returns(f"Exception occurred: {e}")
             break
