@@ -52,6 +52,7 @@ async def insert_products(products, mp_name: str, user_id):
             for product in products:
                 try:
                     ean = str(product.get('ean')[0]) if product.get('ean') else ''
+                    ean = change_string(ean)
                     weight_value = product.get('weight')
                     if isinstance(weight_value, str):
                         weight_value = weight_value.replace(',', '.')
@@ -63,7 +64,7 @@ async def insert_products(products, mp_name: str, user_id):
                         product_name = product.get('name'),
                         model_name = product.get('brand'),
                         buy_button_rank = product.get('buy_button_rank'),
-                        ean = change_string(ean),
+                        ean = ean,
                         price = 0,
                         sale_price = Decimal(product.get('sale_price', '0.0')),
                         image_link = product.get('images')[0]['url'] if product.get('images') else '',
@@ -102,8 +103,8 @@ async def insert_products(products, mp_name: str, user_id):
                     try:
                         result = await session.execute(
                             select(Internal_Product).where(
-                                Internal_Product.id == product_id,
-                                mp_name == any_(Internal_Product.market_place)
+                                Internal_Product.ean == ean,
+                                Internal_Product.user_id == user_id
                             )
                         )
                         product_db = result.scalars().first()
@@ -113,6 +114,7 @@ async def insert_products(products, mp_name: str, user_id):
                         await session.rollback()
                     try:
                         if product_db:
+                            product_processed.market_place = list(set(product_processed.market_place + mp_name))
                             await session.merge(product_processed)
                         else:
                             session.add(product_processed)

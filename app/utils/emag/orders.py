@@ -215,7 +215,7 @@ async def refresh_emag_orders(marketplace: Marketplace, period=3):
                             await insert_orders(order_response['results'], marketplace)
                             break
                         except Exception as e:
-                            log_refresh_orders(f"Failed to insert products: {e}")
+                            log_refresh_orders(f"Failed to insert orders: {e}")
                             continue
             except Exception as e:
                 logging.error(f"Error occured while refreshing emag orders: {e}")
