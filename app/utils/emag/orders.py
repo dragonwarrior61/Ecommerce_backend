@@ -196,8 +196,8 @@ async def refresh_emag_orders(marketplace: Marketplace, period=3):
             try:
                 log_refresh_orders(f"Started fetching orders from emag: page {currentPage}")
                 response = await get_orders(marketplace, currentPage, period)
-                log_refresh_orders(f"Failed to get orders: {response.text}")
                 if response.status_code != 200:
+                    log_refresh_orders(f"Failed to get orders: {response.text}")
                     logging.error(f"Failed to get orders: {response.text}")
                     currentPage += 1
                     continue
@@ -208,6 +208,7 @@ async def refresh_emag_orders(marketplace: Marketplace, period=3):
                     # await insert_orders_into_db(orders['results'], customer_table, orders_table, marketplace.marketplaceDomain)
                     await insert_orders(orders, marketplace)
             except Exception as e:
+                log_refresh_orders(f"Failed to get orders: {response.text}")
                 logging.error(f"Error occured while refreshing emag orders: {e}")
                 log_refresh_orders(f"Error occured while refreshing emag orders: {e}")
             currentPage += 1
