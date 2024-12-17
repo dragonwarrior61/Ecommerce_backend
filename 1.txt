@@ -1,0 +1,8 @@
+
+
+Stock refresh started on f2024-12-17 22:23:33.486086
+getting stock data error: 'Response' object has no attribute 'statues_code'
+
+
+Stock refresh started on f2024-12-17 22:23:58.486580
+getting stock data error: 'Response' object has no attribute 'statues_code'

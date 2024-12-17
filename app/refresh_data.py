@@ -1,6 +1,6 @@
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 # from contextlib import asynccontextmanager
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from fastapi import Depends
 from openpyxl import Workbook
 from sqlalchemy import select, any_, cast, BigInteger
@@ -31,6 +31,8 @@ from app.utils.altex.orders import refresh_altex_orders
 from app.utils.altex.returns import refresh_altex_rmas
 from app.utils.smart_api import get_stock, refresh_invoice
 from app.utils.sameday import tracking, auth_sameday
+
+LOG_DIR = "/var/www/html/log/"
 
 # app = FastAPI()
 
@@ -119,6 +121,8 @@ from app.utils.sameday import tracking, auth_sameday
 async def update_awb(db: AsyncSession = Depends(get_db)):
     async for db in get_db():
         async with db as session:
+            file = open(f"{LOG_DIR}update_awb", "+a", encoding="utf-8")
+            file.write(f"Started on {datetime.now(timezone.utc)}\n")
             print("Starting update api_key in sameday")
             result = await session.execute(select(Billing_software).where(Billing_software.site_domain == "sameday.ro"))
             samedays = result.scalars().all()
@@ -154,6 +158,7 @@ async def update_awb(db: AsyncSession = Depends(get_db)):
                         # Track and update awb status
                         awb_status_response = await tracking(sameday, awb_barcode)
                         if (awb_status_response.status_code != 200):
+                            file.write(f"An error occured while tracking {awb_barcode}: {awb_status_response.text}\n")
                             raise Exception(awb_status_response.text)
                         awb_status_result = awb_status_response.json()
                         pickedup = awb_status_result.get('parcelSummary').get('isPickedUp')
@@ -182,6 +187,7 @@ async def update_awb(db: AsyncSession = Depends(get_db)):
                     except Exception as track_ex:
                         error_barcode.append(awb_barcode)
                         print(f"Tracking API error for AWB {awb_barcode}: {str(track_ex)}")
+                        file.write(f"Tracking API error for AWB {awb_barcode}: {str(track_ex)}\n")
                         continue  # Continue to next AWB if tracking fails
                 #     count += 1
                 MAX_RETRIES = 5
@@ -204,10 +210,14 @@ async def update_awb(db: AsyncSession = Depends(get_db)):
                             await asyncio.sleep(2)
             except Exception as db_ex:
                 print(f"Database query failed: {str(db_ex)}")
+                file.write(f"Database query failed: {str(db_ex)}\n")
                 await session.rollback()
 
             print(f"Getting awb status error barcodes {error_barcode}")
+            file.write(f"Getting awb status error barcodes {error_barcode}\n")
             print("AWB status update completed")
+            file.write(f"Finished on {datetime.now(timezone.utc)}\n\n")
+            file.close()
 
 # def backup_db():
 #     export_to_csv()
@@ -215,6 +225,8 @@ async def update_awb(db: AsyncSession = Depends(get_db)):
 async def refresh_orders_data(db:AsyncSession = Depends(get_db)):
     async for db in get_db():
         async with db as session:
+            file = open(f"{LOG_DIR}refresh_orders", "+a", encoding="utf-8")
+            file.write(f"Started on {datetime.now(timezone.utc)}\n")
             # print("Starting orders refresh")
             result = await session.execute(select(Marketplace).order_by(Marketplace.id.asc()))
             marketplaces = result.scalars().all()
@@ -223,41 +235,74 @@ async def refresh_orders_data(db:AsyncSession = Depends(get_db)):
             for marketplace in marketplaces:
                 if marketplace.marketplaceDomain == "altex.ro":
                     print("Refresh products from marketplace")
-                    await refresh_altex_products(marketplace)
+                    file.write("Refresh products from marketplace\n")
+                    try:
+                        await refresh_altex_products(marketplace)
+                    except Exception as e:
+                        file.write(f"An error occurred: {e}\n")
                     print("Refresh orders from marketplace")
-                    await refresh_altex_orders(marketplace)
+                    file.write("Refresh orders from marketplace\n")
+                    try:
+                        await refresh_altex_orders(marketplace)
+                    except Exception as e:
+                        file.write(f"An error occurred: {e}\n")
                 else:
                     print("Refresh products from marketplace")
-                    await refresh_emag_products(marketplace)
+                    file.write("Refresh products from marketplace")
+                    try:
+                        await refresh_emag_products(marketplace)
+                    except Exception as e:
+                        file.write(f"An error occurred: {e}\n")
                     print("Refresh orders from marketplace")
-                    await refresh_emag_orders(marketplace)
+                    file.write("Refresh orders from marketplace\n")
+                    try:
+                        await refresh_emag_orders(marketplace)
+                    except Exception as e:
+                        file.write(f"An error occurred: {e}\n")
+            file.write(f"Finished on {datetime.now(timezone.utc)}\n")
+            file.close()
 
 async def generate_invoice(db:AsyncSession = Depends(get_db)):
     async for db in get_db():
         async with db as session:
+            file = open(f"{LOG_DIR}generate_invoice", "+a", encoding="utf-8")
+            file.write(f"Started on {datetime.now(timezone.utc)}\n")
             print("Create Invoice and Reverse Invoice")
-            await refresh_invoice(session)
+            try:
+                await refresh_invoice(session)
+            except Exception as e:
+                file.write(f"An error occured: {e}\n")
+            file.write(f"Finished on {datetime.now(timezone.utc)}\n\n")
+            file.close()
 
 async def refresh_months_order(db:AsyncSession = Depends(get_db)):
     async for db in get_db():
         async with db as session:
+            file = open(f"{LOG_DIR}refresh_month_order", "+a", encoding="utf-8")
+            file.write(f"Started on {datetime.now(timezone.utc)}\n")
             print("Starting orders refresh")
             result = await session.execute(select(Marketplace).order_by(Marketplace.id.asc()))
             marketplaces = result.scalars().all()
             print(f"Success getting {len(marketplaces)} marketplaces")
             for marketplace in marketplaces:
-                if marketplace.marketplaceDomain == "altex.ro":
-                    print("Refresh orders from marketplace")
-                    await refresh_altex_orders(marketplace)
-                else:
-                    print("Refresh orders from marketplace")
-                    await refresh_emag_orders(marketplace, period=180)
+                try:
+                    if marketplace.marketplaceDomain == "altex.ro":
+                        print("Refresh orders from marketplace")
+                        await refresh_altex_orders(marketplace)
+                    else:
+                        print("Refresh orders from marketplace")
+                        await refresh_emag_orders(marketplace, period=180)
+                except Exception as e:
+                    file.write(f"An error occured: {e}\n")
+            file.write(f"Finished on {datetime.now(timezone.utc)}\n\n")
+            file.close()
 
 async def send_stock(db:AsyncSession = Depends(get_db)):
     async for db in get_db():
+        file = open(f"{LOG_DIR}send_stock", "+a", encoding="utf-8")
+        file.write(f"Stock sending started on f{datetime.now(timezone.utc)}\n")
         try:
             async with db as session:
-
                 print("Calculate orders_stock")
                 result = await session.execute(select(Order).where(Order.status == any_([1,2,3])))
                 db_new_orders = result.scalars().all()
@@ -359,25 +404,33 @@ async def send_stock(db:AsyncSession = Depends(get_db)):
                         product_id = int(product_id)
                         response = await post_stock_emag(marketplace, product_id, stock)
                         print(f"{response}") 
-                        if response == "Stock updated successfully, no content returned.":
-                            product.sync_stock_time = datetime.now()
+                        if response.status_code == 200:
+                            product.sync_stock_time = datetime.now(timezone.utc)
                         else:
+                            file.write(f"An error occured: {response.text}\n")
                             continue
                 await session.commit() 
                 workbook.save("/var/www/html/invoices/stock_sync.xlsx")
                 print("successfully saved stock data")
+                file.write(f"successfully saved stock data on {datetime.now(timezone.utc)}\n")
         except Exception as e:
             print(f"An error occurred: {e}")
+            file.write(f"An error occurred: {e}\n")
             await session.rollback()
+        file.write(f"Finished on {datetime.now(timezone.utc)}")
+        file.close()
 
 async def refresh_stock(db: AsyncSession = Depends(get_db)):
     async for db in get_db():
         async with db as session:
+            file = open(f"{LOG_DIR}refresh_stock", "+a", encoding="utf-8")
+            file.write(f"Stock refresh started on f{datetime.now(timezone.utc)}\n")
             print("Starting stock refresh")
             result = await session.execute(select(Billing_software).where(Billing_software.site_domain == "smartbill.ro"))
             db_smarts = result.scalars().all()
             if db_smarts is None:
                 print("Can't find billing software")
+                file.write("Can't find billing software\n")
                 return
 
             print("Fetch stock via smarbill api")
@@ -392,7 +445,8 @@ async def refresh_stock(db: AsyncSession = Depends(get_db)):
                         else:
                             continue
             except Exception as e:
-                print(f"getting stock data error: {e}")
+                logging.error(f"getting stock data error: {e}")
+                file.write(f"getting stock data error: {e}\n")
             for product in products:
                 print(product)
                 product_code = product.get('productCode')
@@ -415,28 +469,38 @@ async def refresh_stock(db: AsyncSession = Depends(get_db)):
                 print(f"product_code_list: {product_code_list}")
                 print("Finish sync stock")
             except Exception as e:
-                print(f"sync stock error {e}")
+                logging.error(f"sync stock error {e}")
+                file.write(f"sync stock error {e}\n")
+            file.write(f"Finish sync stock on {datetime.now(timezone.utc)}\n\n")
+            file.close()
 
 # Run daily for deleting video last 30 days
 async def refresh_data(db: AsyncSession = Depends(get_db)): 
     async for db in get_db():
         async with db as session:
+            file = open(f"{LOG_DIR}refresh_data", "+a", encoding="utf-8")
+            file.write(f"Refresh data (returns) started on f{datetime.now(timezone.utc)}\n")
             print("Starting product refresh")
             result = await session.execute(select(Marketplace).order_by(Marketplace.id.asc()))
             marketplaces = result.scalars().all()
             print(f"Success getting {len(marketplaces)} marketplaces")
             for marketplace in marketplaces:
-                if marketplace.marketplaceDomain == "altex.ro":
-                    print("Refresh rmas from altex")
-                    await refresh_altex_rmas(marketplace)
-                else:
-                    print("Refresh refunds from marketplace")
-                    await refresh_emag_returns(marketplace)
+                try:
+                    if marketplace.marketplaceDomain == "altex.ro":
+                        print("Refresh rmas from altex")
+                        await refresh_altex_rmas(marketplace)
+                    else:
+                        print("Refresh refunds from marketplace")
+                        await refresh_emag_returns(marketplace)
 
-                    # print("Refresh reviews from emag")
-                    # await refresh_emag_reviews(marketplace, session)
-                    # print("Check hijacker and review")
-                    # await check_hijacker_and_bad_reviews(marketplace, session)
+                        # print("Refresh reviews from emag")
+                        # await refresh_emag_reviews(marketplace, session)
+                        # print("Check hijacker and review")
+                        # await check_hijacker_and_bad_reviews(marketplace, session)
+                except Exception as e:
+                    file.write(f"An error occured: {e}\n")
+            file.write(f"Finished on {datetime.now(timezone.utc)}\n\n")
+            file.close()
 
 # @asynccontextmanager
 # async def lifespan(app: FastAPI):

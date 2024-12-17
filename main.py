@@ -70,13 +70,13 @@ async def lifespan(app: FastAPI):
     # asyncio.create_task(on_startup())
     # asyncio.create_task(update_damaged_goods())
     # asyncio.create_task(update_invoice_post())
-    asyncio.create_task(update_awb())
-    asyncio.create_task(refresh_orders_data())
-    asyncio.create_task(generate_invoice())
-    asyncio.create_task(refresh_months_order())
-    asyncio.create_task(send_stock())
+    # asyncio.create_task(update_awb())
+    # asyncio.create_task(refresh_orders_data())
+    # asyncio.create_task(generate_invoice())
+    # asyncio.create_task(refresh_months_order())
+    # asyncio.create_task(send_stock())
     asyncio.create_task(refresh_stock())
-    asyncio.create_task(refresh_data())
+    # asyncio.create_task(refresh_data())
     # asyncio.create_task(backup_db())
     yield
     print("App stopped")
@@ -84,7 +84,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-ssl_context.load_cert_chain('ssl/cert.pem', keyfile='ssl/key.pem')
+# ssl_context.load_cert_chain('ssl/cert.pem', keyfile='ssl/key.pem')
 
 origins = [
     "*"
@@ -141,6 +141,6 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=8000,
         # reload=True,
-        ssl_keyfile=ssl_keyfile,
-        ssl_certfile=ssl_certfile,
+        # ssl_keyfile=ssl_keyfile,
+        # ssl_certfile=ssl_certfile,
     )
