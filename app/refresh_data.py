@@ -215,7 +215,7 @@ async def update_awb(db: AsyncSession = Depends(get_db)):
                         awb.length = length
                         awb.awb_status_update_time = datetime.now()
                         log_update_awb(f"AWB {awb_barcode} has been updated from status {old_status} to status {awb_status}")
-                        await asyncio.sleep(20)
+                        await asyncio.sleep(8)
                     except Exception as track_ex:
                         error_barcode.append(awb_barcode)
                         print(f"Tracking API error for AWB {awb_barcode}: {str(track_ex)}")
