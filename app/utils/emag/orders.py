@@ -209,13 +209,14 @@ async def refresh_emag_orders(marketplace: Marketplace, period=3):
                     continue
                 logging.info(f">>>>>>> Current Page : {currentPage} <<<<<<<<")
                 order_response = response.json()
-                if order_response and order_response['isError'] == False:
+                if order_response['isError'] == False:
                     orders = order_response['results']
                     # await insert_orders_into_db(orders['results'], customer_table, orders_table, marketplace.marketplaceDomain)
                     await insert_orders(orders, marketplace)
             except Exception as e:
                 logging.error(f"Error occured while refreshing emag orders: {e}")
                 log_refresh_orders(f"Error occured while refreshing emag orders: {e}")
+                log_refresh_orders(f"Error occured while refreshing emag orders: {order_response}")
             currentPage += 1
 
 async def change_status(order_id: int, marketplace: Marketplace):
