@@ -266,29 +266,17 @@ async def refresh_orders_data(db:AsyncSession = Depends(get_db)):
                 if marketplace.marketplaceDomain == "altex.ro":
                     print("Refresh products from altex")
                     log_refresh_orders("Refresh products from altex")
-                    try:
-                        await refresh_altex_products(marketplace)
-                    except Exception as e:
-                        log_refresh_orders(f"An error occurred: {e}")
+                    await refresh_altex_products(marketplace)
                     print("Refresh orders from altex")
                     log_refresh_orders("Refresh orders from altex")
-                    try:
-                        await refresh_altex_orders(marketplace)
-                    except Exception as e:
-                        log_refresh_orders(f"An error occurred: {e}")
+                    await refresh_altex_orders(marketplace)
                 else:
                     print(f"Refresh products from {marketplace.marketplaceDomain}")
                     log_refresh_orders(f"Refresh products from {marketplace.marketplaceDomain}")
-                    try:
-                        await refresh_emag_products(marketplace)
-                    except Exception as e:
-                        log_refresh_orders(f"An error occurred: {e}")
+                    await refresh_emag_products(marketplace)
                     print(f"Refresh orders from {marketplace.marketplaceDomain}")
                     log_refresh_orders(f"Refresh orders from {marketplace.marketplaceDomain}")
-                    try:
-                        await refresh_emag_orders(marketplace)
-                    except Exception as e:
-                        log_refresh_orders(f"An error occurred: {e}")
+                    await refresh_emag_orders(marketplace)
             log_refresh_orders(f"Finished on {datetime.now(timezone.utc)}")
 
 async def generate_invoice(db:AsyncSession = Depends(get_db)):
