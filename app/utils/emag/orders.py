@@ -221,7 +221,6 @@ async def refresh_emag_orders(marketplace: Marketplace, period=3):
 
     result = await count_orders(marketplace)
     log_message(f"count result is: {result}", period)
-    await asyncio.sleep(1)
     if result and result.get('isError', True) == False:
         pages = result['results']['noOfPages']
         items = result['results']['noOfItems']
@@ -234,15 +233,14 @@ async def refresh_emag_orders(marketplace: Marketplace, period=3):
         while currentPage <= int(pages):
             try:
                 log_message(f"Started fetching orders from emag: page {currentPage}", period)
-                try:
-                    response = await get_orders(marketplace, currentPage, period)
-                    await asyncio.sleep(1)
-                except Exception as e:
-                    log_message(f"Failed to get orders: {e}", period)
-                    logging.error(f"Failed to get orders: {e}")
-                    currentPage += 1
-                    continue
-                if response.status_code != 200:
+                for i in range(3):
+                    try:
+                        response = await get_orders(marketplace, currentPage, period)
+                    except Exception as e:
+                        log_message(f"Failed to get orders (attempt {i + 1} of 3): {e}", period)
+                        logging.error(f"Failed to get orders (attempt {i + 1} of 3): {e}")
+                        await asyncio.sleep(1)
+                if not response or response.status_code != 200:
                     log_message(f"Failed to get orders: {response.text}", period)
                     logging.error(f"Failed to get orders: {response.text}")
                     currentPage += 1
