@@ -243,6 +243,7 @@ async def refresh_emag_orders(marketplace: Marketplace, period=3):
                         currentPage += 1
                         continue
                 except Exception as e:
+                    log_message(f"Failed to get orders: {response}", period)
                     logging.error(f"Failed to get orders: {e}")
                 logging.info(f">>>>>>> Current Page : {currentPage} <<<<<<<<")
                 order_response = response.json()
