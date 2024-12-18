@@ -53,7 +53,11 @@ async def get_orders(marketplace: Marketplace, currentPage, period=3):
         })
     except Exception as e:
         log_message(f"Failed to authenticate marketplace: {e}", period)
-    response = await send_post_request(url, headers=headers, data=data)
+    try:
+        response = await send_post_request(url, headers=headers, data=data)
+    except Exception as e:
+        log_message(f"Failed to get orders: {e}", period)
+        log_message(f"headers={headers}; data={data}; url={url}", period)
     return response
 
 async def acknowledge(marketplace: Marketplace, order_id):
