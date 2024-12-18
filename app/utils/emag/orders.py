@@ -1,5 +1,4 @@
-import json
-import logging
+import asyncio, json, logging
 from decimal import Decimal
 from sqlalchemy.future import select
 from datetime import datetime, timezone, timedelta
@@ -222,6 +221,7 @@ async def refresh_emag_orders(marketplace: Marketplace, period=3):
 
     result = await count_orders(marketplace)
     log_message(f"count result is: {result}", period)
+    await asyncio.sleep(1)
     if result and result.get('isError', True) == False:
         pages = result['results']['noOfPages']
         items = result['results']['noOfItems']
@@ -236,6 +236,7 @@ async def refresh_emag_orders(marketplace: Marketplace, period=3):
                 log_message(f"Started fetching orders from emag: page {currentPage}", period)
                 try:
                     response = await get_orders(marketplace, currentPage, period)
+                    await asyncio.sleep(1)
                     if response.status_code != 200:
                         log_message(f"Failed to get orders: {response.text}", period)
                         logging.error(f"Failed to get orders: {response.text}")

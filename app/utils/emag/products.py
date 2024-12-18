@@ -210,6 +210,7 @@ async def refresh_emag_products(marketplace: Marketplace):
     result = await count_all_products(marketplace)
     logging.info(f"count result is {result}")
     log_refresh_orders(f"count result is {result}")
+    await asyncio.sleep(1)
     if result and result['isError'] == False:
         pages = result['results']['noOfPages']
         items = result['results']['noOfItems']
@@ -222,6 +223,7 @@ async def refresh_emag_products(marketplace: Marketplace):
                 log_refresh_orders(f"Started fetching products from emag: page {currentPage}")
                 try:
                     response = await get_all_products(marketplace, currentPage)
+                    await asyncio.sleep(1)
                     if response.status_code != 200:
                         logging.error(f"Failed to get products: {response.text}")
                         log_refresh_orders(f"Failed to get products: {response.text}")
