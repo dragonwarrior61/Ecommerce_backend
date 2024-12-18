@@ -42,7 +42,7 @@ async def get_orders(marketplace: Marketplace, currentPage, period=3):
         MARKETPLACE_API_URL = marketplace.baseAPIURL
         ORDERS_ENDPOINT = marketplace.orders_crud["endpoint"]
         READ_ENDPOINT = marketplace.orders_crud["read"]
-        url = f"{MARKETPLACE_API_URL}{ORDERS_ENDPOINT}/{READ_ENDPOINT}"
+        url = f"{MARKETPLACE_API_URL}{ORDERS_ENDPOINT}{READ_ENDPOINT}"
         headers = get_auth_marketplace(marketplace)
         modifiedAfter_date = datetime.today() - timedelta(days=period)
         modifiedAfter_date = modifiedAfter_date.strftime('%Y-%m-%d')
