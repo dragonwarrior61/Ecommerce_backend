@@ -80,7 +80,7 @@ async def insert_orders(orders, marketplace: Marketplace):
                         delivery_mode = order.get('delivery_mode'),
                         status = new_status,
                         payment_status = order.get('payment_status'),
-                        product_id = [str(product.get('id')) for product in products],
+                        product_id = [str(product.get('product_id')) for product in products],
                         quantity = [product.get('quantity') for product in products],
                         initial_quantity = [product.get('initial_qty') for product in products],
                         sale_price = [Decimal(product.get('sale_price', '0')) for product in products],
