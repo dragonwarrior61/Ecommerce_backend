@@ -231,10 +231,16 @@ async def refresh_emag_orders(marketplace: Marketplace, period=3):
         while currentPage <= int(pages):
             try:
                 log_message(f"Started fetching orders from emag: page {currentPage}", period)
-                response = await get_orders(marketplace, currentPage, period)
-                if response.status_code != 200:
-                    log_message(f"Failed to get orders: {response.text}", period)
-                    logging.error(f"Failed to get orders: {response.text}")
+                try:
+                    response = await get_orders(marketplace, currentPage, period)
+                    if response.status_code != 200:
+                        log_message(f"Failed to get orders: {response.text}", period)
+                        logging.error(f"Failed to get orders: {response.text}")
+                        currentPage += 1
+                        continue
+                except Exception as e:
+                    log_message(f"Failed to get orders: {e}", period)
+                    logging.error(f"Failed to get orders: {e}")
                     currentPage += 1
                     continue
                 logging.info(f">>>>>>> Current Page : {currentPage} <<<<<<<<")
