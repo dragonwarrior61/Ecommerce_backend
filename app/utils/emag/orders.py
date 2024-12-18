@@ -13,6 +13,12 @@ from app.logfiles import log_refresh_orders, log_refresh_month_order
 # logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logging.getLogger("sqlalchemy").setLevel(logging.ERROR)
 
+def log_message(message: str, period = 3):
+    if period == 3:
+        log_refresh_orders(message)
+    else:
+        log_refresh_month_order(message)
+
 async def count_orders(marketplace: Marketplace, period = 3):
     MARKETPLACE_API_URL = marketplace.baseAPIURL
     ORDERS_ENDPOINT = marketplace.orders_crud["endpoint"]
@@ -33,19 +39,22 @@ async def count_orders(marketplace: Marketplace, period = 3):
     return response.json()
 
 async def get_orders(marketplace: Marketplace, currentPage, period=3):
-    MARKETPLACE_API_URL = marketplace.baseAPIURL
-    ORDERS_ENDPOINT = marketplace.orders_crud["endpoint"]
-    READ_ENDPOINT = marketplace.orders_crud["read"]
-    url = f"{MARKETPLACE_API_URL}{ORDERS_ENDPOINT}/{READ_ENDPOINT}"
-    headers = get_auth_marketplace(marketplace)
-    modifiedAfter_date = datetime.today() - timedelta(days=period)
-    modifiedAfter_date = modifiedAfter_date.strftime('%Y-%m-%d')
-    data = json.dumps({
-        "itemsPerPage": 100,
-        "currentPage": currentPage,
-        "modifiedAfter": modifiedAfter_date
-    })
-    response = await send_post_request(url, headers, "get orders", data)
+    try:
+        MARKETPLACE_API_URL = marketplace.baseAPIURL
+        ORDERS_ENDPOINT = marketplace.orders_crud["endpoint"]
+        READ_ENDPOINT = marketplace.orders_crud["read"]
+        url = f"{MARKETPLACE_API_URL}{ORDERS_ENDPOINT}/{READ_ENDPOINT}"
+        headers = get_auth_marketplace(marketplace)
+        modifiedAfter_date = datetime.today() - timedelta(days=period)
+        modifiedAfter_date = modifiedAfter_date.strftime('%Y-%m-%d')
+        data = json.dumps({
+            "itemsPerPage": 100,
+            "currentPage": currentPage,
+            "modifiedAfter": modifiedAfter_date
+        })
+    except Exception as e:
+        log_message(f"Failed to authenticate marketplace: {e}")
+    response = await send_post_request(url, headers=headers, error_msg="get orders", data=data)
     return response
 
 async def acknowledge(marketplace: Marketplace, order_id):
@@ -210,12 +219,6 @@ async def insert_orders(orders, marketplace: Marketplace):
 
 async def refresh_emag_orders(marketplace: Marketplace, period=3):
     logging.info(f">>>>>>> Refreshing Marketplace : {marketplace.title} user is {marketplace.user_id} <<<<<<<<")
-
-    def log_message(message: str, period = 3):
-        if period == 3:
-            log_refresh_orders(message)
-        else:
-            log_refresh_month_order(message)
 
     result = await count_orders(marketplace)
     log_message(f"count result is: {result}", period)
