@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import any_, and_, cast, String
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -137,6 +138,8 @@ async def get_replacements(
                 if product is None:
                     result = await db.execute(select(Product).where(Product.id == product_id))
                     product = result.scalars().first()
+                    if product is None:
+                        logging.error(f"<<<<<<<<<<<<<<<<<<<<< Product {product_id} not found.")
                 ean.append(product.ean)
         replacement_data.append({
             **{column.name: getattr(replacement, column.name) for column in replacement.__table__.columns},

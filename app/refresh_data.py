@@ -305,7 +305,7 @@ async def refresh_months_order(db:AsyncSession = Depends(get_db)):
                         await refresh_altex_orders(marketplace)
                     else:
                         print("Refresh orders from marketplace")
-                        await refresh_emag_orders(marketplace, period=30)
+                        await refresh_emag_orders(marketplace, period=180)
                 except Exception as e:
                     log_refresh_month_order(f"An error occured: {e}")
             log_refresh_month_order(f"Finished on {datetime.now(timezone.utc)}\n")
