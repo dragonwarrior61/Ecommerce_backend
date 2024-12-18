@@ -219,7 +219,7 @@ async def refresh_emag_orders(marketplace: Marketplace, period=3):
 
     result = await count_orders(marketplace)
     log_message(f"count result is: {result}", period)
-    if result and result['isError'] == False:
+    if result and result.get('isError', True) == False:
         pages = result['results']['noOfPages']
         items = result['results']['noOfItems']
 
@@ -239,7 +239,7 @@ async def refresh_emag_orders(marketplace: Marketplace, period=3):
                     continue
                 logging.info(f">>>>>>> Current Page : {currentPage} <<<<<<<<")
                 order_response = response.json()
-                if order_response['isError'] == False:
+                if order_response.get('isError', True) == False:
                     for _ in range(3):
                         try:
                             await insert_orders(order_response['results'], marketplace)
