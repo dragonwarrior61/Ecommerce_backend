@@ -236,6 +236,7 @@ async def refresh_emag_orders(marketplace: Marketplace, period=3):
                 log_message(f"Started fetching orders from emag: page {currentPage}", period)
                 try:
                     response = await get_orders(marketplace, currentPage, period)
+                    log_message(f"Failed to get orders: {response}", period)
                     await asyncio.sleep(1)
                     if response.status_code != 200:
                         log_message(f"Failed to get orders: {response.text}", period)
@@ -243,7 +244,6 @@ async def refresh_emag_orders(marketplace: Marketplace, period=3):
                         currentPage += 1
                         continue
                 except Exception as e:
-                    log_message(f"Failed to get orders: {response}", period)
                     logging.error(f"Failed to get orders: {e}")
                 logging.info(f">>>>>>> Current Page : {currentPage} <<<<<<<<")
                 order_response = response.json()
