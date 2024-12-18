@@ -8,7 +8,7 @@ from app.database import get_db
 from app.models import AWB, Marketplace, Order
 from app.utils.auth_market import get_auth_marketplace
 from app.utils.httpx_request import send_post_request, send_get_request
-from app.logfiles import log_refresh_orders
+from app.logfiles import log_refresh_orders, log_refresh_month_order
 
 # logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logging.getLogger("sqlalchemy").setLevel(logging.ERROR)
@@ -211,8 +211,14 @@ async def insert_orders(orders, marketplace: Marketplace):
 async def refresh_emag_orders(marketplace: Marketplace, period=3):
     logging.info(f">>>>>>> Refreshing Marketplace : {marketplace.title} user is {marketplace.user_id} <<<<<<<<")
 
+    def log_message(message: str, period = 3):
+        if period == 3:
+            log_refresh_orders(message)
+        else:
+            log_refresh_month_order(message)
+
     result = await count_orders(marketplace)
-    log_refresh_orders(f"count result is: {result}")
+    log_message(f"count result is: {result}", period)
     if result and result['isError'] == False:
         pages = result['results']['noOfPages']
         items = result['results']['noOfItems']
@@ -224,10 +230,10 @@ async def refresh_emag_orders(marketplace: Marketplace, period=3):
         currentPage = 1
         while currentPage <= int(pages):
             try:
-                log_refresh_orders(f"Started fetching orders from emag: page {currentPage}")
+                log_message(f"Started fetching orders from emag: page {currentPage}", period)
                 response = await get_orders(marketplace, currentPage, period)
                 if response.status_code != 200:
-                    log_refresh_orders(f"Failed to get orders: {response.text}")
+                    log_message(f"Failed to get orders: {response.text}", period)
                     logging.error(f"Failed to get orders: {response.text}")
                     currentPage += 1
                     continue
@@ -239,11 +245,11 @@ async def refresh_emag_orders(marketplace: Marketplace, period=3):
                             await insert_orders(order_response['results'], marketplace)
                             break
                         except Exception as e:
-                            log_refresh_orders(f"Failed to insert orders: {e}")
+                            log_message(f"Failed to insert orders: {e}", period)
                             continue
             except Exception as e:
                 logging.error(f"Error occured while refreshing emag orders: {e}")
-                log_refresh_orders(f"Error occured while refreshing emag orders: {e}")
+                log_message(f"Error occured while refreshing emag orders: {e}", period)
             currentPage += 1
 
 async def change_status(order_id: int, marketplace: Marketplace):
