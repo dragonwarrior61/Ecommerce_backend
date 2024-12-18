@@ -293,13 +293,14 @@ async def refresh_invoice(db: AsyncSession):
                 if result.status_code == 200:
                     invoice.post = 1
                     db.add(invoice)
-                    await db.commit()
+                    # await db.commit()
                 else:
                     log_generate_invoice(f"Failed to generate invoice of order {order.id}: {result.text}")
             except Exception as e:
                 logging.error(f"Error saving invoice: {e}")
                 log_generate_invoice(f"Error saving invoice: {e}")
-                await db.rollback()
+                continue
+                # await db.rollback()
             # logging.info(f"order_id_list is {order_id_list}")
             # logging.info(f"successfully generate invoice of {len(order_id_list)}")
 
