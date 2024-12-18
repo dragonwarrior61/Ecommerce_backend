@@ -236,25 +236,27 @@ async def refresh_emag_orders(marketplace: Marketplace, period=3):
                 log_message(f"Started fetching orders from emag: page {currentPage}", period)
                 try:
                     response = await get_orders(marketplace, currentPage, period)
-                    log_message(f"Failed to get orders: {response}", period)
                     await asyncio.sleep(1)
-                    if response.status_code != 200:
-                        log_message(f"Failed to get orders: {response.text}", period)
-                        logging.error(f"Failed to get orders: {response.text}")
-                        currentPage += 1
-                        continue
                 except Exception as e:
+                    log_message(f"Failed to get orders: {e}", period)
                     logging.error(f"Failed to get orders: {e}")
+                    currentPage += 1
+                    continue
+                if response.status_code != 200:
+                    log_message(f"Failed to get orders: {response.text}", period)
+                    logging.error(f"Failed to get orders: {response.text}")
+                    currentPage += 1
+                    continue
                 logging.info(f">>>>>>> Current Page : {currentPage} <<<<<<<<")
                 order_response = response.json()
                 if order_response.get('isError', True) == False:
-                    for _ in range(3):
+                    for i in range(3):
                         try:
                             await insert_orders(order_response['results'], marketplace)
                             break
                         except Exception as e:
-                            log_message(f"Failed to insert orders: {e}", period)
-                            continue
+                            log_message(f"Failed to insert orders (attempt {i + 1} of 3): {e}", period)
+
             except Exception as e:
                 logging.error(f"Error occured while refreshing emag orders: {e}")
                 log_message(f"Error occured while refreshing emag orders: {e}", period)

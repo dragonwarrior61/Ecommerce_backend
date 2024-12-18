@@ -224,26 +224,28 @@ async def refresh_emag_products(marketplace: Marketplace):
                 try:
                     response = await get_all_products(marketplace, currentPage)
                     await asyncio.sleep(1)
-                    if response.status_code != 200:
-                        logging.error(f"Failed to get products: {response.text}")
-                        log_refresh_orders(f"Failed to get products: {response.text}")
-                        currentPage += 1
-                        continue
                 except Exception as e:
                     logging.error(f"Failed to get products: {e}")
-                    log_refresh_orders(f"Failed to get products: {response}")
+                    log_refresh_orders(f"Failed to get products: {e}")
+                    currentPage += 1
+                    continue
 
+                if response.status_code != 200:
+                    logging.error(f"Failed to get products: {response.text}")
+                    log_refresh_orders(f"Failed to get products: {response.text}")
+                    currentPage += 1
+                    continue
                 logging.info(f">>>>>>> Current Page : {currentPage} <<<<<<<<")
                 products = response.json()
                 if products.get('isError', True) == False:
-                    for _ in range(3):
+                    for i in range(3):
                         try:
                             await insert_products_into_db(products['results'], marketplace.marketplaceDomain, user_id)
                             await asyncio.sleep(2)
                             await insert_products(products['results'], marketplace.marketplaceDomain, user_id)
                             break
                         except Exception as e:
-                            log_refresh_orders(f"Failed to insert products: {e}")
+                            log_refresh_orders(f"Failed to insert products (attempt {i + 1} of 3): {e}")
                             continue
             except Exception as e:
                 logging.error(f"An error occured to get products from page {currentPage}: {e}")
