@@ -71,7 +71,7 @@ async def lifespan(app: FastAPI):
     # asyncio.create_task(update_damaged_goods())
     # asyncio.create_task(update_invoice_post())
     asyncio.create_task(update_awb())
-    asyncio.create_task(refresh_orders_data())
+    # asyncio.create_task(refresh_orders_data())
     asyncio.create_task(refresh_months_order())
     asyncio.create_task(generate_invoice())
     asyncio.create_task(send_stock())
