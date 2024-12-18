@@ -220,16 +220,22 @@ async def refresh_emag_products(marketplace: Marketplace):
         while currentPage <= int(pages):
             try:
                 log_refresh_orders(f"Started fetching products from emag: page {currentPage}")
-                response = await get_all_products(marketplace, currentPage)
-                if response.status_code != 200:
-                    logging.error(f"Failed to get products: {response.text}")
-                    log_refresh_orders(f"Failed to get products: {response.text}")
+                try:
+                    response = await get_all_products(marketplace, currentPage)
+                    if response.status_code != 200:
+                        logging.error(f"Failed to get products: {response.text}")
+                        log_refresh_orders(f"Failed to get products: {response.text}")
+                        currentPage += 1
+                        continue
+                except Exception as e:
+                    logging.error(f"Failed to get products: {e}")
+                    log_refresh_orders(f"Failed to get products: {e}")
                     currentPage += 1
                     continue
 
                 logging.info(f">>>>>>> Current Page : {currentPage} <<<<<<<<")
                 products = response.json()
-                if products.get('isError') == False:
+                if products.get('isError', True) == False:
                     for _ in range(3):
                         try:
                             await insert_products_into_db(products['results'], marketplace.marketplaceDomain, user_id)
