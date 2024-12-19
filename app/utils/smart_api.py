@@ -384,7 +384,7 @@ async def refresh_storno_invoice(marketplace: Marketplace, db: AsyncSession):
             logging.info(f"Storno Invoice data being saved: {reverse_invoice.__dict__}")
             db.add(reverse_invoice)
             pdf_name = f"storno_{seriesname}{storno_number}.pdf"
-            download_result = await download_pdf_server(seriesname, storno_number, pdf_name, smartbill)
+            download_result = download_pdf_server(seriesname, storno_number, pdf_name, smartbill)
             logging.info(f"download pdf result is {download_result}")
             order_id_list.append(order.id)
         except Exception as e:
