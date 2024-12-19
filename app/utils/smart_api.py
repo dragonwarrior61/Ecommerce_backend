@@ -325,7 +325,7 @@ async def refresh_storno_invoice(marketplace: Marketplace, db: AsyncSession):
         AWBAlias,
         and_(AWBAlias.order_id == Order.id, AWBAlias.number > 0, AWBAlias.user_id == Order.user_id)
     )
-    query.where(or_(Order.status == 5, AWBAlias.awb_status == any_([16, 35, 93])))
+    query.where(or_(Order.status == 5, Order.status == 0, Order.cancellation_request, AWBAlias.awb_status == any_([16, 35, 93])))
     query = query.outerjoin(
         Reverse_InvoiceAlias,
         and_(Reverse_InvoiceAlias.order_id == Order.id, Reverse_InvoiceAlias.user_id == Order.user_id)

@@ -1,5 +1,5 @@
 import logging
-
+import httpx
 from app.models import Billing_software
 from app.utils.httpx_request import send_post_request, send_get_request
 
@@ -21,10 +21,15 @@ async def tracking(sameday: Billing_software, awb_barcode):
     url = "https://api.sameday.ro/api/client/parcel"
     api_key = sameday.registration_number
 
-    headers = {
-        "X-Auth-TOKEN": api_key,
-    }
-    response = await send_get_request(f"{url}/{awb_barcode}/status-history", headers=headers, error_msg="get history", verify=False)
-    if response.status_code != 200:
-        logging.error(f"Failed to track awb {awb_barcode}: {response.text}")
-    return response
+    async with httpx.AsyncClient(timeout=20) as client:
+        tracking_headers = {
+            "X-Auth-TOKEN": api_key,
+        }
+        response = await client.get(f"{url}/{awb_barcode}/status-history", headers=tracking_headers)
+        
+        if response.status_code == 200:
+            result = response.json()
+            return result
+        else:
+            print("Status Code:", response.status_code)
+            print("Error:", response.json())
