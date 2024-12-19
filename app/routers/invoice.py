@@ -99,7 +99,7 @@ async def download_invoice(
         Billing_software.site_domain == "smartbill.ro"
     ))
     db_smartbill = result.scalars().first()
-    return await download_pdf(cif, seriesname, number, db_smartbill)
+    return download_pdf(cif, seriesname, number, db_smartbill)
 
 @router.get('/post_pdf')
 async def post_invoice(
@@ -134,8 +134,8 @@ async def post_invoice(
     ))
     db_invoice = result.scalars().first()
 
-    await download_pdf_server(seriesname, number, name, db_smartbill)
-    response = await post_factura_pdf(order_id, name, db_marketplace)
+    download_pdf_server(seriesname, number, name, db_smartbill)
+    response = post_factura_pdf(order_id, name, db_marketplace)
 
     if response is not None:
         db_invoice.post = 1
