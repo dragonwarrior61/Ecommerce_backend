@@ -414,9 +414,7 @@ def download_pdf(cif: str, seriesname: str, number: str, smartbill: Billing_soft
         "seriesname": seriesname,
         "number": number
     }
-
     response = requests.get(url, headers=headers, params=params, stream=True)
-    
     if response.status_code == 200:
         content = BytesIO(response.content)
         return StreamingResponse(content, media_type=response.headers['Content-Type']) 
