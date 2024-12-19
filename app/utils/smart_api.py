@@ -38,7 +38,7 @@ def get_header(smartbill: Billing_software):
     }
     return headers
 
-async def get_stock(smartbill: Billing_software):
+def get_stock(smartbill: Billing_software):
     today = datetime.today()
     today = today.strftime("%Y-%m-%d")
     url = "https://ws.smartbill.ro/SBORO/api/stocks"
@@ -49,12 +49,13 @@ async def get_stock(smartbill: Billing_software):
     }
     header = get_header(smartbill)
 
-    response = await send_get_request(url, headers=header, params=params)
-    if response.status_code != 200:
-        raise HTTPException(status_code=response.status_code, detail=response.text)
-    result = response.json()
-    products = result.get('list')
-    return products
+    response = requests.get(url, headers=header, params=params)
+    if response.status_code == 200:
+        result = response.json()
+        products = result.get('list')
+        return products
+    else:
+        return response.json().get('errorText')
 
 async def update_stock(db: AsyncSession):
     results = await get_stock()

@@ -422,11 +422,10 @@ async def send_stock(db:AsyncSession = Depends(get_db)):
 
                         product_id = int(product_id)
                         response = await post_stock_emag(marketplace, product_id, stock)
-                        print(f"{response}") 
-                        if response.status_code == 200:
-                            product.sync_stock_time = datetime.now(timezone.utc)
+                        logging.info(f"{response}") 
+                        if response == "Stock updated successfully, no content returned.":
+                            product.sync_stock_time = datetime.now()
                         else:
-                            log_send_stock(f"An error occured: {response.text}")
                             continue
                 await session.commit() 
                 workbook.save("/var/www/html/invoices/stock_sync.xlsx")
@@ -455,7 +454,7 @@ async def refresh_stock(db: AsyncSession = Depends(get_db)):
             products = []
             try:
                 for db_smart in db_smarts:
-                    products_list = await get_stock(db_smart)
+                    products_list = get_stock(db_smart)
                     for smart_products in products_list:
                         if smart_products.get('products'):
                             products = products + smart_products.get('products')

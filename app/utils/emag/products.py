@@ -9,7 +9,8 @@ from psycopg2 import sql
 from sqlalchemy import any_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-
+import httpx
+import base64
 from app.config import settings
 from app.database import get_db
 from app.models import Marketplace, Product, Internal_Product
@@ -265,12 +266,28 @@ async def save_product(data, marketplace:Marketplace, db: AsyncSession):
     return result
 
 async def post_stock_emag(marketplace: Marketplace, product_id: int, stock: int):
+    USERNAME = marketplace.credentials["firstKey"]
+    PASSWORD = marketplace.credentials["secondKey"]
+    API_KEY = base64.b64encode(f"{USERNAME}:{PASSWORD}".encode('utf-8'))
     url = f"{marketplace.baseAPIURL}/offer_stock"
-    headers = get_auth_marketplace(marketplace)
+    api_key = str(API_KEY).replace("b'", '').replace("'", "")
+    headers = {
+        "Authorization": f"Basic {api_key}",
+        "Content-Type": "application/json"
+    }
     data = {
         "stock": stock
     }
-    response = await send_patch_request(f"{url}/{product_id}", json=data, headers=headers, error_msg="update stock")
-    if response.status_code != 200:
-        logging.error(f"Failed to post stock to {marketplace.baseURL}: {response.text}")
-    return response
+    async with httpx.AsyncClient(timeout=20) as client:
+        response = await client.patch(f"{url}/{product_id}", json=data, headers=headers)
+        if response.status_code == 200:
+            return "Stock updated successfully, no content returned."
+        elif response.status_code == 204:
+            return "Stock updated successfully, no content returned."
+        elif response.status_code == 404:
+            return f"Product not found: {response.status_code} {response.text}"
+        else:
+            try:
+                return f"Failed to update stock: {response.status_code} {response.json()}"
+            except Exception:
+                return f"Failed to update stock: {response.status_code} {response.text}"
