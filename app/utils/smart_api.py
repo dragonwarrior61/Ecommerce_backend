@@ -283,10 +283,8 @@ async def refresh_invoice(db: AsyncSession):
             invoice.url = result.get('url') if result.get('url') else ''
             invoice.post = 0
             invoice.user_id = user_id
-
             logging.info(f"Invoice data being saved: {invoice.__dict__}")
             db.add(invoice)
-
             name = f"factura_{series}{number}.pdf"
             download_result = download_pdf_server(series, number, name, smartbill)
             logging.info(f"download pdf result is {download_result}")
