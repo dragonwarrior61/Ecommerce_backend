@@ -1,6 +1,7 @@
 import base64
 import json
 import logging
+import requests
 import re
 from datetime import datetime, timedelta
 from fastapi import HTTPException
@@ -284,22 +285,15 @@ async def refresh_invoice(db: AsyncSession):
             invoice.user_id = user_id
 
             logging.info(f"Invoice data being saved: {invoice.__dict__}")
-            try:
-                name = f"factura_{series}{number}.pdf"
-                download_result = await download_pdf_server(series, number, name, smartbill)
-                logging.info(f"download pdf result is {download_result}")
-                order_id_list.append(order.id)
-                result = await post_factura_pdf(order.id, name, marketplace)
-                if result.status_code == 200:
-                    invoice.post = 1
-                    db.add(invoice)
-                    # await db.commit()
-                else:
-                    log_generate_invoice(f"Failed to generate invoice of order {order.id}: {result.text}")
-            except Exception as e:
-                logging.error(f"Error saving invoice: {e}")
-                log_generate_invoice(f"Error saving invoice: {e}")
-                continue
+            db.add(invoice)
+
+            name = f"factura_{series}{number}.pdf"
+            download_result = download_pdf_server(series, number, name, smartbill)
+            logging.info(f"download pdf result is {download_result}")
+            order_id_list.append(order.id)
+            result = post_factura_pdf(order.id, name, marketplace)
+            if result.status_code == 200:
+                invoice.post = 1
                 # await db.rollback()
             # logging.info(f"order_id_list is {order_id_list}")
             # logging.info(f"successfully generate invoice of {len(order_id_list)}")
@@ -413,7 +407,7 @@ async def generate_invoice(data, smartbill: Billing_software):
         logging.error(f"Failed to generate invoice: {response.text}")
     return response.json()
 
-async def download_pdf(cif: str, seriesname: str, number: str, smartbill: Billing_software):
+def download_pdf(cif: str, seriesname: str, number: str, smartbill: Billing_software):
     url = "https://ws.smartbill.ro/SBORO/api/invoice/pdf"
     headers = get_header(smartbill)
 
@@ -423,11 +417,15 @@ async def download_pdf(cif: str, seriesname: str, number: str, smartbill: Billin
         "number": number
     }
 
-    response = await send_get_request(url, headers=headers, params=params, error_msg="download pdf")
-    content = BytesIO(response.content)
-    return StreamingResponse(content, media_type=response.headers['Content-Type']) 
+    response = requests.get(url, headers=headers, params=params, stream=True)
+    
+    if response.status_code == 200:
+        content = BytesIO(response.content)
+        return StreamingResponse(content, media_type=response.headers['Content-Type']) 
+    else:
+        return response
 
-async def download_storno_pdf(cif: str, seriesname: str, number: str, smartbill: Billing_software):
+def download_storno_pdf(cif: str, seriesname: str, number: str, smartbill: Billing_software):
     url = "https://ws.smartbill.ro/SBORO/api/invoice/pdf"
     headers = get_header(smartbill)
     params = {
@@ -436,13 +434,23 @@ async def download_storno_pdf(cif: str, seriesname: str, number: str, smartbill:
         "number": number
     }
 
-    response = await send_get_request(url, headers=headers, params=params, error_msg="download storno pdf")
-    content = BytesIO(response.content)
-    return StreamingResponse(content, media_type=response.headers['Content-Type']) 
+    response = requests.get(url, headers=headers, params=params, stream=True)
+    
+    if response.status_code == 200:
+        content = BytesIO(response.content)
+        return StreamingResponse(content, media_type=response.headers['Content-Type']) 
+    else:
+        return response
 
-async def download_pdf_server(seriesname: str, number: str, name: str, smartbill: Billing_software):
+def download_pdf_server(seriesname: str, number: str, name: str, smartbill: Billing_software):
+    USERNAME = smartbill.username
+    PASSWORD = smartbill.password
+    credentials = base64.b64encode(f"{USERNAME}:{PASSWORD}".encode()).decode()
     url = "https://ws.smartbill.ro/SBORO/api/invoice/pdf"
-    headers = get_header(smartbill)
+    headers = {
+        "Authorization": f"Basic {credentials}",
+        "accept": "application/json",
+    }
 
     cif = smartbill.registration_number
 
@@ -452,7 +460,7 @@ async def download_pdf_server(seriesname: str, number: str, name: str, smartbill
         "number": number
     }
 
-    response = await send_get_request(url, headers=headers, params=params, error_msg="download pdf")
+    response = requests.get(url, headers=headers, params=params, stream=True)
 
     output_filename = f"/var/www/html/invoices/{name}"
     if response.status_code == 200:
@@ -463,25 +471,37 @@ async def download_pdf_server(seriesname: str, number: str, name: str, smartbill
     else:
         return response
 
-async def cancel_invoice_smartbill(cif: str, seriesname: str, number: str, smartbill: Billing_software):
+def cancel_invoice_smartbill(cif: str, seriesname: str, number: str, smartbill: Billing_software):
+    USERNAME = smartbill.username
+    PASSWORD = smartbill.password
+    credentials = base64.b64encode(f"{USERNAME}:{PASSWORD}".encode()).decode()
     url = "https://ws.smartbill.ro/SBORO/api/invoice/cancel"
-    headers = get_header(smartbill)
+    headers = {
+        "Authorization": f"Basic {credentials}",
+        "accept": "application/json",
+    }
     params = {
         "cif": cif,
         "seriesname": seriesname,
         "number": number
     }
 
-    response = await send_put_request(url, headers=headers, params=params, error_msg="cancel invoice")
-    if response.status_code != 200:
-        logging.error(f"Failed to cancel invoice from smartbill: {response.text}")
+    response = requests.put(url, headers=headers, params=params)
     return response
 
-async def reverse_invoice_smartbill(seriesname: str, factura_number: str, smartbill: Billing_software):
+def reverse_invoice_smartbill(seriesname: str, factura_number: str, smartbill: Billing_software):
+    USERNAME = smartbill.username
+    PASSWORD = smartbill.password
+    credentials = base64.b64encode(f"{USERNAME}:{PASSWORD}".encode()).decode()
+
     today = datetime.today()
     today = today.strftime("%Y-%m-%d")
     url = "https://ws.smartbill.ro/SBORO/api/invoice/reverse"
-    headers = get_header(smartbill)
+    headers = {
+        "accept": "application/json",
+        "authorization": f"Basic {credentials}",
+        "content-type": "application/json"
+    }
     cif = smartbill.registration_number
     data = ({
         "companyVatCode": cif,
@@ -490,5 +510,5 @@ async def reverse_invoice_smartbill(seriesname: str, factura_number: str, smartb
         "issueDate": today
     })
     logging.info(data)
-    response = await send_post_request(url, headers=headers, json=data, error_msg="reverse invoice")
+    response = requests.post(url, headers=headers, json=data)
     return response
