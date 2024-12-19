@@ -1,7 +1,7 @@
 import json
 import logging
 from fastapi import HTTPException
-
+import requests
 from app.models import Marketplace
 from app.utils.emag.orders import change_status
 from app.utils.auth_market import get_auth_marketplace
@@ -28,7 +28,7 @@ async def post_pdf(order_id: int, name: str, marketplace: Marketplace):
     result = response.json()
     return result
 
-async def post_factura_pdf(order_id: int, name: str, marketplace: Marketplace):
+def post_factura_pdf(order_id: int, name: str, marketplace: Marketplace):
     MARKETPLACE_API_URL = marketplace.baseAPIURL
     url = f"{MARKETPLACE_API_URL}/order/attachments/save"
     headers = get_auth_marketplace(marketplace)
@@ -40,7 +40,5 @@ async def post_factura_pdf(order_id: int, name: str, marketplace: Marketplace):
         "type": 1,
         "force_download": 1
     }]
-    response = await send_post_request(url=url, data=json.dumps(data), headers=headers, error_msg="post factura pdf")
-    if response.status_code != 200:
-        logging.error(f"Failed to post factura pdf to {MARKETPLACE_API_URL}: {response.text}")
+    response = requests.post(url, data=json.dumps(data), headers=headers)
     return response

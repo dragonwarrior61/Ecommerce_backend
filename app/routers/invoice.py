@@ -148,4 +148,4 @@ async def post_invoice(
         finally:
             settings.update_flag = 0
 
-    return response
+    return response.json()
