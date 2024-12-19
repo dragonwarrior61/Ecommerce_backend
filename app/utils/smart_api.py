@@ -361,15 +361,13 @@ async def refresh_storno_invoice(marketplace: Marketplace, db: AsyncSession):
             while starting_time + timedelta(seconds=3) > datetime.now():
                 continue
             starting_time = datetime.now()
-            response = await reverse_invoice_smartbill(seriesname, number, smartbill)
-            result = response.json()
-            if result is not None:
+            result = reverse_invoice_smartbill(seriesname, number, smartbill)
+            if result.status_code != 200:
                 logging.info(f"Failed generating storno invoice of {name}")
+            result = result.json()
             if result.get('errorText') != '':
                 logging.info(f"Error text of generaing storno inovice of {name} is {result.get('errorText')}")
-            if response.status_code != 200:
-                logging.error(f"Failed to reverse invoice: {response.text}")
-                continue
+            
             reverse_invoice = Reverse_Invoice()
             reverse_invoice.replacement_id = 0
             reverse_invoice.order_id = order.id
