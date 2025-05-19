@@ -10,7 +10,7 @@ from app.routers.auth import get_current_user
 from app.models.returns import Returns
 from app.models.team_member import Team_member
 from app.schemas.returns import ReturnsCreate, ReturnsRead, ReturnsUpdate
-from app.config import settings
+db: 
 
 router = APIRouter()
 
